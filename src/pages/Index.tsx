@@ -88,6 +88,13 @@ const Index = () => {
                   <p className="text-xs text-muted-foreground mt-1">
                     Across all projects and types
                   </p>
+                  <Link 
+                    to="/contracts"
+                    className="text-xs text-primary hover:underline inline-flex items-center mt-2"
+                  >
+                    View all contracts
+                    <ArrowRight className="h-3 w-3 ml-1" />
+                  </Link>
                 </>
               )}
             </CardContent>
@@ -109,6 +116,13 @@ const Index = () => {
                   <p className="text-xs text-muted-foreground mt-1">
                     Currently in force
                   </p>
+                  <Link 
+                    to="/contracts?status=active"
+                    className="text-xs text-primary hover:underline inline-flex items-center mt-2"
+                  >
+                    View active contracts
+                    <ArrowRight className="h-3 w-3 ml-1" />
+                  </Link>
                 </>
               )}
             </CardContent>
@@ -130,6 +144,13 @@ const Index = () => {
                   <p className="text-xs text-muted-foreground mt-1">
                     Within the next 30 days
                   </p>
+                  <Link 
+                    to="/contracts?filter=expiringSoon"
+                    className="text-xs text-primary hover:underline inline-flex items-center mt-2"
+                  >
+                    View expiring soon
+                    <ArrowRight className="h-3 w-3 ml-1" />
+                  </Link>
                 </>
               )}
             </CardContent>
@@ -151,6 +172,13 @@ const Index = () => {
                   <p className="text-xs text-muted-foreground mt-1">
                     Contracts expiring in {new Date().getFullYear()}
                   </p>
+                  <Link 
+                    to="/contracts?filter=expiringThisYear"
+                    className="text-xs text-primary hover:underline inline-flex items-center mt-2"
+                  >
+                    View all expiring this year
+                    <ArrowRight className="h-3 w-3 ml-1" />
+                  </Link>
                 </>
               )}
             </CardContent>
