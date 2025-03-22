@@ -1,16 +1,45 @@
 
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { getContractStats, contracts } from '@/lib/data';
+import { getContractStats, getContracts, Contract } from '@/lib/data';
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import { ArrowRight, Calendar, FileText, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import Navbar from '@/components/layout/Navbar';
+import AuthNavbar from '@/components/layout/AuthNavbar';
 import ContractCard from '@/components/contracts/ContractCard';
 import PageTransition from '@/components/layout/PageTransition';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const Index = () => {
-  const stats = getContractStats(contracts);
+  const [stats, setStats] = useState({
+    totalContracts: 0,
+    activeContracts: 0,
+    pendingContracts: 0,
+    expiringContracts: 0,
+    totalValue: 0
+  });
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const contractStats = await getContractStats();
+        setStats(contractStats);
+
+        const contractsList = await getContracts();
+        setContracts(contractsList);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
   
   // Get data for the chart
   const chartData = [
@@ -33,7 +62,7 @@ const Index = () => {
     
   return (
     <PageTransition>
-      <Navbar />
+      <AuthNavbar />
       <div className="container mx-auto p-4 sm:p-6">
         <header className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight mb-2">Contract Management Dashboard</h1>
@@ -51,10 +80,16 @@ const Index = () => {
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalContracts}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Across all projects and types
-              </p>
+              {loading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{stats.totalContracts}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Across all projects and types
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
           
@@ -66,10 +101,16 @@ const Index = () => {
               <FileText className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.activeContracts}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Currently in force
-              </p>
+              {loading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{stats.activeContracts}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Currently in force
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
           
@@ -81,10 +122,16 @@ const Index = () => {
               <Calendar className="h-4 w-4 text-yellow-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.expiringContracts}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Within the next 30 days
-              </p>
+              {loading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{stats.expiringContracts}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Within the next 30 days
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
           
@@ -96,10 +143,16 @@ const Index = () => {
               <Wallet className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${stats.totalValue.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Combined contract value
-              </p>
+              {loading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">${stats.totalValue.toLocaleString()}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Combined contract value
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -113,28 +166,34 @@ const Index = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-[200px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData}>
-                    <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                    <Tooltip 
-                      cursor={{fill: 'rgba(0, 0, 0, 0.05)'}} 
-                      contentStyle={{
-                        background: 'rgba(255, 255, 255, 0.8)',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
-                      }}
-                    />
-                    <Bar 
-                      dataKey="value" 
-                      fill="hsl(var(--primary))" 
-                      radius={[4, 4, 0, 0]}
-                      className="animate-slide-in"
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              {loading ? (
+                <div className="h-[200px] flex items-center justify-center">
+                  <Skeleton className="h-full w-full" />
+                </div>
+              ) : (
+                <div className="h-[200px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData}>
+                      <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                      <Tooltip 
+                        cursor={{fill: 'rgba(0, 0, 0, 0.05)'}} 
+                        contentStyle={{
+                          background: 'rgba(255, 255, 255, 0.8)',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '8px',
+                          boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                        }}
+                      />
+                      <Bar 
+                        dataKey="value" 
+                        fill="hsl(var(--primary))" 
+                        radius={[4, 4, 0, 0]}
+                        className="animate-slide-in"
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </CardContent>
           </Card>
           
@@ -154,31 +213,41 @@ const Index = () => {
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {activeContracts.length > 0 ? (
-                  activeContracts.map(contract => (
-                    <div key={contract.id} className="flex justify-between items-center border-b pb-3 last:border-0">
-                      <div>
-                        <h4 className="font-medium">{contract.title}</h4>
-                        <p className="text-sm text-muted-foreground">{contract.projectName}</p>
-                      </div>
-                      <div className="text-right">
-                        {contract.endDate ? (
-                          <p className="text-sm font-medium">
-                            Expires: {new Date(contract.endDate).toLocaleDateString()}
-                          </p>
-                        ) : (
-                          <p className="text-sm font-medium">Ongoing</p>
-                        )}
-                      </div>
+              {loading ? (
+                <div className="space-y-4">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="flex justify-between items-center border-b pb-3 last:border-0">
+                      <Skeleton className="h-14 w-full" />
                     </div>
-                  ))
-                ) : (
-                  <p className="text-center text-muted-foreground py-4">
-                    No upcoming expirations
-                  </p>
-                )}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {activeContracts.length > 0 ? (
+                    activeContracts.map(contract => (
+                      <div key={contract.id} className="flex justify-between items-center border-b pb-3 last:border-0">
+                        <div>
+                          <h4 className="font-medium">{contract.title}</h4>
+                          <p className="text-sm text-muted-foreground">{contract.projectName}</p>
+                        </div>
+                        <div className="text-right">
+                          {contract.endDate ? (
+                            <p className="text-sm font-medium">
+                              Expires: {new Date(contract.endDate).toLocaleDateString()}
+                            </p>
+                          ) : (
+                            <p className="text-sm font-medium">Ongoing</p>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-center text-muted-foreground py-4">
+                      No upcoming expirations
+                    </p>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -191,11 +260,19 @@ const Index = () => {
             </Button>
           </div>
           
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {contracts.slice(0, 3).map(contract => (
-              <ContractCard key={contract.id} contract={contract} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-48 w-full" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {contracts.slice(0, 3).map(contract => (
+                <ContractCard key={contract.id} contract={contract} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </PageTransition>

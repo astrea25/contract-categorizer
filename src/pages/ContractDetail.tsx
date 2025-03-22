@@ -5,14 +5,15 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import Navbar from '@/components/layout/Navbar';
+import AuthNavbar from '@/components/layout/AuthNavbar';
 import ContractStatusBadge from '@/components/contracts/ContractStatusBadge';
 import ContractForm from '@/components/contracts/ContractForm';
-import { Contract, ContractType, contracts, contractTypeLabels } from '@/lib/data';
+import { Contract, ContractType, getContract, updateContract, contractTypeLabels } from '@/lib/data';
 import { ArrowLeft, CalendarClock, Edit, FileText, Users, Wallet } from 'lucide-react';
 import { formatDistance } from 'date-fns';
 import { toast } from 'sonner';
 import PageTransition from '@/components/layout/PageTransition';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const ContractDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -22,42 +23,52 @@ const ContractDetail = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // In a real app, this would be an API call
-    const fetchContract = () => {
-      setLoading(true);
-      setTimeout(() => {
-        const foundContract = contracts.find(c => c.id === id);
-        if (foundContract) {
-          setContract(foundContract);
+    const fetchContract = async () => {
+      if (!id) return;
+      
+      try {
+        setLoading(true);
+        const contractData = await getContract(id);
+        
+        if (contractData) {
+          setContract(contractData);
           setError(null);
         } else {
           setError('Contract not found');
         }
+      } catch (error) {
+        console.error("Error fetching contract:", error);
+        setError('Failed to load contract details');
+      } finally {
         setLoading(false);
-      }, 500); // Simulate API delay
+      }
     };
 
     fetchContract();
   }, [id]);
 
-  const handleSaveContract = (updatedData: Partial<Contract>) => {
-    if (!contract) return;
+  const handleSaveContract = async (updatedData: Partial<Contract>) => {
+    if (!contract || !id) return;
     
-    // In a real app, this would update the data in the backend
-    const updatedContract: Contract = {
-      ...contract,
-      ...updatedData,
-      updatedAt: new Date().toISOString(),
-    };
-    
-    setContract(updatedContract);
-    toast.success('Contract updated successfully');
+    try {
+      await updateContract(id, updatedData);
+      
+      // Refresh contract data
+      const updatedContract = await getContract(id);
+      if (updatedContract) {
+        setContract(updatedContract);
+        toast.success('Contract updated successfully');
+      }
+    } catch (error) {
+      console.error("Error updating contract:", error);
+      toast.error('Failed to update contract');
+    }
   };
 
   if (loading) {
     return (
       <>
-        <Navbar />
+        <AuthNavbar />
         <div className="container mx-auto p-4 sm:p-6 flex justify-center items-center min-h-[60vh]">
           <div className="text-center">
             <div className="animate-pulse h-12 w-48 bg-muted rounded-lg mb-4 mx-auto"></div>
@@ -76,7 +87,7 @@ const ContractDetail = () => {
   if (error) {
     return (
       <>
-        <Navbar />
+        <AuthNavbar />
         <div className="container mx-auto p-4 sm:p-6">
           <Alert variant="destructive" className="mb-4">
             <AlertDescription>{error}</AlertDescription>
@@ -100,7 +111,7 @@ const ContractDetail = () => {
 
   return (
     <PageTransition>
-      <Navbar />
+      <AuthNavbar />
       <div className="container mx-auto p-4 sm:p-6">
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
