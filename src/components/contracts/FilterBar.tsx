@@ -187,12 +187,13 @@ const FilterBar = ({ onFilterChange, className }: FilterBarProps) => {
                     from: dateRange.from,
                     to: dateRange.to,
                   }}
-                  onSelect={(range) => 
-                    setDateRange({ 
-                      from: range?.from ?? null, 
-                      to: range?.to ?? null 
-                    })
-                  }
+                  onSelect={(range) => {
+                    console.log("Selected date range:", range);
+                    setDateRange({
+                      from: range?.from ?? null,
+                      to: range?.to ?? null
+                    });
+                  }}
                   numberOfMonths={2}
                 />
               </PopoverContent>

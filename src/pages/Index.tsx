@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getContractStats, getContracts, Contract } from '@/lib/data';
@@ -17,7 +16,8 @@ const Index = () => {
     activeContracts: 0,
     pendingContracts: 0,
     expiringContracts: 0,
-    totalValue: 0
+    totalValue: 0,
+    expiringThisYear: 0
   });
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
@@ -138,18 +138,18 @@ const Index = () => {
           <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">
-                Total Value
+                Expiring This Year
               </CardTitle>
-              <Wallet className="h-4 w-4 text-green-500" />
+              <Calendar className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
               {loading ? (
                 <Skeleton className="h-8 w-16" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">${stats.totalValue.toLocaleString()}</div>
+                  <div className="text-2xl font-bold">{stats.expiringThisYear}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Combined contract value
+                    Contracts expiring in {new Date().getFullYear()}
                   </p>
                 </>
               )}
