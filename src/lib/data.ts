@@ -8,6 +8,7 @@ export interface Contract {
   projectName: string;
   type: ContractType;
   status: ContractStatus;
+  owner: string;
   parties: {
     name: string;
     role: string;
@@ -64,6 +65,7 @@ export const contracts: Contract[] = [
     projectName: 'Website Redesign',
     type: 'service',
     status: 'active',
+    owner: 'John Doe',
     parties: [
       { name: 'Acme Corp', role: 'Client' },
       { name: 'TechSolutions Inc', role: 'Provider' }
@@ -81,6 +83,7 @@ export const contracts: Contract[] = [
     projectName: 'HR Department',
     type: 'employment',
     status: 'active',
+    owner: 'Sarah Williams',
     parties: [
       { name: 'Acme Corp', role: 'Employer' },
       { name: 'Jane Smith', role: 'Employee' }
@@ -98,6 +101,7 @@ export const contracts: Contract[] = [
     projectName: 'CRM Implementation',
     type: 'licensing',
     status: 'pending',
+    owner: 'Michael Chang',
     parties: [
       { name: 'Acme Corp', role: 'Licensee' },
       { name: 'SaaS Solutions', role: 'Licensor' }
@@ -115,6 +119,7 @@ export const contracts: Contract[] = [
     projectName: 'Product Launch Campaign',
     type: 'nda',
     status: 'active',
+    owner: 'Lisa Johnson',
     parties: [
       { name: 'Acme Corp', role: 'Disclosing Party' },
       { name: 'CreativeMinds Agency', role: 'Receiving Party' }
@@ -132,6 +137,7 @@ export const contracts: Contract[] = [
     projectName: 'International Expansion',
     type: 'partnership',
     status: 'draft',
+    owner: 'Robert Chen',
     parties: [
       { name: 'Acme Corp', role: 'Manufacturer' },
       { name: 'Global Distributors Ltd', role: 'Distributor' }
@@ -149,6 +155,7 @@ export const contracts: Contract[] = [
     projectName: 'Infrastructure Maintenance',
     type: 'service',
     status: 'expired',
+    owner: 'James Wilson',
     parties: [
       { name: 'Acme Corp', role: 'Client' },
       { name: 'IT Experts LLC', role: 'Provider' }
@@ -166,6 +173,7 @@ export const contracts: Contract[] = [
     projectName: 'Mobile App Development',
     type: 'employment',
     status: 'terminated',
+    owner: 'Emily Parker',
     parties: [
       { name: 'Acme Corp', role: 'Employer' },
       { name: 'John Doe', role: 'Contractor' }
@@ -183,6 +191,7 @@ export const contracts: Contract[] = [
     projectName: 'Facilities',
     type: 'service',
     status: 'active',
+    owner: 'Alex Thompson',
     parties: [
       { name: 'Acme Corp', role: 'Tenant' },
       { name: 'Downtown Properties', role: 'Landlord' }
@@ -212,6 +221,46 @@ export const filterByProject = (contracts: Contract[], project?: string): Contra
   return contracts.filter(contract => 
     contract.projectName.toLowerCase().includes(project.toLowerCase())
   );
+};
+
+export const filterByOwner = (contracts: Contract[], owner?: string): Contract[] => {
+  if (!owner) return contracts;
+  return contracts.filter(contract => 
+    contract.owner.toLowerCase().includes(owner.toLowerCase())
+  );
+};
+
+export const filterByParty = (contracts: Contract[], party?: string): Contract[] => {
+  if (!party) return contracts;
+  return contracts.filter(contract => 
+    contract.parties.some(p => p.name.toLowerCase().includes(party.toLowerCase()))
+  );
+};
+
+export const filterByDateRange = (
+  contracts: Contract[], 
+  startDate?: string | null, 
+  endDate?: string | null
+): Contract[] => {
+  if (!startDate && !endDate) return contracts;
+  
+  return contracts.filter(contract => {
+    // Filter by start date
+    if (startDate && contract.startDate) {
+      if (new Date(contract.startDate) < new Date(startDate)) {
+        return false;
+      }
+    }
+    
+    // Filter by end date
+    if (endDate && contract.endDate) {
+      if (new Date(contract.endDate) > new Date(endDate)) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
 };
 
 // Summary statistics

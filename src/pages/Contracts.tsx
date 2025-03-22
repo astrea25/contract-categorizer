@@ -1,14 +1,27 @@
 
 import { useState, useMemo } from 'react';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Navbar from '@/components/layout/Navbar';
 import FilterBar from '@/components/contracts/FilterBar';
 import ContractCard from '@/components/contracts/ContractCard';
 import ContractForm from '@/components/contracts/ContractForm';
-import { Contract, ContractStatus, ContractType, contracts, filterByProject, filterByStatus, filterByType } from '@/lib/data';
+import { 
+  Contract, 
+  ContractStatus, 
+  ContractType, 
+  contracts, 
+  filterByProject, 
+  filterByStatus, 
+  filterByType,
+  filterByOwner,
+  filterByParty,
+  filterByDateRange
+} from '@/lib/data';
 import { useToast } from '@/components/ui/use-toast';
 import PageTransition from '@/components/layout/PageTransition';
+import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
 
 const Contracts = () => {
   const { toast } = useToast();
@@ -18,10 +31,31 @@ const Contracts = () => {
     status: 'all' as ContractStatus | 'all',
     type: 'all' as ContractType | 'all',
     project: '',
+    owner: '',
+    party: '',
+    dateRange: {
+      from: null as Date | null,
+      to: null as Date | null,
+    },
   });
 
   const handleFilterChange = (newFilters: typeof filters) => {
     setFilters(newFilters);
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      search: '',
+      status: 'all',
+      type: 'all',
+      project: '',
+      owner: '',
+      party: '',
+      dateRange: {
+        from: null,
+        to: null,
+      },
+    });
   };
 
   const handleSaveContract = (newContract: Partial<Contract>) => {
@@ -35,6 +69,7 @@ const Contracts = () => {
       projectName: newContract.projectName || 'Unassigned',
       type: newContract.type || 'service',
       status: newContract.status || 'draft',
+      owner: newContract.owner || 'Unassigned',
       parties: newContract.parties || [],
       startDate: newContract.startDate || now.split('T')[0],
       endDate: newContract.endDate || null,
@@ -63,6 +98,19 @@ const Contracts = () => {
     // Filter by project
     result = filterByProject(result, filters.project);
     
+    // Filter by owner
+    result = filterByOwner(result, filters.owner);
+    
+    // Filter by party
+    result = filterByParty(result, filters.party);
+    
+    // Filter by date range
+    if (filters.dateRange.from || filters.dateRange.to) {
+      const fromStr = filters.dateRange.from ? filters.dateRange.from.toISOString().split('T')[0] : null;
+      const toStr = filters.dateRange.to ? filters.dateRange.to.toISOString().split('T')[0] : null;
+      result = filterByDateRange(result, fromStr, toStr);
+    }
+    
     // Filter by search term (title or description)
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
@@ -75,6 +123,17 @@ const Contracts = () => {
     
     return result;
   }, [contractsList, filters]);
+
+  // Check if any filters are active
+  const hasActiveFilters = 
+    filters.search !== '' || 
+    filters.status !== 'all' || 
+    filters.type !== 'all' || 
+    filters.project !== '' ||
+    filters.owner !== '' ||
+    filters.party !== '' ||
+    filters.dateRange.from !== null ||
+    filters.dateRange.to !== null;
 
   return (
     <PageTransition>
@@ -103,6 +162,73 @@ const Contracts = () => {
             onFilterChange={handleFilterChange}
             className="glass p-4 rounded-lg"
           />
+          
+          {hasActiveFilters && (
+            <div className="mt-4 flex flex-wrap gap-2 items-center">
+              <span className="text-sm text-muted-foreground">Active filters:</span>
+              
+              {filters.status !== 'all' && (
+                <Badge variant="secondary" className="flex items-center gap-1">
+                  Status: {filters.status}
+                  <X size={14} className="cursor-pointer" onClick={() => setFilters({...filters, status: 'all'})} />
+                </Badge>
+              )}
+              
+              {filters.type !== 'all' && (
+                <Badge variant="secondary" className="flex items-center gap-1">
+                  Type: {filters.type}
+                  <X size={14} className="cursor-pointer" onClick={() => setFilters({...filters, type: 'all'})} />
+                </Badge>
+              )}
+              
+              {filters.project && (
+                <Badge variant="secondary" className="flex items-center gap-1">
+                  Project: {filters.project}
+                  <X size={14} className="cursor-pointer" onClick={() => setFilters({...filters, project: ''})} />
+                </Badge>
+              )}
+              
+              {filters.owner && (
+                <Badge variant="secondary" className="flex items-center gap-1">
+                  Owner: {filters.owner}
+                  <X size={14} className="cursor-pointer" onClick={() => setFilters({...filters, owner: ''})} />
+                </Badge>
+              )}
+              
+              {filters.party && (
+                <Badge variant="secondary" className="flex items-center gap-1">
+                  Party: {filters.party}
+                  <X size={14} className="cursor-pointer" onClick={() => setFilters({...filters, party: ''})} />
+                </Badge>
+              )}
+              
+              {(filters.dateRange.from || filters.dateRange.to) && (
+                <Badge variant="secondary" className="flex items-center gap-1">
+                  Dates: {filters.dateRange.from ? format(filters.dateRange.from, 'PP') : 'Any'} - 
+                  {filters.dateRange.to ? format(filters.dateRange.to, 'PP') : 'Any'}
+                  <X 
+                    size={14} 
+                    className="cursor-pointer" 
+                    onClick={() => setFilters({
+                      ...filters, 
+                      dateRange: {from: null, to: null}
+                    })} 
+                  />
+                </Badge>
+              )}
+              
+              {hasActiveFilters && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={clearFilters}
+                  className="ml-auto"
+                >
+                  Clear all
+                </Button>
+              )}
+            </div>
+          )}
         </header>
         
         {filteredContracts.length > 0 ? (
@@ -123,7 +249,7 @@ const Contracts = () => {
             </p>
             <Button 
               variant="outline" 
-              onClick={() => setFilters({ search: '', status: 'all', type: 'all', project: '' })}
+              onClick={clearFilters}
             >
               Reset Filters
             </Button>
