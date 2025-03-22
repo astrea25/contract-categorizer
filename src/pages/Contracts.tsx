@@ -92,6 +92,7 @@ const Contracts = () => {
         endDate: newContract.endDate || null,
         value: newContract.value || null,
         description: newContract.description || '',
+        documentLink: newContract.documentLink || '',
       } as Omit<Contract, 'id' | 'createdAt' | 'updatedAt'>;
       
       await createContract(contractToAdd);
@@ -254,7 +255,6 @@ const Contracts = () => {
             </div>
           )}
         </header>
-        
         {loading ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[...Array(6)].map((_, i) => (
@@ -264,10 +264,10 @@ const Contracts = () => {
         ) : filteredContracts.length > 0 ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {filteredContracts.map(contract => (
-              <ContractCard 
-                key={contract.id} 
-                contract={contract} 
-                className="animate-slide-in" 
+              <ContractCard
+                key={contract.id}
+                contract={contract}
+                className="animate-slide-in"
               />
             ))}
           </div>

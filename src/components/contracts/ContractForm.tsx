@@ -111,13 +111,13 @@ const ContractForm = ({ initialData, onSave, trigger }: ContractFormProps) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate required fields
     if (!formData.title || !formData.projectName || !formData.startDate) {
       toast.error('Please fill in all required fields');
       return;
     }
-    
+
     onSave({ ...formData, parties });
     toast.success('Contract saved successfully');
     setOpen(false);
@@ -308,11 +308,18 @@ const ContractForm = ({ initialData, onSave, trigger }: ContractFormProps) => {
                     />
                   </div>
                   <div className="flex-1">
-                    <Input
-                      placeholder="Role (e.g., Client, Provider)"
+                    <Select
                       value={party.role}
-                      onChange={(e) => handlePartyChange(index, 'role', e.target.value)}
-                    />
+                      onValueChange={(value) => handlePartyChange(index, 'role', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="owner">Owner</SelectItem>
+                        <SelectItem value="client">Client</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <Button
                     type="button"
@@ -339,6 +346,18 @@ const ContractForm = ({ initialData, onSave, trigger }: ContractFormProps) => {
                 className="min-h-[100px]"
               />
             </div>
+          </div>
+      
+          <div className="space-y-2">
+            <Label htmlFor="documentLink">Document Link</Label>
+            <Input
+              id="documentLink"
+              name="documentLink"
+              type="url"
+              value={formData.documentLink || ''}
+              onChange={handleInputChange}
+              placeholder="Enter document link"
+            />
           </div>
           
           <DialogFooter>

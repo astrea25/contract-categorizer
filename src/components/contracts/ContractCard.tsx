@@ -69,6 +69,15 @@ const ContractCard = ({ contract, className }: ContractCardProps) => {
             </span>
           </div>
         </div>
+
+        {contract.documentLink && (
+          <div className="flex items-center text-sm">
+            <FileText size={16} className="mr-2 text-muted-foreground" />
+            <a href={contract.documentLink} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:underline">
+              Document Link
+            </a>
+          </div>
+        )}
       </CardContent>
       
       <CardFooter className="bg-secondary/30 px-6 py-3 flex justify-between items-center">

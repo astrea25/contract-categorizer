@@ -32,6 +32,7 @@ export interface Contract {
   endDate: string | null;
   value: number | null;
   description: string;
+  documentLink?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -81,10 +82,11 @@ export const getContracts = async (): Promise<Contract[]> => {
     return {
       id: doc.id,
       ...data,
-      createdAt: data.createdAt.toDate().toISOString(),
-      updatedAt: data.updatedAt.toDate().toISOString(),
+      createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate().toISOString() : data.createdAt) : null,
+      updatedAt: data.updatedAt ? (data.updatedAt.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt) : null,
       startDate: data.startDate,
-      endDate: data.endDate
+      endDate: data.endDate,
+      documentLink: data.documentLink,
     } as Contract;
   });
 };
@@ -101,23 +103,27 @@ export const getContract = async (id: string): Promise<Contract | null> => {
   return {
     id: contractSnapshot.id,
     ...data,
-    createdAt: data.createdAt.toDate().toISOString(),
-    updatedAt: data.updatedAt.toDate().toISOString(),
+    createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate().toISOString() : data.createdAt) : null,
+    updatedAt: data.updatedAt ? (data.updatedAt.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt) : null,
     startDate: data.startDate,
-    endDate: data.endDate
+    endDate: data.endDate,
+    documentLink: data.documentLink,
   } as Contract;
 };
-
-export const createContract = async (contract: Omit<Contract, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
+export const createContract = async (
+  contract: Omit<Contract, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<string> => {
   const now = Timestamp.now();
-  
+
   const contractToCreate = {
     ...contract,
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
   };
-  
+
   const docRef = await addDoc(collection(db, 'contracts'), contractToCreate);
+  return docRef.id;
+  console.log('createContract - Contract Data:', contractToCreate); // Add log here
   return docRef.id;
 };
 
@@ -154,8 +160,11 @@ export const filterByProject = (contracts: Contract[], project?: string): Contra
 
 export const filterByOwner = (contracts: Contract[], owner?: string): Contract[] => {
   if (!owner) return contracts;
-  return contracts.filter(contract => 
-    contract.owner.toLowerCase().includes(owner.toLowerCase())
+  return contracts.filter(contract =>
+    contract.parties.some(party =>
+      party.name.toLowerCase().includes(owner.toLowerCase()) &&
+      party.role.toLowerCase() === 'owner'
+    )
   );
 };
 
@@ -214,6 +223,7 @@ export const getContractStats = async () => {
   const totalValue = contracts.reduce((sum, contract) => {
     return sum + (contract.value || 0);
   }, 0);
+  
   
   return {
     totalContracts,

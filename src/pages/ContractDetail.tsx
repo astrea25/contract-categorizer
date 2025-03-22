@@ -238,6 +238,19 @@ const ContractDetail = () => {
             </CardContent>
           </Card>
         </div>
+
+        {contract.documentLink && (
+          <Card className="mb-8 overflow-hidden transition-all duration-300 hover:shadow-md">
+            <CardHeader>
+              <CardTitle>Document Link</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <a href={contract.documentLink} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+                View Document
+              </a>
+            </CardContent>
+          </Card>
+        )}
         
         <Card className="mb-8 overflow-hidden transition-all duration-300 hover:shadow-md">
           <CardHeader>
