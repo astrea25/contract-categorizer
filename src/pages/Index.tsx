@@ -32,7 +32,7 @@ const Index = () => {
         const contractsList = await getContracts();
         setContracts(contractsList);
       } catch (error) {
-        console.error("Error fetching data:", error);
+  
       } finally {
         setLoading(false);
       }
@@ -41,7 +41,6 @@ const Index = () => {
     fetchData();
   }, []);
   
-  // Get data for the chart
   const chartData = [
     { name: 'Active', value: stats.activeContracts },
     { name: 'Pending', value: stats.pendingContracts },
@@ -50,7 +49,6 @@ const Index = () => {
     { name: 'Terminated', value: contracts.filter(c => c.status === 'terminated').length },
   ];
   
-  // Get the active contracts sorted by end date (nearest first)
   const activeContracts = contracts
     .filter(c => c.status === 'active')
     .sort((a, b) => {

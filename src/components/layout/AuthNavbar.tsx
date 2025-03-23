@@ -14,7 +14,6 @@ const AuthNavbar = () => {
       await signOut();
       toast.success("Successfully signed out");
     } catch (error) {
-      console.error("Sign out error:", error);
       toast.error("Failed to sign out");
     }
   };

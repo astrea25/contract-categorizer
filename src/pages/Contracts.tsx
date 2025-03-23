@@ -52,17 +52,17 @@ const Contracts = () => {
 
   useEffect(() => {
     const fetchContracts = async () => {
-      console.log("fetchContracts: fetching contracts...");
+      
       try {
         setLoading(true);
         const contractsList = await getContracts();
         setContracts(contractsList);
       } catch (error) {
-        console.error("Error fetching contracts:", error);
+
         toast.error("Failed to load contracts");
       } finally {
         setLoading(false);
-        console.log("fetchContracts: finished fetching contracts.");
+        
       }
     };
 
@@ -74,7 +74,6 @@ const Contracts = () => {
       const allContracts = await getContracts();
       let filteredContracts = [...allContracts];
 
-      // Apply filters based on URL parameters
       if (status) {
         filteredContracts = filteredContracts.filter(contract => contract.status === status);
       }
@@ -144,7 +143,6 @@ const Contracts = () => {
 
       await createContract(contractToAdd);
       
-      // Refresh the contracts list
       const updatedContracts = await getContracts();
       setContracts(updatedContracts);
 
@@ -153,7 +151,7 @@ const Contracts = () => {
         description: 'Your new contract has been created successfully.',
       });
     } catch (error) {
-      console.error("Error creating contract:", error);
+
       toast.error("Failed to create contract");
     }
   };
@@ -161,29 +159,18 @@ const Contracts = () => {
   const filteredContracts = useMemo(() => {
     let result = [...contracts];
 
-    // Filter by status
     result = filterByStatus(result, filters.status);
-
-    // Filter by type
     result = filterByType(result, filters.type);
-
-    // Filter by project
     result = filterByProject(result, filters.project);
-    
-    // Filter by owner
     result = filterByOwner(result, filters.owner);
-
-    // Filter by party
     result = filterByParty(result, filters.party);
 
-    // Filter by date range
     if (filters.dateRange.from || filters.dateRange.to) {
       const fromStr = filters.dateRange.from ? filters.dateRange.from.toISOString().split('T')[0] : null;
       const toStr = filters.dateRange.to ? filters.dateRange.to.toISOString().split('T')[0] : null;
       result = filterByDateRange(result, fromStr, toStr);
     }
     
-    // Filter by search term (title or description)
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
       result = result.filter(
@@ -195,7 +182,6 @@ const Contracts = () => {
     return result;
   }, [contracts, filters]);
 
-  // Check if any filters are active
   const hasActiveFilters = 
     filters.search !== '' || 
     filters.status !== 'all' || 

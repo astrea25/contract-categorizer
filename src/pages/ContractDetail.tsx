@@ -37,7 +37,7 @@ const ContractDetail = () => {
           setError('Contract not found');
         }
       } catch (error) {
-        console.error("Error fetching contract:", error);
+
         setError('Failed to load contract details');
       } finally {
         setLoading(false);
@@ -53,14 +53,13 @@ const ContractDetail = () => {
     try {
       await updateContract(id, updatedData);
       
-      // Refresh contract data
       const updatedContract = await getContract(id);
       if (updatedContract) {
         setContract(updatedContract);
         toast.success('Contract updated successfully');
       }
     } catch (error) {
-      console.error("Error updating contract:", error);
+
       toast.error('Failed to update contract');
     }
   };

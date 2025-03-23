@@ -23,10 +23,9 @@ const Login = () => {
       toast.success("Logged in successfully");
       navigate("/");
     } catch (error: any) {
-      console.error("Login error:", error);
+
       
-      // Handle specific Firebase errors
-      if (error.code === 'auth/unauthorized-domain') {
+          if (error.code === 'auth/unauthorized-domain') {
         setError("This domain is not authorized for authentication. Please add it to your Firebase console's authorized domains list.");
       } else {
         setError("Failed to login with Google. Please try again.");

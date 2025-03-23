@@ -50,7 +50,7 @@ const FilterBar = ({ onFilterChange, className }: FilterBarProps) => {
   const [activeTab, setActiveTab] = useState('basic');
 
   useEffect(() => {
-    // Small delay to avoid too many filter events
+
     const handler = setTimeout(() => {
       onFilterChange({ search, status, type, project, owner, party, dateRange });
     }, 300);
@@ -188,7 +188,6 @@ const FilterBar = ({ onFilterChange, className }: FilterBarProps) => {
                     to: dateRange.to,
                   }}
                   onSelect={(range) => {
-                    console.log("Selected date range:", range);
                     setDateRange({
                       from: range?.from ?? null,
                       to: range?.to ?? null

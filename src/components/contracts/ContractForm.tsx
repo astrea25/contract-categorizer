@@ -112,7 +112,7 @@ const ContractForm = ({ initialData, onSave, trigger }: ContractFormProps) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate required fields
+    
     if (!formData.title || !formData.projectName || !formData.startDate) {
       toast.error('Please fill in all required fields');
       return;

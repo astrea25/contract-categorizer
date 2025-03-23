@@ -81,7 +81,7 @@ export const contractTypeLabels: Record<ContractType, string> = {
   partnership: 'Partnership Agreement'
 };
 
-// Firestore functions
+
 export const getContracts = async (): Promise<Contract[]> => {
   const contractsCollection = collection(db, 'contracts');
   const contractsSnapshot = await getDocs(contractsCollection);
@@ -119,7 +119,7 @@ export const getContract = async (id: string): Promise<Contract | null> => {
   } as Contract;
 };
 
-// First fix createContract function
+
 export const createContract = async (
   contract: Omit<Contract, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<string> => {
@@ -129,7 +129,6 @@ export const createContract = async (
     createdAt: now,
     updatedAt: now,
   };
-  console.log('createContract - Contract Data:', contractToCreate);
   const docRef = await addDoc(collection(db, 'contracts'), contractToCreate);
   return docRef.id;
 };
@@ -147,7 +146,7 @@ export const deleteContract = async (id: string): Promise<void> => {
   await deleteDoc(contractRef);
 };
 
-// Filter functions
+
 export const filterByStatus = (contracts: Contract[], status?: ContractStatus | 'all'): Contract[] => {
   if (!status || status === 'all') return contracts;
   return contracts.filter(contract => contract.status === status);
@@ -190,14 +189,14 @@ export const filterByDateRange = (
   if (!startDate && !endDate) return contracts;
   
   return contracts.filter(contract => {
-    // Filter by start date
+    
     if (startDate && contract.startDate) {
       if (new Date(contract.startDate) < new Date(startDate)) {
         return false;
       }
     }
     
-    // Filter by end date
+    
     if (endDate && contract.endDate) {
       if (new Date(contract.endDate) > new Date(endDate)) {
         return false;
@@ -208,36 +207,25 @@ export const filterByDateRange = (
   });
 };
 
-// Summary statistics
-// Update getContractStats with improved date handling and logging
+
+
 export const getContractStats = async (): Promise<ContractStats> => {
-  console.log("getContractStats called");
+
   try {
     const contracts = await getContracts();
-    console.log("Raw contracts data:", contracts);
 
     const now = new Date();
     const currentYear = now.getFullYear();
     const thirtyDaysFromNow = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
 
-    // Debug each contract's data
-    contracts.forEach(c => {
-      console.log(`Contract ${c.id}:`, {
-        status: c.status,
-        endDate: c.endDate,
-        parsedEndDate: c.endDate ? new Date(c.endDate) : null,
-        value: c.value
-      });
-    });
-
     const totalContracts = contracts.length;
     const activeContracts = contracts.filter(c => c.status === 'active').length;
     const pendingContracts = contracts.filter(c => c.status === 'pending').length;
 
-    // Modified expiring contracts calculation
+    
     const expiringContracts = contracts.filter(c => {
       if (!c.endDate) {
-        console.log(`Contract ${c.id}: No end date`);
+        
         return false;
       }
 
@@ -245,15 +233,15 @@ export const getContractStats = async (): Promise<ContractStats> => {
         const endDate = new Date(c.endDate);
         
         if (isNaN(endDate.getTime())) {
-          console.log(`Contract ${c.id}: Invalid end date format`);
+          
           return false;
         }
 
         const isExpiringSoon = endDate <= thirtyDaysFromNow && endDate >= now;
-        console.log(`Contract ${c.id}: Expiring soon: ${isExpiringSoon}, EndDate: ${endDate.toISOString()}`);
+        
         return isExpiringSoon;
       } catch (error) {
-        console.log(`Contract ${c.id}: Error processing date`, error);
+        
         return false;
       }
     }).length;
@@ -262,10 +250,10 @@ export const getContractStats = async (): Promise<ContractStats> => {
       return sum + (contract.value || 0);
     }, 0);
 
-    // Modified expiring this year calculation
+    
     const expiringThisYear = contracts.filter(c => {
       if (!c.endDate) {
-        console.log(`Contract ${c.id}: No end date for yearly check`);
+        
         return false;
       }
 
@@ -273,15 +261,15 @@ export const getContractStats = async (): Promise<ContractStats> => {
         const endDate = new Date(c.endDate);
         
         if (isNaN(endDate.getTime())) {
-          console.log(`Contract ${c.id}: Invalid end date format for yearly check`);
+          
           return false;
         }
 
         const isExpiringThisYear = endDate.getFullYear() === currentYear;
-        console.log(`Contract ${c.id}: Expiring this year: ${isExpiringThisYear}, EndDate: ${endDate.toISOString()}`);
+        
         return isExpiringThisYear;
       } catch (error) {
-        console.log(`Contract ${c.id}: Error processing date for yearly check`, error);
+        
         return false;
       }
     }).length;
@@ -295,10 +283,10 @@ export const getContractStats = async (): Promise<ContractStats> => {
       expiringThisYear
     };
 
-    console.log("Final calculated stats:", stats);
+    
     return stats;
   } catch (error) {
-    console.error("Error in getContractStats:", error);
+    
     throw error;
   }
 };
