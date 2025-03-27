@@ -2,7 +2,8 @@
 import { Contract, contractTypeLabels } from '@/lib/data';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import ContractStatusBadge from './ContractStatusBadge';
-import { Calendar, DollarSign, FileText, Users } from 'lucide-react';
+import { ShareDialog } from './ShareDialog';
+import { Calendar, DollarSign, FileText, Users, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
@@ -84,12 +85,15 @@ const ContractCard = ({ contract, className }: ContractCardProps) => {
         <span className="text-xs text-muted-foreground">
           Updated {updatedTimeAgo}
         </span>
-        <Button asChild size="sm" variant="ghost" className="gap-1">
-          <Link to={`/contract/${id}`}>
-            <span>View</span>
-            <FileText size={14} />
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <ShareDialog contractId={id} />
+          <Button asChild size="sm" variant="ghost" className="gap-1">
+            <Link to={`/contract/${id}`}>
+              <span>View</span>
+              <FileText size={14} />
+            </Link>
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   );

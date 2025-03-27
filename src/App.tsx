@@ -9,6 +9,7 @@ import { PrivateRoute } from "@/components/auth/PrivateRoute";
 import Index from "./pages/Index";
 import Contracts from "./pages/Contracts";
 import ContractDetail from "./pages/ContractDetail";
+import AcceptInvite from "./pages/AcceptInvite";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -29,6 +30,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/contracts" element={<Contracts />} />
               <Route path="/contract/:id" element={<ContractDetail />} />
+              <Route path="/accept-invite/:inviteId" element={<AcceptInvite />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />

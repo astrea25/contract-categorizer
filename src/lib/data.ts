@@ -43,6 +43,21 @@ export interface Contract {
   documentLink?: string;
   createdAt: string;
   updatedAt: string;
+  sharedWith: {
+    email: string;
+    role: 'viewer' | 'editor';
+    inviteStatus: 'pending' | 'accepted';
+  }[];
+}
+
+export interface ShareInvite {
+  id: string;
+  contractId: string;
+  email: string;
+  role: 'viewer' | 'editor';
+  status: 'pending' | 'accepted';
+  invitedBy: string;
+  createdAt: string;
 }
 
 export const statusColors: Record<ContractStatus, { bg: string; text: string; border: string }> = {
@@ -146,6 +161,82 @@ export const deleteContract = async (id: string): Promise<void> => {
   await deleteDoc(contractRef);
 };
 
+export const createShareInvite = async (contractId: string, email: string, role: 'viewer' | 'editor', invitedBy: string): Promise<string> => {
+  console.log('Creating share invite in Firestore:', { contractId, email, role, invitedBy });
+  
+  try {
+    const now = Timestamp.now();
+    const invite: Omit<ShareInvite, 'id'> = {
+      contractId,
+      email,
+      role,
+      status: 'pending',
+      invitedBy,
+      createdAt: now.toDate().toISOString()
+    };
+
+    // Create invite document
+    console.log('Adding invite document to shareInvites collection');
+    const inviteRef = await addDoc(collection(db, 'shareInvites'), invite);
+    console.log('Invite document created with ID:', inviteRef.id);
+
+    // Get current contract data
+    console.log('Fetching current contract data');
+    const contract = await getContract(contractId);
+    console.log('Current contract sharedWith:', contract?.sharedWith);
+
+    // Update contract's sharedWith array
+    console.log('Updating contract sharedWith array');
+    const contractRef = doc(db, 'contracts', contractId);
+    await updateDoc(contractRef, {
+      sharedWith: [...(contract?.sharedWith || []), {
+        email,
+        role,
+        inviteStatus: 'pending'
+      }]
+    });
+    console.log('Contract sharedWith array updated successfully');
+
+    return inviteRef.id;
+  } catch (error) {
+    console.error('Error in createShareInvite:', error);
+    throw error;
+  }
+};
+
+export const updateInviteStatus = async (inviteId: string, status: 'accepted'): Promise<void> => {
+  const inviteRef = doc(db, 'shareInvites', inviteId);
+  const inviteSnap = await getDoc(inviteRef);
+  
+  if (!inviteSnap.exists()) {
+    throw new Error('Invite not found');
+  }
+
+  const invite = inviteSnap.data() as ShareInvite;
+  
+  // Update invite status
+  await updateDoc(inviteRef, { status });
+
+  // Update contract's sharedWith array
+  const contractRef = doc(db, 'contracts', invite.contractId);
+  const contract = await getContract(invite.contractId);
+  
+  if (contract) {
+    const updatedSharedWith = contract.sharedWith.map(share =>
+      share.email === invite.email ? { ...share, inviteStatus: status } : share
+    );
+    await updateDoc(contractRef, { sharedWith: updatedSharedWith });
+  }
+};
+
+export const getSharedContracts = async (userEmail: string): Promise<Contract[]> => {
+  const contracts = await getContracts();
+  return contracts.filter(contract =>
+    contract.sharedWith?.some(share =>
+      share.email === userEmail && share.inviteStatus === 'accepted'
+    )
+  );
+};
 
 export const filterByStatus = (contracts: Contract[], status?: ContractStatus | 'all'): Contract[] => {
   if (!status || status === 'all') return contracts;
