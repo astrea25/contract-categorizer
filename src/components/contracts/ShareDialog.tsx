@@ -1,9 +1,7 @@
 import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { createShareInvite } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { 
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -25,74 +23,9 @@ interface ShareDialogProps {
 }
 
 export function ShareDialog({ contractId }: ShareDialogProps) {
-  const { currentUser } = useAuth();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'viewer' | 'editor'>('viewer');
   const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleShare = async () => {
-    setError(null);
-    console.log('Share initiated');
-    if (!currentUser) {
-      const errorMsg = 'You must be logged in to share contracts';
-      console.log(errorMsg);
-      setError(errorMsg);
-      return;
-    }
-    
-    try {
-      console.log('Sharing contract with params:', {
-        contractId,
-        recipientEmail: email,
-        role,
-        senderEmail: currentUser.email,
-        currentUser: {
-          uid: currentUser.uid,
-          email: currentUser.email,
-          displayName: currentUser.displayName
-        }
-      });
-      
-      setIsLoading(true);
-      const inviteId = await createShareInvite(
-        contractId,
-        email,
-        role,
-        currentUser.email!
-      );
-      
-      if (!inviteId) {
-        throw new Error('Failed to create share invite - no invite ID returned');
-      }
-      
-      console.log('Share invite created successfully:', {
-        inviteId,
-        recipient: email,
-        role: role,
-        sender: currentUser.email
-      });
-      
-      // Only close dialog on success
-      setIsOpen(false);
-      setEmail('');
-      setRole('viewer');
-    } catch (error) {
-      const message = error instanceof Error 
-        ? error.message 
-        : 'Failed to share contract. Please check your email configuration.';
-      console.error('Error sharing contract:', {
-        error,
-        email,
-        contractId
-      });
-      setError(message);
-      // Keep dialog open on error
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -106,11 +39,6 @@ export function ShareDialog({ contractId }: ShareDialogProps) {
           <DialogTitle>Share Contract</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-900 px-4 py-3 rounded-md text-sm">
-              {error}
-            </div>
-          )}
           <div className="space-y-2">
             <label htmlFor="email" className="text-sm font-medium">
               Email address
@@ -139,13 +67,14 @@ export function ShareDialog({ contractId }: ShareDialogProps) {
           </div>
         </div>
         <DialogFooter>
-          <Button
-            type="submit"
-            onClick={handleShare}
-            disabled={!email || isLoading}
-          >
-            {isLoading ? 'Sharing...' : 'Share'}
-          </Button>
+          <div className="flex justify-end">
+            <a
+              href={email ? `mailto:${email}?subject=${encodeURIComponent('Contract Sharing Invitation')}&body=${encodeURIComponent(`You've been invited to ${role === 'editor' ? 'edit' : 'view'} a contract.\n\nOnce you accept the invitation, you will have ${role} access to the contract.`)}` : undefined}
+              className={`inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 ${!email ? 'pointer-events-none opacity-50' : ''}`}
+            >
+              Share
+            </a>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
