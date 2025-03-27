@@ -1,5 +1,3 @@
-
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,30 +6,30 @@ import { toast } from "sonner";
 import PageTransition from "@/components/layout/PageTransition";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { useState, useEffect } from "react";
 
 const Login = () => {
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, currentUser, error: authError } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (currentUser) {
+      navigate("/");
+    }
+  }, [currentUser, navigate]);
 
   const handleGoogleLogin = async () => {
     try {
       setIsLoading(true);
-      setError(null);
       await signInWithGoogle();
-      toast.success("Logged in successfully");
-      navigate("/");
+      // Navigation is handled by the useEffect when currentUser changes
     } catch (error: any) {
-
-      
-          if (error.code === 'auth/unauthorized-domain') {
-        setError("This domain is not authorized for authentication. Please add it to your Firebase console's authorized domains list.");
+      if (error.code === 'auth/unauthorized-domain') {
+        toast.error("This domain is not authorized for authentication");
       } else {
-        setError("Failed to login with Google. Please try again.");
+        toast.error("Failed to login with Google");
       }
-      
-      toast.error("Failed to login with Google");
     } finally {
       setIsLoading(false);
     }
@@ -48,10 +46,10 @@ const Login = () => {
             </p>
           </CardHeader>
           <CardContent>
-            {error && (
+            {authError && (
               <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>{authError}</AlertDescription>
               </Alert>
             )}
             
@@ -67,8 +65,8 @@ const Login = () => {
               
               <div className="text-xs text-muted-foreground mt-2">
                 <p className="text-center">
-                  Note: You need to add this domain to your Firebase authorized domains
-                  in the Firebase console if you encounter authentication errors.
+                  Note: Only authorized users can access this application.
+                  Contact your administrator if you need access.
                 </p>
               </div>
             </div>

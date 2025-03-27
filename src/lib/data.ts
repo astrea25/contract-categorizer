@@ -10,7 +10,8 @@ import {
   query, 
   where, 
   orderBy, 
-  Timestamp 
+  Timestamp,
+  setDoc
 } from 'firebase/firestore';
 
 export interface ContractStats {
@@ -51,13 +52,8 @@ export interface Contract {
 }
 
 export interface ShareInvite {
-  id: string;
   contractId: string;
   email: string;
-  role: 'viewer' | 'editor';
-  status: 'pending' | 'accepted';
-  invitedBy: string;
-  createdAt: string;
 }
 
 export const statusColors: Record<ContractStatus, { bg: string; text: string; border: string }> = {
@@ -96,7 +92,6 @@ export const contractTypeLabels: Record<ContractType, string> = {
   partnership: 'Partnership Agreement'
 };
 
-
 export const getContracts = async (): Promise<Contract[]> => {
   const contractsCollection = collection(db, 'contracts');
   const contractsSnapshot = await getDocs(contractsCollection);
@@ -134,7 +129,6 @@ export const getContract = async (id: string): Promise<Contract | null> => {
   } as Contract;
 };
 
-
 export const createContract = async (
   contract: Omit<Contract, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<string> => {
@@ -161,69 +155,55 @@ export const deleteContract = async (id: string): Promise<void> => {
   await deleteDoc(contractRef);
 };
 
-export const createShareInvite = async (contractId: string, email: string, role: 'viewer' | 'editor', invitedBy: string): Promise<string> => {
-  console.log('Creating share invite in Firestore:', { contractId, email, role, invitedBy });
+export const createShareInvite = async (contractId: string, email: string): Promise<void> => {
+  const invitesRef = collection(db, 'shareInvites');
+  await addDoc(invitesRef, {
+    contractId,
+    email: email.toLowerCase()
+  });
+
+  // Update contract's sharedWith array
+  const contractRef = doc(db, 'contracts', contractId);
+  const contract = await getContract(contractId);
   
-  try {
-    const now = Timestamp.now();
-    const invite: Omit<ShareInvite, 'id'> = {
-      contractId,
-      email,
-      role,
-      status: 'pending',
-      invitedBy,
-      createdAt: now.toDate().toISOString()
-    };
-
-    // Create invite document
-    console.log('Adding invite document to shareInvites collection');
-    const inviteRef = await addDoc(collection(db, 'shareInvites'), invite);
-    console.log('Invite document created with ID:', inviteRef.id);
-
-    // Get current contract data
-    console.log('Fetching current contract data');
-    const contract = await getContract(contractId);
-    console.log('Current contract sharedWith:', contract?.sharedWith);
-
-    // Update contract's sharedWith array
-    console.log('Updating contract sharedWith array');
-    const contractRef = doc(db, 'contracts', contractId);
-    await updateDoc(contractRef, {
-      sharedWith: [...(contract?.sharedWith || []), {
-        email,
-        role,
-        inviteStatus: 'pending'
-      }]
-    });
-    console.log('Contract sharedWith array updated successfully');
-
-    return inviteRef.id;
-  } catch (error) {
-    console.error('Error in createShareInvite:', error);
-    throw error;
+  if (contract) {
+    const updatedSharedWith = [...(contract.sharedWith || []), {
+      email: email.toLowerCase(),
+      role: 'viewer',
+      inviteStatus: 'pending'
+    }];
+    await updateDoc(contractRef, { sharedWith: updatedSharedWith });
   }
 };
 
-export const updateInviteStatus = async (inviteId: string, status: 'accepted'): Promise<void> => {
-  const inviteRef = doc(db, 'shareInvites', inviteId);
-  const inviteSnap = await getDoc(inviteRef);
-  
-  if (!inviteSnap.exists()) {
-    throw new Error('Invite not found');
+// Check if a user is allowed to access the application
+export const isUserAllowed = async (email: string): Promise<boolean> => {
+  if (!email) return false;
+
+  // Check admin collection first
+  const adminRef = collection(db, 'admin');
+  const adminQuery = query(adminRef, where('email', '==', email.toLowerCase()));
+  const adminSnapshot = await getDocs(adminQuery);
+
+  if (!adminSnapshot.empty) {
+    return true; // User is an admin
   }
 
-  const invite = inviteSnap.data() as ShareInvite;
+  // If not an admin, check shareInvites collection
+  const shareInvitesRef = collection(db, 'shareInvites');
+  const shareQuery = query(shareInvitesRef, where('email', '==', email.toLowerCase()));
+  const shareSnapshot = await getDocs(shareQuery);
   
-  // Update invite status
-  await updateDoc(inviteRef, { status });
+  return !shareSnapshot.empty; // User is either invited or not
+};
 
-  // Update contract's sharedWith array
-  const contractRef = doc(db, 'contracts', invite.contractId);
-  const contract = await getContract(invite.contractId);
+export const updateInviteStatus = async (inviteId: string, status: 'accepted'): Promise<void> => {
+  const contractRef = doc(db, 'contracts', inviteId);
+  const contract = await getContract(inviteId);
   
   if (contract) {
     const updatedSharedWith = contract.sharedWith.map(share =>
-      share.email === invite.email ? { ...share, inviteStatus: status } : share
+      share.inviteStatus === 'pending' ? { ...share, inviteStatus: status } : share
     );
     await updateDoc(contractRef, { sharedWith: updatedSharedWith });
   }
@@ -280,13 +260,11 @@ export const filterByDateRange = (
   if (!startDate && !endDate) return contracts;
   
   return contracts.filter(contract => {
-    
     if (startDate && contract.startDate) {
       if (new Date(contract.startDate) < new Date(startDate)) {
         return false;
       }
     }
-    
     
     if (endDate && contract.endDate) {
       if (new Date(contract.endDate) > new Date(endDate)) {
@@ -298,10 +276,7 @@ export const filterByDateRange = (
   });
 };
 
-
-
 export const getContractStats = async (): Promise<ContractStats> => {
-
   try {
     const contracts = await getContracts();
 
@@ -312,11 +287,9 @@ export const getContractStats = async (): Promise<ContractStats> => {
     const totalContracts = contracts.length;
     const activeContracts = contracts.filter(c => c.status === 'active').length;
     const pendingContracts = contracts.filter(c => c.status === 'pending').length;
-
     
     const expiringContracts = contracts.filter(c => {
       if (!c.endDate) {
-        
         return false;
       }
 
@@ -324,7 +297,6 @@ export const getContractStats = async (): Promise<ContractStats> => {
         const endDate = new Date(c.endDate);
         
         if (isNaN(endDate.getTime())) {
-          
           return false;
         }
 
@@ -332,7 +304,6 @@ export const getContractStats = async (): Promise<ContractStats> => {
         
         return isExpiringSoon;
       } catch (error) {
-        
         return false;
       }
     }).length;
@@ -341,10 +312,8 @@ export const getContractStats = async (): Promise<ContractStats> => {
       return sum + (contract.value || 0);
     }, 0);
 
-    
     const expiringThisYear = contracts.filter(c => {
       if (!c.endDate) {
-        
         return false;
       }
 
@@ -352,7 +321,6 @@ export const getContractStats = async (): Promise<ContractStats> => {
         const endDate = new Date(c.endDate);
         
         if (isNaN(endDate.getTime())) {
-          
           return false;
         }
 
@@ -360,7 +328,6 @@ export const getContractStats = async (): Promise<ContractStats> => {
         
         return isExpiringThisYear;
       } catch (error) {
-        
         return false;
       }
     }).length;
@@ -374,10 +341,8 @@ export const getContractStats = async (): Promise<ContractStats> => {
       expiringThisYear
     };
 
-    
     return stats;
   } catch (error) {
-    
     throw error;
   }
 };
