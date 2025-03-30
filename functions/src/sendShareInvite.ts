@@ -65,8 +65,7 @@ export const sendShareInviteHandler = async (snap: QueryDocumentSnapshot) => {
         console.log('Contract found:', { title: contract.title, id: invite.contractId });
 
         console.log('APP_URL environment variable:', process.env.APP_URL);
-        const acceptUrl = `${process.env.APP_URL}/accept-invite/${snap.id}`;
-        console.log('Generated accept URL:', acceptUrl);
+        const appUrl = process.env.APP_URL;
 
         const mailOptions = {
             from: `"WWF Admin" <${process.env.EMAIL_USER}>`,
@@ -75,17 +74,17 @@ export const sendShareInviteHandler = async (snap: QueryDocumentSnapshot) => {
             html: `
                 <h2>Contract Share Invitation</h2>
                 <p>You have been invited to view the contract "${contract.title}".</p>
-                <p>Click the link below to accept the invitation:</p>
-                <a href="${acceptUrl}" style="
+                <p>Click the link below to view the contract:</p>
+                <a href="${appUrl}" style="
                     display: inline-block;
                     padding: 10px 20px;
                     background-color: #0066cc;
                     color: white;
                     text-decoration: none;
                     border-radius: 5px;
-                ">Accept Invitation</a>
+                ">View Contract</a>
                 <p>If you can't click the button, copy and paste this link into your browser:</p>
-                <p>${acceptUrl}</p>
+                <p>${appUrl}</p>
             `
         };
 
