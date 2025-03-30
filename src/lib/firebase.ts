@@ -1,15 +1,14 @@
-
-import { initializeApp } from "firebase/app";
-import { GoogleAuthProvider, getAuth, connectAuthEmulator } from "firebase/auth";
-import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
+import { initializeApp } from 'firebase/app';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAN7qiGBrfgIWdv5ycLAnNIqUyrVtVm02E",
-  authDomain: "contract-management-25ae3.firebaseapp.com",
-  projectId: "contract-management-25ae3",
-  storageBucket: "contract-management-25ae3.appspot.com",
-  messagingSenderId: "484868423681",
-  appId: "1:484868423681:web:5a68b5aa36aad4cba0bb8b"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 // Initialize Firebase

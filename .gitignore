@@ -1,3 +1,12 @@
+# Environment Variables
+.env
+.env.*
+!.env.template
+functions/.env
+functions/.env.*
+!functions/.env.template
+.runtimeconfig.json
+
 # Logs
 logs
 *.log
