@@ -1,69 +1,114 @@
-# Welcome to your Lovable project
+# Contract Categorizer
 
-## Project info
+A web application for managing and sharing contracts with role-based access control.
 
-**URL**: https://lovable.dev/projects/0e09e022-53b4-466f-ae1b-b99d6c3dafa8
+## Features
 
-## How can I edit this code?
+- Contract management with status tracking
+- Role-based sharing (viewer/editor)
+- Email notifications for shared contracts
+- User authentication and authorization
+- Real-time updates
 
-There are several ways of editing your application.
+## Prerequisites
 
-**Use Lovable**
+1. Node.js 18 or later
+2. Firebase CLI (`npm install -g firebase-tools`)
+3. Google Cloud CLI (for functions deployment)
+4. A Gmail account (for sending email notifications)
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/0e09e022-53b4-466f-ae1b-b99d6c3dafa8) and start prompting.
+## Setup Instructions
 
-Changes made via Lovable will be committed automatically to this repo.
+### 1. Clone and Install Dependencies
 
-**Use your preferred IDE**
+```bash
+# Clone the repository
+git clone <repository-url>
+cd contract-categorizer
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+# Install project dependencies
+npm install
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+# Install functions dependencies
+cd functions
+npm install
+cd ..
+```
 
-Follow these steps:
+### 2. Firebase Setup
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+1. Create a new Firebase project at [Firebase Console](https://console.firebase.google.com)
+2. Enable these services:
+   - Authentication (with Email/Password)
+   - Firestore Database
+   - Cloud Functions
+   - Cloud Storage (optional, for document uploads)
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+3. Initialize Firebase in your project:
+```bash
+firebase login
+firebase init
+```
+Select:
+- Firestore
+- Functions (with TypeScript)
+- Emulators (optional)
 
-# Step 3: Install the necessary dependencies.
-npm i
+### 3. Environment Configuration
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+1. Create `functions/.env` file from template:
+```bash
+cp functions/.env.template functions/.env
+```
+
+2. Configure the environment variables in `functions/.env`:
+```
+# Gmail SMTP Configuration
+EMAIL_USER=your-gmail@gmail.com
+EMAIL_PASS=your-gmail-app-password # Generate from Google Account settings
+APP_URL=http://localhost:5173 # Your frontend URL
+```
+
+3. Set up Firebase config:
+```bash
+firebase functions:config:set email.user="your-gmail@gmail.com" email.pass="your-app-password" app.url="http://localhost:5173"
+```
+
+### 4. Deploy Firebase Resources
+
+1. Deploy Firestore rules:
+```bash
+firebase deploy --only firestore:rules
+```
+
+2. Deploy Functions:
+```bash
+firebase deploy --only functions
+```
+Note: For first-time 2nd gen function deployments, you may need to wait 5-10 minutes after the first attempt and try deploying again as the permissions propagate.
+
+### 5. Start the Development Server
+
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The application should now be running at http://localhost:5173
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Project Structure
 
-**Use GitHub Codespaces**
+- `/src` - Frontend React/TypeScript code
+  - `/components` - Reusable UI components
+  - `/lib` - Utility functions and Firebase setup
+  - `/pages` - Application routes/pages
+- `/functions` - Firebase Cloud Functions
+  - `/src` - TypeScript source code for functions
+  - `.env` - Environment variables for functions
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Available Scripts
 
-## What technologies are used for this project?
-
-This project is built with .
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/0e09e022-53b4-466f-ae1b-b99d6c3dafa8) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `firebase deploy` - Deploy to Firebase
+- `firebase emulators:start` - Start Firebase emulators

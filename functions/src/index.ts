@@ -1,17 +1,21 @@
-import * as functions from 'firebase-functions';
+import { onDocumentCreated } from 'firebase-functions/v2/firestore';
+import { onRequest } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
-import { sendShareInvite } from './sendShareInvite';
+import { sendShareInviteHandler } from './sendShareInvite';
 
-// Initialize Firebase Admin
+// Initialize Firebase Admin once
 admin.initializeApp();
 
 // Export Cloud Functions
-export {
-  sendShareInvite
-};
+export const sendShareInvite = onDocumentCreated('shareInvites/{inviteId}', async (event) => {
+  if (!event.data) {
+    throw new Error('No data associated with the event');
+  }
+  return sendShareInviteHandler(event.data);
+});
 
 // Create an HTTP endpoint to accept invites
-export const acceptInvite = functions.https.onRequest(async (req, res) => {
+export const acceptInvite = onRequest(async (req, res) => {
   try {
     const inviteId = req.query.id;
     if (!inviteId || typeof inviteId !== 'string') {

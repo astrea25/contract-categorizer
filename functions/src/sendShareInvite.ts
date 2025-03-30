@@ -1,13 +1,10 @@
-import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
 import * as nodemailer from 'nodemailer';
-import { DocumentSnapshot } from 'firebase-admin/firestore';
+import { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
 interface ShareInvite {
   contractId: string;
   email: string;
-  role: 'viewer' | 'editor';
-  invitedBy: string;
 }
 
 interface Contract {
@@ -15,12 +12,7 @@ interface Contract {
   id: string;
 }
 
-// Initialize admin if not already initialized
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
-
-export const sendShareInvite = onDocumentCreated('shareInvites/{inviteId}', async (event) => {
+export const sendShareInviteHandler = async (snap: QueryDocumentSnapshot) => {
     console.log('========= Starting Share Invite Email Function =========');
     
     // Verify environment variables first
@@ -45,19 +37,11 @@ export const sendShareInvite = onDocumentCreated('shareInvites/{inviteId}', asyn
         logger: true // log information in console
     });
 
-    const snap = event.data as DocumentSnapshot;
-    if (!snap) {
-        console.error('No data associated with the event');
-        return;
-    }
-
     const invite = snap.data() as ShareInvite;
     console.log('Share invite data:', {
         inviteId: snap.id,
         contractId: invite.contractId,
-        recipientEmail: invite.email,
-        role: invite.role,
-        invitedBy: invite.invitedBy
+        recipientEmail: invite.email
     });
 
     try {
@@ -80,60 +64,46 @@ export const sendShareInvite = onDocumentCreated('shareInvites/{inviteId}', asyn
         }
         console.log('Contract found:', { title: contract.title, id: invite.contractId });
 
-        console.log('Fetching inviter details');
-        try {
-            const inviterResult = await admin.auth().getUser(invite.invitedBy);
-            const inviter = inviterResult.email;
-            console.log('Inviter details:', {
-                email: inviter,
-                displayName: inviterResult.displayName,
-                uid: inviterResult.uid
-            });
+        const acceptUrl = `${process.env.APP_URL || 'http://localhost:8080'}/accept-invite/${snap.id}`;
+        console.log('Generated accept URL:', acceptUrl);
 
-            const acceptUrl = `${process.env.APP_URL || 'http://localhost:8080'}/accept-invite/${snap.id}`;
-            console.log('Generated accept URL:', acceptUrl);
+        const mailOptions = {
+            from: `"WWF Admin" <${process.env.EMAIL_USER}>`,
+            to: invite.email,
+            subject: `You've been invited to view a contract`,
+            html: `
+                <h2>Contract Share Invitation</h2>
+                <p>You have been invited to view the contract "${contract.title}".</p>
+                <p>Click the link below to accept the invitation:</p>
+                <a href="${acceptUrl}" style="
+                    display: inline-block;
+                    padding: 10px 20px;
+                    background-color: #0066cc;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 5px;
+                ">Accept Invitation</a>
+                <p>If you can't click the button, copy and paste this link into your browser:</p>
+                <p>${acceptUrl}</p>
+            `
+        };
 
-            const mailOptions = {
-                from: `"Contract Categorizer" <${process.env.EMAIL_USER}>`,
-                to: invite.email,
-                subject: `${inviter} shared a contract with you`,
-                html: `
-                    <h2>Contract Share Invitation</h2>
-                    <p>${inviter} has shared the contract "${contract.title}" with you as a ${invite.role}.</p>
-                    <p>Click the link below to accept the invitation:</p>
-                    <a href="${acceptUrl}" style="
-                        display: inline-block;
-                        padding: 10px 20px;
-                        background-color: #0066cc;
-                        color: white;
-                        text-decoration: none;
-                        border-radius: 5px;
-                    ">Accept Invitation</a>
-                    <p>If you can't click the button, copy and paste this link into your browser:</p>
-                    <p>${acceptUrl}</p>
-                `
-            };
+        console.log('Attempting to send email with options:', {
+            from: mailOptions.from,
+            to: mailOptions.to,
+            subject: mailOptions.subject
+        });
 
-            console.log('Attempting to send email with options:', {
-                from: mailOptions.from,
-                to: mailOptions.to,
-                subject: mailOptions.subject
-            });
+        const info = await transporter.sendMail(mailOptions);
+        console.log('Email sent successfully:', {
+            messageId: info.messageId,
+            response: info.response,
+            accepted: info.accepted,
+            rejected: info.rejected,
+            envelope: info.envelope
+        });
 
-            const info = await transporter.sendMail(mailOptions);
-            console.log('Email sent successfully:', {
-                messageId: info.messageId,
-                response: info.response,
-                accepted: info.accepted,
-                rejected: info.rejected,
-                envelope: info.envelope
-            });
-
-            return { success: true, messageId: info.messageId };
-        } catch (authError) {
-            console.error('Error fetching inviter details:', authError);
-            throw new Error('Failed to fetch inviter details');
-        }
+        return { success: true, messageId: info.messageId };
     } catch (error) {
         console.error('Error in email sending process:', {
             error: error instanceof Error ? error.message : 'Unknown error',
@@ -141,4 +111,4 @@ export const sendShareInvite = onDocumentCreated('shareInvites/{inviteId}', asyn
         });
         throw new Error('Failed to send share invite email');
     }
-});
+};
