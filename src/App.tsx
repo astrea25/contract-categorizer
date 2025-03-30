@@ -24,13 +24,12 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
-            
+            <Route path="/accept-invite/:inviteId" element={<AcceptInvite />} />
             
             <Route element={<PrivateRoute />}>
               <Route path="/" element={<Index />} />
               <Route path="/contracts" element={<Contracts />} />
               <Route path="/contract/:id" element={<ContractDetail />} />
-              <Route path="/accept-invite/:inviteId" element={<AcceptInvite />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />

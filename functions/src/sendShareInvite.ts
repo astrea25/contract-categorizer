@@ -65,7 +65,7 @@ export const sendShareInviteHandler = async (snap: QueryDocumentSnapshot) => {
         console.log('Contract found:', { title: contract.title, id: invite.contractId });
 
         console.log('APP_URL environment variable:', process.env.APP_URL);
-        const acceptUrl = `${process.env.APP_URL || 'http://localhost:8080'}/accept-invite/${snap.id}`;
+        const acceptUrl = `${process.env.APP_URL}/accept-invite/${snap.id}`;
         console.log('Generated accept URL:', acceptUrl);
 
         const mailOptions = {
