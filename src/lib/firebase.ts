@@ -18,14 +18,4 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
 
-// For development environments, use emulators if needed
-if (window.location.hostname === 'localhost' || 
-    window.location.hostname.includes('lovableproject.com')) {
-  // Add Lovable's domains to provider's custom parameters for allowed domains
-  googleProvider.setCustomParameters({
-    // Allow redirects to any domain
-    prompt: 'select_account'
-  });
-}
-
 export default app;
