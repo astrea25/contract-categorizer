@@ -26,6 +26,16 @@ export interface ContractStats {
 export type ContractStatus = 'requested' | 'draft' | 'legal_review' | 'management_review' | 'approval' | 'finished';
 export type ContractType = 'service' | 'employment' | 'licensing' | 'nda' | 'partnership';
 
+export interface Folder {
+  id: string;
+  name: string;
+  description?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  contractCount?: number; // Optional for UI display purposes
+}
+
 export interface Contract {
   id: string;
   title: string;
@@ -33,6 +43,7 @@ export interface Contract {
   type: ContractType;
   status: ContractStatus;
   owner: string;
+  folderId?: string; // Optional reference to the folder ID
   parties: {
     name: string;
     email: string;
@@ -505,4 +516,103 @@ export const registerUser = async (userId: string, email: string, displayName?: 
       createdAt: new Date().toISOString(),
     });
   }
+};
+
+// Folder Management Functions
+export const getFolders = async (): Promise<Folder[]> => {
+  const foldersCollection = collection(db, 'folders');
+  const foldersSnapshot = await getDocs(foldersCollection);
+  
+  const folders = foldersSnapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate().toISOString() : data.createdAt) : null,
+      updatedAt: data.updatedAt ? (data.updatedAt.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt) : null,
+    } as Folder;
+  });
+  
+  // For each folder, count how many contracts are assigned to it
+  const contracts = await getContracts();
+  return folders.map(folder => ({
+    ...folder,
+    contractCount: contracts.filter(contract => contract.folderId === folder.id).length
+  }));
+};
+
+export const createFolder = async (
+  folder: Omit<Folder, 'id' | 'createdAt' | 'updatedAt' | 'contractCount'>,
+): Promise<string> => {
+  const now = Timestamp.now();
+  const folderToCreate = {
+    ...folder,
+    createdAt: now,
+    updatedAt: now,
+  };
+  const docRef = await addDoc(collection(db, 'folders'), folderToCreate);
+  return docRef.id;
+};
+
+export const deleteFolder = async (id: string): Promise<void> => {
+  // First, update all contracts in this folder to remove the folder reference
+  const contracts = await getContracts();
+  const contractsInFolder = contracts.filter(contract => contract.folderId === id);
+  
+  for (const contract of contractsInFolder) {
+    await updateContract(contract.id, { folderId: null }, 'System');
+  }
+  
+  // Then delete the folder
+  const folderRef = doc(db, 'folders', id);
+  await deleteDoc(folderRef);
+};
+
+export const assignContractToFolder = async (contractId: string, folderId: string | null, userEmail: string): Promise<void> => {
+  const contractRef = doc(db, 'contracts', contractId);
+  const currentContract = await getContract(contractId);
+  
+  if (!currentContract) {
+    throw new Error('Contract not found');
+  }
+  
+  const now = Timestamp.now();
+  const existingTimeline = currentContract.timeline || [];
+  let timeline = [...existingTimeline];
+  
+  // Create a timeline entry for the folder change
+  timeline.push({
+    timestamp: now.toDate().toISOString(),
+    action: folderId ? 'Contract Moved to Folder' : 'Contract Removed from Folder',
+    userEmail: userEmail,
+    details: folderId 
+      ? `Contract was moved to a folder`
+      : `Contract was removed from its folder`
+  });
+  
+  await updateDoc(contractRef, {
+    folderId,
+    updatedAt: now,
+    timeline
+  });
+};
+
+// Filter contracts by folder
+export const filterByFolder = (contracts: Contract[], folderId?: string | 'all'): Contract[] => {
+  if (!folderId || folderId === 'all') return contracts;
+  
+  return contracts.filter(contract => contract.folderId === folderId);
+};
+
+export const renameFolder = async (
+  id: string,
+  updates: { name?: string; description?: string }
+): Promise<void> => {
+  const folderRef = doc(db, 'folders', id);
+  const now = Timestamp.now();
+  
+  await updateDoc(folderRef, {
+    ...updates,
+    updatedAt: now
+  });
 };

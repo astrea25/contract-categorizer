@@ -3,7 +3,8 @@ import { PlusCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import AuthNavbar from '@/components/layout/AuthNavbar';
 import FilterBar from '@/components/contracts/FilterBar';
-import ContractCard from '@/components/contracts/ContractCard';
+import DraggableContractCard from '@/components/contracts/DraggableContractCard';
+import FolderList from '@/components/contracts/FolderList';
 import ContractForm from '@/components/contracts/ContractForm';
 import { 
   Contract,
@@ -16,7 +17,10 @@ import {
   filterByType,
   filterByOwner,
   filterByParty,
-  filterByDateRange
+  filterByDateRange,
+  deleteFolder,
+  assignContractToFolder,
+  filterByFolder
 } from '@/lib/data';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -34,6 +38,7 @@ const Contracts = () => {
   const { toast: uiToast } = useToast();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedFolder, setSelectedFolder] = useState<string | 'all'>('all');
   const [filters, setFilters] = useState({
     search: '',
     status: 'all' as ContractStatus | 'all',
@@ -55,17 +60,14 @@ const Contracts = () => {
 
   useEffect(() => {
     const fetchContracts = async () => {
-      
       try {
         setLoading(true);
         const contractsList = await getContracts();
         setContracts(contractsList);
       } catch (error) {
-
         toast.error("Failed to load contracts");
       } finally {
         setLoading(false);
-        
       }
     };
 
@@ -156,14 +158,58 @@ const Contracts = () => {
         description: 'Your new contract has been created successfully.',
       });
     } catch (error) {
-
       toast.error("Failed to create contract");
+    }
+  };
+
+  const handleDeleteFolder = async (folderId: string) => {
+    try {
+      await deleteFolder(folderId);
+      
+      // If the deleted folder was selected, reset to 'all'
+      if (selectedFolder === folderId) {
+        setSelectedFolder('all');
+      }
+      
+      // Refresh contracts to update folder assignments
+      const updatedContracts = await getContracts();
+      setContracts(updatedContracts);
+      
+      toast.success('Folder deleted successfully');
+    } catch (error) {
+      toast.error('Failed to delete folder');
+    }
+  };
+
+  const handleDropContract = async (contractId: string, folderId: string | null) => {
+    if (!currentUser?.email) return;
+    
+    try {
+      await assignContractToFolder(contractId, folderId, currentUser.email);
+      
+      // Refresh contracts to update folder assignments
+      const updatedContracts = await getContracts();
+      setContracts(updatedContracts);
+      
+      toast.success(
+        folderId 
+          ? 'Contract moved to folder' 
+          : 'Contract removed from folder'
+      );
+    } catch (error) {
+      toast.error('Failed to move contract');
     }
   };
 
   const filteredContracts = useMemo(() => {
     let result = [...contracts];
 
+    // Filter by folder first
+    if (selectedFolder !== 'all') {
+      result = filterByFolder(result, selectedFolder);
+    }
+
+    // Then apply other filters
     result = filterByStatus(result, filters.status);
     result = filterByType(result, filters.type);
     result = filterByProject(result, filters.project);
@@ -185,7 +231,7 @@ const Contracts = () => {
       );
     }
     return result;
-  }, [contracts, filters]);
+  }, [contracts, filters, selectedFolder]);
 
   const hasActiveFilters = 
     filters.search !== '' || 
@@ -274,50 +320,64 @@ const Contracts = () => {
             </div>
           )}
         </header>
-        {loading ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {[...Array(6)].map((_, i) => (
-              <Skeleton key={i} className="h-48 w-full" />
-            ))}
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="md:col-span-1">
+            <FolderList 
+              selectedFolder={selectedFolder}
+              onFolderSelect={setSelectedFolder}
+              onDeleteFolder={handleDeleteFolder}
+              onDropContract={handleDropContract}
+            />
           </div>
-        ) : filteredContracts.length > 0 ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredContracts.map(contract => (
-              <ContractCard
-                key={contract.id}
-                contract={contract}
-                className="animate-slide-in"
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12 border rounded-lg bg-secondary/30">
-            <h3 className="font-medium text-lg mb-2">No contracts found</h3>
-            <p className="text-muted-foreground mb-6">
-              {contracts.length === 0
-                ? "You haven't created any contracts yet."
-                : "There are no contracts matching your current filters."
-              }
-            </p>
-            {contracts.length === 0 ? (
-              <ContractForm
-                onSave={handleSaveContract}
-                trigger={
-                  <Button>
-                    Create Your First Contract
-                  </Button>
-                }
-              />
+
+          <div className="md:col-span-3">
+            {loading ? (
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {[...Array(6)].map((_, i) => (
+                  <Skeleton key={i} className="h-48 w-full" />
+                ))}
+              </div>
+            ) : filteredContracts.length > 0 ? (
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredContracts.map(contract => (
+                  <DraggableContractCard
+                    key={contract.id}
+                    contract={contract}
+                    className="animate-slide-in"
+                  />
+                ))}
+              </div>
             ) : (
-              <Button
-                variant="outline"
-                onClick={clearFilters}
-              >
-                Reset Filters
-              </Button>
+              <div className="text-center py-12 border rounded-lg bg-secondary/30">
+                <h3 className="font-medium text-lg mb-2">No contracts found</h3>
+                <p className="text-muted-foreground mb-6">
+                  {contracts.length === 0
+                    ? "You haven't created any contracts yet."
+                    : "There are no contracts matching your current filters."
+                  }
+                </p>
+                {contracts.length === 0 ? (
+                  <ContractForm
+                    onSave={handleSaveContract}
+                    trigger={
+                      <Button>
+                        Create Your First Contract
+                      </Button>
+                    }
+                  />
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={clearFilters}
+                  >
+                    Reset Filters
+                  </Button>
+                )}
+              </div>
             )}
           </div>
-        )}
+        </div>
       </div>
     </>
   );

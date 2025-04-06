@@ -1,0 +1,276 @@
+import { useState, useEffect } from 'react';
+import { Folder, getFolders, createFolder, renameFolder } from '@/lib/data';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter,
+  DialogTrigger 
+} from '@/components/ui/dialog';
+import { 
+  FolderPlus,
+  Pencil, 
+  MoreVertical, 
+  Trash2 
+} from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import DroppableFolder from './DroppableFolder';
+
+interface FolderListProps {
+  selectedFolder: string | 'all';
+  onFolderSelect: (folderId: string | 'all') => void;
+  onDeleteFolder: (folderId: string) => void;
+  onDropContract: (contractId: string, folderId: string | null) => void;
+}
+
+const FolderList = ({ 
+  selectedFolder, 
+  onFolderSelect, 
+  onDeleteFolder,
+  onDropContract
+}: FolderListProps) => {
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [openNewFolder, setOpenNewFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [newFolderDesc, setNewFolderDesc] = useState('');
+  const [folderToRename, setFolderToRename] = useState<Folder | null>(null);
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [renameFolderName, setRenameFolderName] = useState('');
+  const [renameFolderDesc, setRenameFolderDesc] = useState('');
+  const { currentUser } = useAuth();
+
+  useEffect(() => {
+    const loadFolders = async () => {
+      try {
+        setLoading(true);
+        const folderList = await getFolders();
+        setFolders(folderList);
+      } catch (error) {
+        toast.error('Failed to load folders');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadFolders();
+  }, []);
+
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim() || !currentUser?.email) {
+      return;
+    }
+
+    try {
+      const newFolder = {
+        name: newFolderName.trim(),
+        description: newFolderDesc.trim(),
+        createdBy: currentUser.email,
+      };
+      
+      await createFolder(newFolder);
+      
+      // Refresh folder list
+      const updatedFolders = await getFolders();
+      setFolders(updatedFolders);
+      
+      // Reset form & close dialog
+      setNewFolderName('');
+      setNewFolderDesc('');
+      setOpenNewFolder(false);
+      
+      toast.success('Folder created successfully');
+    } catch (error) {
+      toast.error('Failed to create folder');
+    }
+  };
+
+  const handleRenameFolder = async () => {
+    if (!folderToRename || !renameFolderName.trim()) {
+      return;
+    }
+
+    try {
+      await renameFolder(folderToRename.id, {
+        name: renameFolderName.trim(),
+        description: renameFolderDesc.trim()
+      });
+
+      // Refresh folder list
+      const updatedFolders = await getFolders();
+      setFolders(updatedFolders);
+      
+      // Reset form & close dialog
+      setFolderToRename(null);
+      setRenameFolderName('');
+      setRenameFolderDesc('');
+      setRenameDialogOpen(false);
+      
+      toast.success('Folder renamed successfully');
+    } catch (error) {
+      toast.error('Failed to rename folder');
+    }
+  };
+
+  const openRenameDialog = (folder: Folder, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent folder selection when clicking rename
+    setFolderToRename(folder);
+    setRenameFolderName(folder.name);
+    setRenameFolderDesc(folder.description || '');
+    setRenameDialogOpen(true);
+  };
+
+  const handleDelete = (folderId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent folder selection when clicking delete
+    onDeleteFolder(folderId);
+  };
+
+  return (
+    <div className="border rounded-md overflow-hidden">
+      <div className="bg-secondary/50 p-3 flex items-center justify-between">
+        <h3 className="font-medium">Folders</h3>
+        <Dialog open={openNewFolder} onOpenChange={setOpenNewFolder}>
+          <DialogTrigger asChild>
+            <Button variant="ghost" size="sm">
+              <FolderPlus className="h-4 w-4 mr-2" />
+              New Folder
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Folder</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <label htmlFor="name" className="text-sm font-medium">
+                  Folder Name
+                </label>
+                <Input
+                  id="name"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  placeholder="Enter folder name"
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="description" className="text-sm font-medium">
+                  Description (Optional)
+                </label>
+                <Input
+                  id="description"
+                  value={newFolderDesc}
+                  onChange={(e) => setNewFolderDesc(e.target.value)}
+                  placeholder="Enter folder description"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOpenNewFolder(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreateFolder}>Create Folder</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Rename Dialog */}
+        <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Rename Folder</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <label htmlFor="rename-name" className="text-sm font-medium">
+                  Folder Name
+                </label>
+                <Input
+                  id="rename-name"
+                  value={renameFolderName}
+                  onChange={(e) => setRenameFolderName(e.target.value)}
+                  placeholder="Enter folder name"
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="rename-description" className="text-sm font-medium">
+                  Description (Optional)
+                </label>
+                <Input
+                  id="rename-description"
+                  value={renameFolderDesc}
+                  onChange={(e) => setRenameFolderDesc(e.target.value)}
+                  placeholder="Enter folder description"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleRenameFolder}>Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+      <div className="divide-y">
+        <DroppableFolder
+          id="all"
+          name="All Contracts"
+          count={0} // Count not relevant for "All" view
+          isSelected={selectedFolder === 'all'}
+          onSelect={() => onFolderSelect('all')}
+          onDrop={(contractId) => {}} // No-op for All view
+        />
+        {loading ? (
+          <div className="p-3 text-center text-muted-foreground">Loading folders...</div>
+        ) : folders.length === 0 ? (
+          <div className="p-3 text-center text-muted-foreground">No folders created yet</div>
+        ) : (
+          folders.map((folder) => (
+            <div key={folder.id} className="relative">
+              <DroppableFolder
+                id={folder.id}
+                name={folder.name}
+                count={folder.contractCount || 0}
+                isSelected={selectedFolder === folder.id}
+                onSelect={() => onFolderSelect(folder.id)}
+                onDrop={(contractId) => onDropContract(contractId, folder.id)}
+              />
+              <div className="absolute right-2 top-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={(e) => openRenameDialog(folder, e)}>
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Rename
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => handleDelete(folder.id, e)}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default FolderList; 
