@@ -14,7 +14,11 @@ import {
   FolderPlus,
   Pencil, 
   MoreVertical, 
-  Trash2 
+  Trash2,
+  Search,
+  X,
+  ChevronsRight,
+  ChevronsLeft
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -25,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import DroppableFolder from './DroppableFolder';
+import { cn } from '@/lib/utils';
 
 interface FolderListProps {
   selectedFolder: string | 'all';
@@ -48,6 +53,8 @@ const FolderList = ({
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [renameFolderName, setRenameFolderName] = useState('');
   const [renameFolderDesc, setRenameFolderDesc] = useState('');
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { currentUser } = useAuth();
 
   useEffect(() => {
@@ -135,53 +142,116 @@ const FolderList = ({
     onDeleteFolder(folderId);
   };
 
+  const toggleExpanded = () => {
+    setIsExpanded(!isExpanded);
+    if (!isExpanded) {
+      // When expanding, focus the search input after a short delay
+      setTimeout(() => {
+        const searchInput = document.getElementById('folder-search-input');
+        if (searchInput) {
+          searchInput.focus();
+        }
+      }, 100);
+    } else {
+      // When collapsing, clear the search
+      setSearchQuery('');
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    document.getElementById('folder-search-input')?.focus();
+  };
+
+  // Filter folders based on search query
+  const filteredFolders = folders.filter(folder => 
+    folder.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (folder.description && folder.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   return (
-    <div className="border rounded-md overflow-hidden">
+    <div className={cn(
+      "border rounded-md overflow-hidden transition-all duration-300",
+      isExpanded ? "md:col-span-2 lg:col-span-1 w-full" : ""
+    )}>
       <div className="bg-secondary/50 p-3 flex items-center justify-between">
-        <h3 className="font-medium">Folders</h3>
-        <Dialog open={openNewFolder} onOpenChange={setOpenNewFolder}>
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="sm">
-              <FolderPlus className="h-4 w-4 mr-2" />
-              New Folder
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Folder</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <label htmlFor="name" className="text-sm font-medium">
-                  Folder Name
-                </label>
-                <Input
-                  id="name"
-                  value={newFolderName}
-                  onChange={(e) => setNewFolderName(e.target.value)}
-                  placeholder="Enter folder name"
+        <div className="flex items-center gap-2">
+          <h3 className="font-medium">Folders</h3>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 w-8 p-0" 
+            onClick={toggleExpanded}
+            title={isExpanded ? "Collapse folders" : "Expand folders"}
+          >
+            {isExpanded ? <ChevronsLeft className="h-4 w-4" /> : <ChevronsRight className="h-4 w-4" />}
+          </Button>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {isExpanded && (
+            <div className="relative flex-1 mr-2">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="folder-search-input"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search folders..."
+                className="w-full h-8 pl-8 pr-8 min-w-[200px]"
+              />
+              {searchQuery && (
+                <X 
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer hover:text-foreground"
+                  onClick={clearSearch}
                 />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="description" className="text-sm font-medium">
-                  Description (Optional)
-                </label>
-                <Input
-                  id="description"
-                  value={newFolderDesc}
-                  onChange={(e) => setNewFolderDesc(e.target.value)}
-                  placeholder="Enter folder description"
-                />
-              </div>
+              )}
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOpenNewFolder(false)}>
-                Cancel
+          )}
+          
+          <Dialog open={openNewFolder} onOpenChange={setOpenNewFolder}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <FolderPlus className="h-4 w-4 mr-2" />
+                <span>New Folder</span>
               </Button>
-              <Button onClick={handleCreateFolder}>Create Folder</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create New Folder</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <label htmlFor="name" className="text-sm font-medium">
+                    Folder Name
+                  </label>
+                  <Input
+                    id="name"
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    placeholder="Enter folder name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="description" className="text-sm font-medium">
+                    Description (Optional)
+                  </label>
+                  <Input
+                    id="description"
+                    value={newFolderDesc}
+                    onChange={(e) => setNewFolderDesc(e.target.value)}
+                    placeholder="Enter folder description"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setOpenNewFolder(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleCreateFolder}>Create Folder</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
 
         {/* Rename Dialog */}
         <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
@@ -222,7 +292,10 @@ const FolderList = ({
           </DialogContent>
         </Dialog>
       </div>
-      <div className="divide-y">
+      <div className={cn(
+        "divide-y",
+        isExpanded && "max-h-[calc(100vh-12rem)] overflow-y-auto" 
+      )}>
         <DroppableFolder
           id="all"
           name="All Contracts"
@@ -235,8 +308,10 @@ const FolderList = ({
           <div className="p-3 text-center text-muted-foreground">Loading folders...</div>
         ) : folders.length === 0 ? (
           <div className="p-3 text-center text-muted-foreground">No folders created yet</div>
+        ) : filteredFolders.length === 0 ? (
+          <div className="p-3 text-center text-muted-foreground">No folders match your search</div>
         ) : (
-          folders.map((folder) => (
+          filteredFolders.map((folder) => (
             <div key={folder.id} className="relative">
               <DroppableFolder
                 id={folder.id}
