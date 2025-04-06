@@ -67,6 +67,15 @@ export interface Contract {
     userEmail: string;
     details?: string;
   }[];
+  comments?: Comment[];
+}
+
+export interface Comment {
+  id: string;
+  text: string;
+  userEmail: string;
+  timestamp: string;
+  replies?: Comment[];
 }
 
 export interface ShareInvite {
@@ -614,5 +623,136 @@ export const renameFolder = async (
   await updateDoc(folderRef, {
     ...updates,
     updatedAt: now
+  });
+};
+
+// Add a comment to a contract
+export const addComment = async (
+  contractId: string,
+  text: string,
+  userEmail: string
+): Promise<string> => {
+  const contractRef = doc(db, 'contracts', contractId);
+  const contract = await getContract(contractId);
+  
+  if (!contract) {
+    throw new Error('Contract not found');
+  }
+  
+  const now = Timestamp.now();
+  const commentId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  
+  const newComment: Comment = {
+    id: commentId,
+    text,
+    userEmail,
+    timestamp: now.toDate().toISOString(),
+    replies: []
+  };
+  
+  const existingComments = contract.comments || [];
+  const updatedComments = [...existingComments, newComment];
+  
+  await updateDoc(contractRef, {
+    comments: updatedComments,
+    updatedAt: now
+  });
+  
+  // Also add an entry to the timeline for the comment
+  const existingTimeline = contract.timeline || [];
+  const updatedTimeline = [...existingTimeline, {
+    timestamp: now.toDate().toISOString(),
+    action: 'Comment Added',
+    userEmail,
+    details: text.length > 50 ? `${text.substring(0, 50)}...` : text
+  }];
+  
+  await updateDoc(contractRef, {
+    timeline: updatedTimeline
+  });
+  
+  return commentId;
+};
+
+// Add a reply to a comment
+export const addReply = async (
+  contractId: string,
+  parentCommentId: string,
+  text: string,
+  userEmail: string
+): Promise<string> => {
+  const contractRef = doc(db, 'contracts', contractId);
+  const contract = await getContract(contractId);
+  
+  if (!contract) {
+    throw new Error('Contract not found');
+  }
+  
+  const now = Timestamp.now();
+  const replyId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  
+  const newReply: Comment = {
+    id: replyId,
+    text,
+    userEmail,
+    timestamp: now.toDate().toISOString()
+  };
+  
+  const existingComments = contract.comments || [];
+  
+  // Find the parent comment and add the reply
+  const updatedComments = existingComments.map(comment => {
+    if (comment.id === parentCommentId) {
+      return {
+        ...comment,
+        replies: [...(comment.replies || []), newReply]
+      };
+    }
+    return comment;
+  });
+  
+  await updateDoc(contractRef, {
+    comments: updatedComments,
+    updatedAt: now
+  });
+  
+  return replyId;
+};
+
+// Delete a comment
+export const deleteComment = async (
+  contractId: string,
+  commentId: string,
+  parentCommentId?: string
+): Promise<void> => {
+  const contractRef = doc(db, 'contracts', contractId);
+  const contract = await getContract(contractId);
+  
+  if (!contract) {
+    throw new Error('Contract not found');
+  }
+  
+  const existingComments = contract.comments || [];
+  let updatedComments;
+  
+  if (parentCommentId) {
+    // It's a reply - find the parent and remove the reply
+    updatedComments = existingComments.map(comment => {
+      if (comment.id === parentCommentId) {
+        return {
+          ...comment,
+          replies: (comment.replies || []).filter(reply => reply.id !== commentId)
+        };
+      }
+      return comment;
+    });
+  } else {
+    // It's a top-level comment - remove it completely
+    updatedComments = existingComments.filter(comment => comment.id !== commentId);
+  }
+  
+  await updateDoc(contractRef, {
+    comments: updatedComments,
+    updatedAt: Timestamp.now()
   });
 };

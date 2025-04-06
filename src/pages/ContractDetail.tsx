@@ -9,6 +9,7 @@ import ContractStatusBadge from '@/components/contracts/ContractStatusBadge';
 import ContractForm from '@/components/contracts/ContractForm';
 import ContractProgressBar from '@/components/contracts/ContractProgressBar';
 import StatusSelectCard from '@/components/contracts/StatusSelectCard';
+import CommentSection from '@/components/contracts/CommentSection';
 import { Contract, ContractStatus, ContractType, getContract, updateContract, contractTypeLabels } from '@/lib/data';
 import { ArrowLeft, CalendarClock, Edit, FileText, Users, Wallet } from 'lucide-react';
 import { formatDistance } from 'date-fns';
@@ -26,27 +27,27 @@ const ContractDetail = () => {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchContract = async () => {
-      if (!id) return;
+  const fetchContract = async () => {
+    if (!id) return;
+    
+    try {
+      const contractData = await getContract(id);
       
-      try {
-        setLoading(true);
-        const contractData = await getContract(id);
-        
-        if (contractData) {
-          setContract(contractData);
-          setError(null);
-        } else {
-          setError('Contract not found');
-        }
-      } catch (error) {
-        setError('Failed to load contract details');
-      } finally {
-        setLoading(false);
+      if (contractData) {
+        setContract(contractData);
+        setError(null);
+      } else {
+        setError('Contract not found');
       }
-    };
+    } catch (error) {
+      setError('Failed to load contract details');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
+    setLoading(true);
     fetchContract();
   }, [id]);
 
@@ -387,6 +388,16 @@ const ContractDetail = () => {
             <ContractProgressBar currentStatus={contract.status} />
           </CardContent>
         </Card>
+
+        {/* Add the comment section */}
+        {currentUser && contract && (
+          <CommentSection 
+            contractId={id!}
+            comments={contract.comments || []}
+            userEmail={currentUser.email!}
+            onCommentsChange={fetchContract}
+          />
+        )}
       </div>
     </PageTransition>
   );
