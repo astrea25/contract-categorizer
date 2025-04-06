@@ -8,7 +8,8 @@ import AuthNavbar from '@/components/layout/AuthNavbar';
 import ContractStatusBadge from '@/components/contracts/ContractStatusBadge';
 import ContractForm from '@/components/contracts/ContractForm';
 import ContractProgressBar from '@/components/contracts/ContractProgressBar';
-import { Contract, ContractType, getContract, updateContract, contractTypeLabels } from '@/lib/data';
+import StatusSelectCard from '@/components/contracts/StatusSelectCard';
+import { Contract, ContractStatus, ContractType, getContract, updateContract, contractTypeLabels } from '@/lib/data';
 import { ArrowLeft, CalendarClock, Edit, FileText, Users, Wallet } from 'lucide-react';
 import { formatDistance } from 'date-fns';
 import { toast } from 'sonner';
@@ -22,6 +23,7 @@ const ContractDetail = () => {
   const navigate = useNavigate();
   const [contract, setContract] = useState<Contract | null>(null);
   const [loading, setLoading] = useState(true);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -61,6 +63,25 @@ const ContractDetail = () => {
       }
     } catch (error) {
       toast.error('Failed to update contract');
+    }
+  };
+
+  const handleStatusChange = async (newStatus: ContractStatus) => {
+    if (!contract || !id || !currentUser?.email) return;
+    
+    try {
+      setUpdatingStatus(true);
+      await updateContract(id, { status: newStatus }, currentUser.email);
+      
+      const updatedContract = await getContract(id);
+      if (updatedContract) {
+        setContract(updatedContract);
+        toast.success(`Status updated to ${newStatus.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}`);
+      }
+    } catch (error) {
+      toast.error('Failed to update status');
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -149,17 +170,11 @@ const ContractDetail = () => {
         </div>
         
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-          <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Status</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center space-x-2">
-                <ContractStatusBadge status={contract.status} />
-              </div>
-            </CardContent>
-          </Card>
+          <StatusSelectCard 
+            status={contract.status} 
+            onStatusChange={handleStatusChange} 
+            isUpdating={updatingStatus} 
+          />
 
           {contract.value !== null && (
           <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
