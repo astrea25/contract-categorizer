@@ -241,6 +241,9 @@ const ContractDetail = () => {
                     <p className="text-sm text-muted-foreground ml-6">
                       {party.role}
                     </p>
+                    <p className="text-sm text-muted-foreground ml-6">
+                      {party.email}
+                    </p>
                     {index < contract.parties.length - 1 && (
                       <Separator className="my-2" />
                     )}

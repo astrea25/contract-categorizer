@@ -35,6 +35,7 @@ export interface Contract {
   owner: string;
   parties: {
     name: string;
+    email: string;
     role: string;
   }[];
   startDate: string;
@@ -253,7 +254,8 @@ export const filterByOwner = (contracts: Contract[], owner?: string): Contract[]
   if (!owner) return contracts;
   return contracts.filter(contract =>
     contract.parties.some(party =>
-      party.name.toLowerCase().includes(owner.toLowerCase()) &&
+      (party.name.toLowerCase().includes(owner.toLowerCase()) ||
+       party.email.toLowerCase().includes(owner.toLowerCase())) &&
       party.role.toLowerCase() === 'owner'
     )
   );
@@ -262,7 +264,10 @@ export const filterByOwner = (contracts: Contract[], owner?: string): Contract[]
 export const filterByParty = (contracts: Contract[], party?: string): Contract[] => {
   if (!party) return contracts;
   return contracts.filter(contract => 
-    contract.parties.some(p => p.name.toLowerCase().includes(party.toLowerCase()))
+    contract.parties.some(p => 
+      p.name.toLowerCase().includes(party.toLowerCase()) ||
+      p.email.toLowerCase().includes(party.toLowerCase())
+    )
   );
 };
 

@@ -33,6 +33,7 @@ import { toast } from 'sonner';
 
 type Party = {
   name: string;
+  email: string;
   role: string;
 };
 
@@ -50,7 +51,10 @@ const ContractForm = ({ initialData, onSave, trigger }: ContractFormProps) => {
       projectName: '',
       type: 'service',
       status: 'draft',
-      parties: [{ name: '', role: '' }],
+      parties: [
+        { name: '', email: '', role: '' },
+        { name: '', email: '', role: '' }
+      ],
       startDate: new Date().toISOString().split('T')[0],
       endDate: null,
       value: null,
@@ -59,7 +63,10 @@ const ContractForm = ({ initialData, onSave, trigger }: ContractFormProps) => {
   );
 
   const [parties, setParties] = useState<Party[]>(
-    initialData?.parties || [{ name: '', role: '' }]
+    initialData?.parties || [
+      { name: '', email: '', role: '' },
+      { name: '', email: '', role: '' }
+    ]
   );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -97,11 +104,11 @@ const ContractForm = ({ initialData, onSave, trigger }: ContractFormProps) => {
   };
 
   const addParty = () => {
-    setParties([...parties, { name: '', role: '' }]);
+    setParties([...parties, { name: '', email: '', role: '' }]);
   };
 
   const removeParty = (index: number) => {
-    if (parties.length > 1) {
+    if (parties.length > 2) {
       const updatedParties = [...parties];
       updatedParties.splice(index, 1);
       setParties(updatedParties);
@@ -299,15 +306,39 @@ const ContractForm = ({ initialData, onSave, trigger }: ContractFormProps) => {
               </div>
               
               {parties.map((party, index) => (
-                <div key={index} className="flex gap-3 items-start">
-                  <div className="flex-1">
+                <div key={index} className="space-y-3 border p-3 rounded-md">
+                  <div className="flex justify-between items-center">
+                    <Label>Party {index + 1}</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeParty(index)}
+                      disabled={parties.length <= 2}
+                      className="h-8 w-8"
+                    >
+                      <X size={14} />
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Name</Label>
                     <Input
                       placeholder="Party name"
                       value={party.name}
                       onChange={(e) => handlePartyChange(index, 'name', e.target.value)}
                     />
                   </div>
-                  <div className="flex-1">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Email</Label>
+                    <Input
+                      placeholder="Party email"
+                      type="email"
+                      value={party.email}
+                      onChange={(e) => handlePartyChange(index, 'email', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Role</Label>
                     <Select
                       value={party.role}
                       onValueChange={(value) => handlePartyChange(index, 'role', value)}
@@ -321,16 +352,6 @@ const ContractForm = ({ initialData, onSave, trigger }: ContractFormProps) => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeParty(index)}
-                    disabled={parties.length <= 1}
-                    className="shrink-0"
-                  >
-                    <X size={14} />
-                  </Button>
                 </div>
               ))}
             </div>
