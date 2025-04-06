@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,14 +9,26 @@ import { toast } from "sonner";
 import PageTransition from "@/components/layout/PageTransition";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { useState, useEffect } from "react";
+import { z } from "zod";
 
-const Login = () => {
-  const { signInWithGoogle, signInWithEmail, currentUser, error: authError } = useAuth();
+// Validation schema for registration form
+const signUpSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters long"),
+  confirmPassword: z.string().min(6, "Password must be at least 6 characters long")
+}).refine(data => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"]
+});
+
+const SignUp = () => {
+  const { signUpWithEmail, currentUser, error: authError } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (currentUser) {
@@ -23,30 +36,26 @@ const Login = () => {
     }
   }, [currentUser, navigate]);
 
-  const handleGoogleLogin = async () => {
-    try {
-      setIsLoading(true);
-      await signInWithGoogle();
-      // Navigation is handled by the useEffect when currentUser changes
-    } catch (error: any) {
-      if (error.code === 'auth/unauthorized-domain') {
-        toast.error("This domain is not authorized for authentication");
-      } else {
-        toast.error("Failed to login with Google");
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationError(null);
+
     try {
+      // Validate form data
+      const validationResult = signUpSchema.safeParse({ email, password, confirmPassword });
+      
+      if (!validationResult.success) {
+        const error = validationResult.error.errors[0];
+        setValidationError(error.message);
+        return;
+      }
+
       setIsLoading(true);
-      await signInWithEmail(email, password);
+      await signUpWithEmail(email, password);
+      toast.success("Account created successfully!");
       // Navigation is handled by the useEffect when currentUser changes
     } catch (error: any) {
-      // Error handling is done in AuthContext
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -57,20 +66,20 @@ const Login = () => {
       <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold">Contract Management</CardTitle>
+            <CardTitle className="text-2xl font-bold">Create an Account</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Sign in to access your account
+              Enter your email and create a password to sign up
             </p>
           </CardHeader>
           <CardContent>
-            {authError && (
+            {(authError || validationError) && (
               <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{authError}</AlertDescription>
+                <AlertDescription>{authError || validationError}</AlertDescription>
               </Alert>
             )}
             
-            <form onSubmit={handleEmailLogin} className="space-y-4">
+            <form onSubmit={handleSignUp} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input 
@@ -94,47 +103,30 @@ const Login = () => {
                 />
               </div>
               
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Input 
+                  id="confirmPassword" 
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+              </div>
+              
               <Button 
                 type="submit" 
                 className="w-full"
                 disabled={isLoading}
               >
-                {isLoading ? "Signing in..." : "Sign in with Email"}
-              </Button>
-              
-              <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
-                    Or continue with
-                  </span>
-                </div>
-              </div>
-              
-              <Button 
-                type="button" 
-                className="w-full"
-                onClick={handleGoogleLogin}
-                disabled={isLoading}
-                variant="outline"
-              >
-                {isLoading ? "Signing in..." : "Sign in with Google"}
+                {isLoading ? "Creating Account..." : "Sign Up"}
               </Button>
               
               <div className="text-center text-sm">
-                Don't have an account?{" "}
-                <Link to="/signup" className="font-medium text-primary underline-offset-4 hover:underline">
-                  Sign Up
+                Already have an account?{" "}
+                <Link to="/login" className="font-medium text-primary underline-offset-4 hover:underline">
+                  Sign In
                 </Link>
-              </div>
-              
-              <div className="text-xs text-muted-foreground mt-2">
-                <p className="text-center">
-                  Note: Only authorized users can access this application.
-                  Contact your administrator if you need access.
-                </p>
               </div>
             </form>
           </CardContent>
@@ -144,4 +136,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default SignUp; 

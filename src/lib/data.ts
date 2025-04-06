@@ -189,7 +189,16 @@ export const isUserAllowed = async (email: string): Promise<boolean> => {
     return true; // User is an admin
   }
 
-  // If not an admin, check shareInvites collection
+  // Check if user is in users collection (newly registered users)
+  const usersRef = collection(db, 'users');
+  const userQuery = query(usersRef, where('email', '==', email.toLowerCase()));
+  const userSnapshot = await getDocs(userQuery);
+
+  if (!userSnapshot.empty) {
+    return true; // User exists in users collection
+  }
+
+  // If not an admin or registered user, check shareInvites collection
   const shareInvitesRef = collection(db, 'shareInvites');
   const shareQuery = query(shareInvitesRef, where('email', '==', email.toLowerCase()));
   const shareSnapshot = await getDocs(shareQuery);
@@ -344,5 +353,25 @@ export const getContractStats = async (): Promise<ContractStats> => {
     return stats;
   } catch (error) {
     throw error;
+  }
+};
+
+// Add a function to register users in the database
+export const registerUser = async (userId: string, email: string, displayName?: string): Promise<void> => {
+  const usersRef = collection(db, 'users');
+  
+  // Check if user already exists
+  const userQuery = query(usersRef, where('email', '==', email.toLowerCase()));
+  const userSnapshot = await getDocs(userQuery);
+  
+  if (userSnapshot.empty) {
+    // Create a new user document
+    await addDoc(usersRef, {
+      userId,
+      email: email.toLowerCase(),
+      displayName: displayName || '',
+      role: 'user', // Default role
+      createdAt: new Date().toISOString(),
+    });
   }
 };
