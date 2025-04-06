@@ -102,7 +102,7 @@ const Login = () => {
                 {isLoading ? "Signing in..." : "Sign in with Email"}
               </Button>
               
-              <div className="relative my-4">
+              <div className="relative">
                 <div className="absolute inset-0 flex items-center">
                   <span className="w-full border-t" />
                 </div>
@@ -131,9 +131,11 @@ const Login = () => {
               </div>
               
               <div className="text-xs text-muted-foreground mt-2">
-                <p className="text-center">
-                  Note: Only authorized users can access this application.
-                  Contact your administrator if you need access.
+                <p className="text-center font-medium">
+                  This is an invitation-only application.
+                </p>
+                <p className="text-center mt-1">
+                  You must be invited by an existing administrator to access the system.
                 </p>
               </div>
             </form>

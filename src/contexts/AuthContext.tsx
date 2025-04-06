@@ -39,14 +39,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signInWithGoogle = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
+      // Check if user is allowed BEFORE registering them
       const isAllowed = await isUserAllowed(result.user.email || '');
       
       if (!isAllowed) {
         await firebaseSignOut(auth);
-        setError('You are not authorized to access this application.');
+        setError('You are not authorized to access this application. Please request an invitation from an administrator.');
         return;
       }
       
+      // Only register if the user is already allowed to access the system
       // Extract first and last name from Google displayName
       const displayName = result.user.displayName || '';
       const nameArray = displayName.split(' ');
@@ -75,7 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (!isAllowed) {
         await firebaseSignOut(auth);
-        setError('You are not authorized to access this application.');
+        setError('You are not authorized to access this application. Please request an invitation from an administrator.');
         return;
       }
       
@@ -93,6 +95,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUpWithEmail = async (email: string, password: string, firstName = '', lastName = '') => {
     try {
+      // Check if the user is allowed to sign up BEFORE creating their account
+      const isAllowed = await isUserAllowed(email);
+      
+      if (!isAllowed) {
+        setError('You are not authorized to access this application. Please request an invitation from an administrator.');
+        return;
+      }
+      
       const result = await createUserWithEmailAndPassword(auth, email, password);
       
       // Update the user profile with the display name
@@ -136,38 +146,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        // Check if user is allowed to access the application
         const isAllowed = await isUserAllowed(user.email || '');
         if (!isAllowed) {
           await firebaseSignOut(auth);
-          setError('You are not authorized to access this application.');
+          setError('You are not authorized to access this application. Please request an invitation from an administrator.');
           setCurrentUser(null);
         } else {
           setCurrentUser(user);
           setError(null);
-          
-          // For testing: Makes the current user an admin
-          // if (user.email) {
-          //   import('@/lib/data').then(({ addAdminUser, registerUser }) => {
-          //     addAdminUser(user.email || '');
-          //     
-          //     // Extract name from display name if available
-          //     const displayName = user.displayName || '';
-          //     const nameArray = displayName.split(' ');
-          //     const firstName = nameArray[0] || '';
-          //     const lastName = nameArray.slice(1).join(' ') || '';
-          //     
-          //     // Register or update user data
-          //     registerUser(
-          //       user.uid,
-          //       user.email || '',
-          //       firstName,
-          //       lastName,
-          //       displayName
-          //     );
-          //   });
-          // }
-          
-          // Only keep user registration without making them admin
+
+          // Only register user data if they are already allowed to access the system
+          // This means they must be in admin, users, or shareInvites collections
           if (user.email) {
             import('@/lib/data').then(({ registerUser }) => {
               // Extract name from display name if available

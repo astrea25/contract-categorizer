@@ -17,13 +17,25 @@ import {
   removeLegalTeamMember,
   inviteUser,
   addAdminUser,
-  removeAdminUser
+  removeAdminUser,
+  removeUser
 } from '@/lib/data';
 import { AlertCircle, Check, Plus, Trash2, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 // Types
 interface User {
@@ -78,6 +90,10 @@ const Admin = () => {
   const [isLegalDialogOpen, setIsLegalDialogOpen] = useState(false);
   const [addingLegal, setAddingLegal] = useState(false);
   const [addingExistingLegalUser, setAddingExistingLegalUser] = useState(false);
+
+  // State for user removal confirmation
+  const [userToRemove, setUserToRemove] = useState<User | null>(null);
+  const [isRemovingUser, setIsRemovingUser] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -357,6 +373,24 @@ const Admin = () => {
     }
   };
 
+  // Function to handle user removal
+  const handleRemoveUser = async () => {
+    if (!userToRemove) return;
+    
+    try {
+      setIsRemovingUser(true);
+      await removeUser(userToRemove.id);
+      toast.success(`User ${userToRemove.email} has been completely removed from the system`);
+      setUserToRemove(null);
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error('Error removing user:', error);
+      toast.error('Failed to remove user');
+    } finally {
+      setIsRemovingUser(false);
+    }
+  };
+
   // Define columns for users table
   const userColumns: ColumnDef<User>[] = [
     {
@@ -404,6 +438,19 @@ const Admin = () => {
       accessorKey: 'createdAt',
       header: 'Created At',
       cell: ({ row }) => row.original.createdAt ? new Date(row.original.createdAt).toLocaleDateString() : '-',
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => (
+        <Button 
+          variant="ghost" 
+          size="icon"
+          onClick={() => setUserToRemove(row.original)}
+        >
+          <Trash2 className="h-4 w-4 text-destructive" />
+        </Button>
+      ),
     },
   ];
 
@@ -487,7 +534,7 @@ const Admin = () => {
               <DialogHeader>
                 <DialogTitle>Invite New User</DialogTitle>
                 <DialogDescription>
-                  Invite a new user to the application. They will receive access once they log in.
+                  Invite a new user to the application. This will grant them access to sign up and log in.
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
@@ -500,6 +547,9 @@ const Admin = () => {
                     value={newUserEmail}
                     onChange={(e) => setNewUserEmail(e.target.value)}
                   />
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  <p>Only invited users can access this application. The invited user will need to sign up with this exact email address.</p>
                 </div>
               </div>
               <DialogFooter>
@@ -562,6 +612,11 @@ const Admin = () => {
                   />
                 )}
               </CardContent>
+              <CardFooter className="border-t pt-6 flex justify-between">
+                <div className="text-sm text-muted-foreground">
+                  Regular users can be removed using the delete icon. This application is invitation-only - new users must be invited via the "Invite User" button before they can sign up.
+                </div>
+              </CardFooter>
             </Card>
           </TabsContent>
           
@@ -831,6 +886,30 @@ const Admin = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* User removal confirmation dialog */}
+        <AlertDialog open={!!userToRemove} onOpenChange={(open) => !open && setUserToRemove(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm User Removal</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to remove <span className="font-semibold">{userToRemove?.email}</span>?
+                This will permanently delete the user from the system, including any pending invitations.
+                This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleRemoveUser}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={isRemovingUser}
+              >
+                {isRemovingUser ? 'Removing...' : 'Remove User'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </PageTransition>
   );

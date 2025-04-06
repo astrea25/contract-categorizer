@@ -162,6 +162,15 @@ const SignUp = () => {
                   Sign In
                 </Link>
               </div>
+              
+              <div className="text-xs text-muted-foreground mt-4">
+                <p className="text-center font-medium">
+                  This is an invitation-only application.
+                </p>
+                <p className="text-center mt-1">
+                  You can only sign up if you've been invited by an administrator.
+                </p>
+              </div>
             </form>
           </CardContent>
         </Card>

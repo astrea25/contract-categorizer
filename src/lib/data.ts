@@ -568,6 +568,24 @@ export const registerUser = async (
       role: 'user', // Default role
       createdAt: new Date().toISOString(),
     });
+    
+    // If the user was invited, remove their entry from shareInvites collection
+    // since they are now registered and in the users collection
+    try {
+      const shareInvitesRef = collection(db, 'shareInvites');
+      const inviteQuery = query(shareInvitesRef, where('email', '==', email.toLowerCase()));
+      const inviteSnapshot = await getDocs(inviteQuery);
+      
+      if (!inviteSnapshot.empty) {
+        // Delete the invite once the user is registered
+        const inviteDoc = inviteSnapshot.docs[0];
+        await deleteDoc(doc(db, 'shareInvites', inviteDoc.id));
+        console.log('Removed share invite for registered user:', email.toLowerCase());
+      }
+    } catch (error) {
+      console.error('Error cleaning up share invite:', error);
+      // Continue even if this fails, as the user has been registered successfully
+    }
   } else {
     // Update existing user document with the display name
     const userDoc = userSnapshot.docs[0];
@@ -891,4 +909,43 @@ export const isUserLegalTeam = async (email: string): Promise<boolean> => {
   const legalTeamSnapshot = await getDocs(legalTeamQuery);
 
   return !legalTeamSnapshot.empty;
+};
+
+// Remove a user from the system
+export const removeUser = async (id: string): Promise<void> => {
+  // First get the user details to know their email
+  const userRef = doc(db, 'users', id);
+  const userSnapshot = await getDoc(userRef);
+  
+  if (userSnapshot.exists()) {
+    const userData = userSnapshot.data();
+    const email = userData.email?.toLowerCase();
+    
+    // Delete the user from users collection
+    await deleteDoc(userRef);
+    
+    // Also remove from shareInvites collection if they have any pending invites
+    if (email) {
+      try {
+        const shareInvitesRef = collection(db, 'shareInvites');
+        const inviteQuery = query(shareInvitesRef, where('email', '==', email));
+        const inviteSnapshot = await getDocs(inviteQuery);
+        
+        if (!inviteSnapshot.empty) {
+          // Delete any invites for this user
+          const deletePromises = inviteSnapshot.docs.map(inviteDoc => 
+            deleteDoc(doc(db, 'shareInvites', inviteDoc.id))
+          );
+          await Promise.all(deletePromises);
+          console.log('Removed share invites for user:', email);
+        }
+      } catch (error) {
+        console.error('Error cleaning up share invites for removed user:', error);
+        // Continue even if this fails, as the main user has been removed successfully
+      }
+    }
+  } else {
+    // If user doesn't exist, just exit
+    return;
+  }
 };
