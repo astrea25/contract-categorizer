@@ -83,14 +83,11 @@ const Admin = () => {
   const [addingAdmin, setAddingAdmin] = useState(false);
 
   // State for legal team member form
-  const [newLegalEmail, setNewLegalEmail] = useState('');
   const [legalUserSearch, setLegalUserSearch] = useState('');
   const [filteredLegalUsers, setFilteredLegalUsers] = useState<User[]>([]);
-  const [newLegalName, setNewLegalName] = useState('');
   const [newLegalRole, setNewLegalRole] = useState('Legal Reviewer');
   const [isLegalDialogOpen, setIsLegalDialogOpen] = useState(false);
   const [addingLegal, setAddingLegal] = useState(false);
-  const [addingExistingLegalUser, setAddingExistingLegalUser] = useState(false);
 
   // State for user removal confirmation
   const [userToRemove, setUserToRemove] = useState<User | null>(null);
@@ -282,40 +279,26 @@ const Admin = () => {
     }
   }, [legalUserSearch, isLegalDialogOpen, legalTeam, users]);
 
-  // Function to select an existing user for legal team
-  const selectUserForLegalTeam = (user: User) => {
-    setNewLegalEmail(user.email);
-    setNewLegalName(user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim());
-    setLegalUserSearch('');
-    setFilteredLegalUsers([]);
-    setAddingExistingLegalUser(true);
-  };
-
   // Function to add a legal team member
-  const handleAddLegalMember = async () => {
-    if (!newLegalEmail) {
-      toast.error('Email is required');
-      return;
-    }
-
+  const handleAddLegalMember = async (user: User) => {
     try {
       setAddingLegal(true);
-      await addLegalTeamMember(newLegalEmail, newLegalName, newLegalRole);
+      
+      // Get the display name from user
+      const displayName = user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim();
+      
+      await addLegalTeamMember(user.email, displayName, newLegalRole);
       
       // Also add to shareInvites so they can access the app
       await inviteUser(
-        newLegalEmail, 
+        user.email, 
         'legal', 
         currentUser?.email || 'admin'
       );
       
-      toast.success(`Added ${newLegalEmail} to the legal team`);
-      setNewLegalEmail('');
-      setNewLegalName('');
-      setNewLegalRole('Legal Reviewer');
+      toast.success(`${user.email} is now a legal team member`);
       setLegalUserSearch('');
       setFilteredLegalUsers([]);
-      setAddingExistingLegalUser(false);
       setIsLegalDialogOpen(false);
       fetchData(); // Refresh data
     } catch (error) {
@@ -814,12 +797,8 @@ const Admin = () => {
                   <Dialog open={isLegalDialogOpen} onOpenChange={(open) => {
                     setIsLegalDialogOpen(open);
                     if (!open) {
-                      setNewLegalEmail('');
-                      setNewLegalName('');
-                      setNewLegalRole('Legal Reviewer');
                       setLegalUserSearch('');
                       setFilteredLegalUsers([]);
-                      setAddingExistingLegalUser(false);
                     }
                   }}>
                     <DialogTrigger asChild>
@@ -832,95 +811,55 @@ const Admin = () => {
                       <DialogHeader>
                         <DialogTitle>Add Legal Team Member</DialogTitle>
                         <DialogDescription>
-                          Add a new member to the legal team. They will have access to review contracts.
+                          Search for an existing user to add to the legal team.
                         </DialogDescription>
                       </DialogHeader>
                       <div className="grid gap-4 py-4">
-                        {!addingExistingLegalUser && (
-                          <div className="grid gap-2">
-                            <Label htmlFor="legalUserSearch">Search Existing Users</Label>
-                            <div className="relative">
-                              <Input
-                                id="legalUserSearch"
-                                placeholder="Search by name or email"
-                                value={legalUserSearch}
-                                onChange={(e) => setLegalUserSearch(e.target.value)}
-                              />
-                              {filteredLegalUsers.length > 0 && (
-                                <div className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-popover border rounded-md shadow-md">
-                                  {filteredLegalUsers.map(user => (
-                                    <div 
-                                      key={user.id}
-                                      className="p-2 hover:bg-accent cursor-pointer flex justify-between items-center"
-                                      onClick={() => selectUserForLegalTeam(user)}
-                                    >
-                                      <div>
-                                        <div className="font-medium">
-                                          {user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'No name'}
-                                        </div>
-                                        <div className="text-xs text-muted-foreground">{user.email}</div>
-                                      </div>
-                                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                                        <Check className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              Or fill in the details manually below
-                            </div>
-                          </div>
-                        )}
-
-                        {addingExistingLegalUser && (
-                          <div className="bg-muted p-3 rounded-md mb-2 flex justify-between items-center">
-                            <div>
-                              <div className="font-medium">{newLegalName}</div>
-                              <div className="text-xs text-muted-foreground">{newLegalEmail}</div>
-                            </div>
-                            <Button 
-                              size="sm" 
-                              variant="ghost" 
-                              className="h-8 w-8 p-0" 
-                              onClick={() => {
-                                setNewLegalEmail('');
-                                setNewLegalName('');
-                                setAddingExistingLegalUser(false);
-                              }}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        )}
-
-                        {!addingExistingLegalUser && (
-                          <>
-                            <div className="grid gap-2">
-                              <Label htmlFor="legalEmail">Email</Label>
-                              <Input
-                                id="legalEmail"
-                                type="email"
-                                placeholder="legal@example.com"
-                                value={newLegalEmail}
-                                onChange={(e) => setNewLegalEmail(e.target.value)}
-                              />
-                            </div>
-                            <div className="grid gap-2">
-                              <Label htmlFor="legalName">Display Name</Label>
-                              <Input
-                                id="legalName"
-                                placeholder="John Doe"
-                                value={newLegalName}
-                                onChange={(e) => setNewLegalName(e.target.value)}
-                              />
-                            </div>
-                          </>
-                        )}
-                        
                         <div className="grid gap-2">
-                          <Label htmlFor="legalRole">Role</Label>
+                          <Label htmlFor="legalUserSearch">Search Existing Users</Label>
+                          <div className="relative">
+                            <Input
+                              id="legalUserSearch"
+                              placeholder="Search by name or email"
+                              value={legalUserSearch}
+                              onChange={(e) => setLegalUserSearch(e.target.value)}
+                            />
+                            {filteredLegalUsers.length > 0 && (
+                              <div className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-popover border rounded-md shadow-md">
+                                {filteredLegalUsers.map(user => (
+                                  <div 
+                                    key={user.id}
+                                    className="p-2 hover:bg-accent cursor-pointer flex justify-between items-center"
+                                    onClick={() => handleAddLegalMember(user)}
+                                  >
+                                    <div>
+                                      <div className="font-medium">
+                                        {user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'No name'}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">{user.email}</div>
+                                    </div>
+                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                      <Check className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {filteredLegalUsers.length === 0 && legalUserSearch.trim() !== '' && (
+                          <div className="text-sm flex items-center gap-2 text-muted-foreground">
+                            <AlertCircle className="h-4 w-4" />
+                            No matching users found
+                          </div>
+                        )}
+                        {legalUserSearch.trim() === '' && (
+                          <div className="text-sm text-muted-foreground">
+                            Type to search for users to add to the legal team
+                          </div>
+                        )}
+                        <div className="grid gap-2">
+                          <Label htmlFor="legalRole">Role for Selected User</Label>
                           <Select value={newLegalRole} onValueChange={setNewLegalRole}>
                             <SelectTrigger>
                               <SelectValue placeholder="Select role" />
@@ -937,9 +876,6 @@ const Admin = () => {
                       <DialogFooter>
                         <Button variant="outline" onClick={() => setIsLegalDialogOpen(false)}>
                           Cancel
-                        </Button>
-                        <Button onClick={handleAddLegalMember} disabled={addingLegal}>
-                          {addingLegal ? 'Adding...' : 'Add Member'}
                         </Button>
                       </DialogFooter>
                     </DialogContent>
