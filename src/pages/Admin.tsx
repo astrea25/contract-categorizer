@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import AuthNavbar from '@/components/layout/AuthNavbar';
 import PageTransition from '@/components/layout/PageTransition';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { collection, getDocs, doc, updateDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -11,6 +11,19 @@ import { ColumnDef } from '@tanstack/react-table';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { 
+  getLegalTeamMembers, 
+  addLegalTeamMember, 
+  removeLegalTeamMember,
+  inviteUser,
+  addAdminUser,
+  removeAdminUser
+} from '@/lib/data';
+import { AlertCircle, Check, Plus, Trash2, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // Types
 interface User {
@@ -28,12 +41,43 @@ interface AdminUser {
   email: string;
 }
 
+interface LegalTeamMember {
+  id: string;
+  email: string;
+  displayName?: string;
+  role?: string;
+  createdAt?: string;
+}
+
 const Admin = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [admins, setAdmins] = useState<AdminUser[]>([]);
+  const [legalTeam, setLegalTeam] = useState<LegalTeamMember[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>('users');
   const { currentUser } = useAuth();
+
+  // State for user invitation form
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
+  const [inviting, setInviting] = useState(false);
+
+  // State for admin user form
+  const [adminUserSearch, setAdminUserSearch] = useState('');
+  const [filteredAdminUsers, setFilteredAdminUsers] = useState<User[]>([]);
+  const [isAdminDialogOpen, setIsAdminDialogOpen] = useState(false);
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [addingAdmin, setAddingAdmin] = useState(false);
+
+  // State for legal team member form
+  const [newLegalEmail, setNewLegalEmail] = useState('');
+  const [legalUserSearch, setLegalUserSearch] = useState('');
+  const [filteredLegalUsers, setFilteredLegalUsers] = useState<User[]>([]);
+  const [newLegalName, setNewLegalName] = useState('');
+  const [newLegalRole, setNewLegalRole] = useState('Legal Reviewer');
+  const [isLegalDialogOpen, setIsLegalDialogOpen] = useState(false);
+  const [addingLegal, setAddingLegal] = useState(false);
+  const [addingExistingLegalUser, setAddingExistingLegalUser] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -55,16 +99,24 @@ const Admin = () => {
         ...doc.data()
       })) as AdminUser[];
       
+      // Fetch legal team members
+      const legalTeamData = await getLegalTeamMembers() as LegalTeamMember[];
+      
       // Filter out admin users from the users list
       const adminEmails = adminsData.map(admin => admin.email.toLowerCase());
+      const legalEmails = legalTeamData.map(legal => legal.email.toLowerCase());
+      
       const filteredUsers = usersData.filter(user => 
-        !adminEmails.includes(user.email.toLowerCase())
+        !adminEmails.includes(user.email.toLowerCase()) &&
+        !legalEmails.includes(user.email.toLowerCase())
       );
       
       setUsers(filteredUsers);
       setAdmins(adminsData);
+      setLegalTeam(legalTeamData);
     } catch (error) {
       console.error('Error fetching admin data:', error);
+      toast.error('Error fetching data');
     } finally {
       setLoading(false);
     }
@@ -73,6 +125,157 @@ const Admin = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Function to invite a new user
+  const handleInviteUser = async () => {
+    if (!newUserEmail) {
+      toast.error('Email is required');
+      return;
+    }
+
+    try {
+      setInviting(true);
+      await inviteUser(
+        newUserEmail, 
+        'user', // Default role
+        currentUser?.email || 'admin'
+      );
+      
+      toast.success(`Invitation sent to ${newUserEmail}`);
+      setNewUserEmail('');
+      setIsInviteDialogOpen(false);
+    } catch (error) {
+      console.error('Error inviting user:', error);
+      toast.error('Failed to invite user');
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  // Filter users for adding to admin team
+  useEffect(() => {
+    if (isAdminDialogOpen) {
+      const adminEmails = admins.map(admin => admin.email.toLowerCase());
+      
+      if (adminUserSearch.trim() !== '') {
+        const filtered = users.filter(user => 
+          !adminEmails.includes(user.email.toLowerCase()) &&
+          (user.email.toLowerCase().includes(adminUserSearch.toLowerCase()) ||
+           user.displayName?.toLowerCase().includes(adminUserSearch.toLowerCase()) ||
+           `${user.firstName || ''} ${user.lastName || ''}`.trim().toLowerCase().includes(adminUserSearch.toLowerCase()))
+        );
+        setFilteredAdminUsers(filtered);
+      } else {
+        setFilteredAdminUsers([]);
+      }
+    }
+  }, [adminUserSearch, isAdminDialogOpen, admins, users]);
+
+  // Function to add user as admin
+  const handleAddAdmin = async (user: User) => {
+    try {
+      setAddingAdmin(true);
+      await addAdminUser(user.email);
+      toast.success(`${user.email} is now an admin`);
+      setAdminUserSearch('');
+      setNewAdminEmail('');
+      setFilteredAdminUsers([]);
+      setIsAdminDialogOpen(false);
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error('Error adding admin:', error);
+      toast.error('Failed to add admin user');
+    } finally {
+      setAddingAdmin(false);
+    }
+  };
+
+  // Function to remove an admin
+  const handleRemoveAdmin = async (id: string, email: string) => {
+    try {
+      await removeAdminUser(id);
+      toast.success(`Removed ${email} from administrators`);
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error('Error removing admin:', error);
+      toast.error('Failed to remove admin user');
+    }
+  };
+
+  // Filter users for adding to legal team
+  useEffect(() => {
+    if (isLegalDialogOpen) {
+      const legalEmails = legalTeam.map(member => member.email.toLowerCase());
+      
+      if (legalUserSearch.trim() !== '') {
+        const filtered = users.filter(user => 
+          !legalEmails.includes(user.email.toLowerCase()) &&
+          (user.email.toLowerCase().includes(legalUserSearch.toLowerCase()) ||
+           user.displayName?.toLowerCase().includes(legalUserSearch.toLowerCase()) ||
+           `${user.firstName || ''} ${user.lastName || ''}`.trim().toLowerCase().includes(legalUserSearch.toLowerCase()))
+        );
+        setFilteredLegalUsers(filtered);
+      } else {
+        setFilteredLegalUsers([]);
+      }
+    }
+  }, [legalUserSearch, isLegalDialogOpen, legalTeam, users]);
+
+  // Function to select an existing user for legal team
+  const selectUserForLegalTeam = (user: User) => {
+    setNewLegalEmail(user.email);
+    setNewLegalName(user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim());
+    setLegalUserSearch('');
+    setFilteredLegalUsers([]);
+    setAddingExistingLegalUser(true);
+  };
+
+  // Function to add a legal team member
+  const handleAddLegalMember = async () => {
+    if (!newLegalEmail) {
+      toast.error('Email is required');
+      return;
+    }
+
+    try {
+      setAddingLegal(true);
+      await addLegalTeamMember(newLegalEmail, newLegalName, newLegalRole);
+      
+      // Also add to shareInvites so they can access the app
+      await inviteUser(
+        newLegalEmail, 
+        'legal', 
+        currentUser?.email || 'admin'
+      );
+      
+      toast.success(`Added ${newLegalEmail} to the legal team`);
+      setNewLegalEmail('');
+      setNewLegalName('');
+      setNewLegalRole('Legal Reviewer');
+      setLegalUserSearch('');
+      setFilteredLegalUsers([]);
+      setAddingExistingLegalUser(false);
+      setIsLegalDialogOpen(false);
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error('Error adding legal team member:', error);
+      toast.error('Failed to add legal team member');
+    } finally {
+      setAddingLegal(false);
+    }
+  };
+
+  // Function to remove a legal team member
+  const handleRemoveLegalMember = async (id: string, email: string) => {
+    try {
+      await removeLegalTeamMember(id);
+      toast.success(`Removed ${email} from the legal team`);
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error('Error removing legal team member:', error);
+      toast.error('Failed to remove legal team member');
+    }
+  };
 
   // Function to update display names for users without one
   const updateMissingDisplayNames = async () => {
@@ -140,6 +343,7 @@ const Admin = () => {
     console.log("Current Firebase Auth User:", currentUser);
     console.log("Users from Firestore:", users);
     console.log("Admin users:", admins);
+    console.log("Legal team:", legalTeam);
     
     if (users.length > 0) {
       // Show details of the first user
@@ -209,6 +413,55 @@ const Admin = () => {
       accessorKey: 'email',
       header: 'Email',
     },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => (
+        <Button 
+          variant="ghost" 
+          size="icon"
+          onClick={() => handleRemoveAdmin(row.original.id, row.original.email)}
+        >
+          <Trash2 className="h-4 w-4 text-destructive" />
+        </Button>
+      ),
+    },
+  ];
+
+  // Define columns for legal team table
+  const legalColumns: ColumnDef<LegalTeamMember>[] = [
+    {
+      accessorKey: 'email',
+      header: 'Email',
+    },
+    {
+      accessorKey: 'displayName',
+      header: 'Name',
+      cell: ({ row }) => row.original.displayName || '-',
+    },
+    {
+      accessorKey: 'role',
+      header: 'Role',
+      cell: ({ row }) => row.original.role || 'Legal Reviewer',
+    },
+    {
+      accessorKey: 'createdAt',
+      header: 'Added On',
+      cell: ({ row }) => row.original.createdAt ? new Date(row.original.createdAt).toLocaleDateString() : '-',
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => (
+        <Button 
+          variant="ghost" 
+          size="icon"
+          onClick={() => handleRemoveLegalMember(row.original.id, row.original.email)}
+        >
+          <Trash2 className="h-4 w-4 text-destructive" />
+        </Button>
+      ),
+    },
   ];
 
   return (
@@ -222,10 +475,50 @@ const Admin = () => {
           </p>
         </header>
 
+        <div className="mb-6 flex justify-end">
+          <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Invite User
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Invite New User</DialogTitle>
+                <DialogDescription>
+                  Invite a new user to the application. They will receive access once they log in.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="user@example.com"
+                    value={newUserEmail}
+                    onChange={(e) => setNewUserEmail(e.target.value)}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleInviteUser} disabled={inviting}>
+                  {inviting ? 'Sending...' : 'Send Invite'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+
         <Tabs defaultValue="users" value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6">
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="admins">Admins</TabsTrigger>
+            <TabsTrigger value="legalTeam">Legal Team</TabsTrigger>
           </TabsList>
           
           <TabsContent value="users">
@@ -233,7 +526,7 @@ const Admin = () => {
               <CardHeader>
                 <CardTitle>Users</CardTitle>
                 <CardDescription>
-                  List of all regular users in the application (excluding admins)
+                  List of all regular users in the application (excluding admins and legal team)
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -275,10 +568,87 @@ const Admin = () => {
           <TabsContent value="admins">
             <Card>
               <CardHeader>
-                <CardTitle>Administrators</CardTitle>
-                <CardDescription>
-                  List of all admin users with full access
-                </CardDescription>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>Administrators</CardTitle>
+                    <CardDescription>
+                      Users with full access to the application
+                    </CardDescription>
+                  </div>
+                  <Dialog open={isAdminDialogOpen} onOpenChange={(open) => {
+                    setIsAdminDialogOpen(open);
+                    if (!open) {
+                      setAdminUserSearch('');
+                      setNewAdminEmail('');
+                      setFilteredAdminUsers([]);
+                    }
+                  }}>
+                    <DialogTrigger asChild>
+                      <Button size="sm">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Admin
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add Administrator</DialogTitle>
+                        <DialogDescription>
+                          Search for an existing user to promote to administrator role.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="adminUserSearch">Search Existing Users</Label>
+                          <div className="relative">
+                            <Input
+                              id="adminUserSearch"
+                              placeholder="Search by name or email"
+                              value={adminUserSearch}
+                              onChange={(e) => setAdminUserSearch(e.target.value)}
+                            />
+                            {filteredAdminUsers.length > 0 && (
+                              <div className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-popover border rounded-md shadow-md">
+                                {filteredAdminUsers.map(user => (
+                                  <div 
+                                    key={user.id}
+                                    className="p-2 hover:bg-accent cursor-pointer flex justify-between items-center"
+                                    onClick={() => handleAddAdmin(user)}
+                                  >
+                                    <div>
+                                      <div className="font-medium">
+                                        {user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'No name'}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">{user.email}</div>
+                                    </div>
+                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                      <Check className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {filteredAdminUsers.length === 0 && adminUserSearch.trim() !== '' && (
+                          <div className="text-sm flex items-center gap-2 text-muted-foreground">
+                            <AlertCircle className="h-4 w-4" />
+                            No matching users found
+                          </div>
+                        )}
+                        {adminUserSearch.trim() === '' && (
+                          <div className="text-sm text-muted-foreground">
+                            Type to search for users to add as administrators
+                          </div>
+                        )}
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsAdminDialogOpen(false)}>
+                          Cancel
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </CardHeader>
               <CardContent>
                 {loading ? (
@@ -290,6 +660,174 @@ const Admin = () => {
                   />
                 )}
               </CardContent>
+              <CardFooter className="border-t pt-6 flex justify-between">
+                <div className="text-sm text-muted-foreground">
+                  Administrators have full access to all features and settings.
+                </div>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="legalTeam">
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>Legal Team</CardTitle>
+                    <CardDescription>
+                      Manage legal team members who review contracts
+                    </CardDescription>
+                  </div>
+                  <Dialog open={isLegalDialogOpen} onOpenChange={(open) => {
+                    setIsLegalDialogOpen(open);
+                    if (!open) {
+                      setNewLegalEmail('');
+                      setNewLegalName('');
+                      setNewLegalRole('Legal Reviewer');
+                      setLegalUserSearch('');
+                      setFilteredLegalUsers([]);
+                      setAddingExistingLegalUser(false);
+                    }
+                  }}>
+                    <DialogTrigger asChild>
+                      <Button size="sm">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Member
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add Legal Team Member</DialogTitle>
+                        <DialogDescription>
+                          Add a new member to the legal team. They will have access to review contracts.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        {!addingExistingLegalUser && (
+                          <div className="grid gap-2">
+                            <Label htmlFor="legalUserSearch">Search Existing Users</Label>
+                            <div className="relative">
+                              <Input
+                                id="legalUserSearch"
+                                placeholder="Search by name or email"
+                                value={legalUserSearch}
+                                onChange={(e) => setLegalUserSearch(e.target.value)}
+                              />
+                              {filteredLegalUsers.length > 0 && (
+                                <div className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-popover border rounded-md shadow-md">
+                                  {filteredLegalUsers.map(user => (
+                                    <div 
+                                      key={user.id}
+                                      className="p-2 hover:bg-accent cursor-pointer flex justify-between items-center"
+                                      onClick={() => selectUserForLegalTeam(user)}
+                                    >
+                                      <div>
+                                        <div className="font-medium">
+                                          {user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'No name'}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">{user.email}</div>
+                                      </div>
+                                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                        <Check className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Or fill in the details manually below
+                            </div>
+                          </div>
+                        )}
+
+                        {addingExistingLegalUser && (
+                          <div className="bg-muted p-3 rounded-md mb-2 flex justify-between items-center">
+                            <div>
+                              <div className="font-medium">{newLegalName}</div>
+                              <div className="text-xs text-muted-foreground">{newLegalEmail}</div>
+                            </div>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="h-8 w-8 p-0" 
+                              onClick={() => {
+                                setNewLegalEmail('');
+                                setNewLegalName('');
+                                setAddingExistingLegalUser(false);
+                              }}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+
+                        {!addingExistingLegalUser && (
+                          <>
+                            <div className="grid gap-2">
+                              <Label htmlFor="legalEmail">Email</Label>
+                              <Input
+                                id="legalEmail"
+                                type="email"
+                                placeholder="legal@example.com"
+                                value={newLegalEmail}
+                                onChange={(e) => setNewLegalEmail(e.target.value)}
+                              />
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor="legalName">Display Name</Label>
+                              <Input
+                                id="legalName"
+                                placeholder="John Doe"
+                                value={newLegalName}
+                                onChange={(e) => setNewLegalName(e.target.value)}
+                              />
+                            </div>
+                          </>
+                        )}
+                        
+                        <div className="grid gap-2">
+                          <Label htmlFor="legalRole">Role</Label>
+                          <Select value={newLegalRole} onValueChange={setNewLegalRole}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Legal Reviewer">Legal Reviewer</SelectItem>
+                              <SelectItem value="Senior Legal Counsel">Senior Legal Counsel</SelectItem>
+                              <SelectItem value="Legal Assistant">Legal Assistant</SelectItem>
+                              <SelectItem value="Legal Manager">Legal Manager</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsLegalDialogOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={handleAddLegalMember} disabled={addingLegal}>
+                          {addingLegal ? 'Adding...' : 'Add Member'}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <Skeleton className="w-full h-64" />
+                ) : (
+                  <DataTable 
+                    columns={legalColumns} 
+                    data={legalTeam} 
+                  />
+                )}
+              </CardContent>
+              <CardFooter className="border-t pt-6 flex justify-between">
+                <div className="text-sm text-muted-foreground">
+                  Legal team members can review contracts and provide feedback.
+                </div>
+              </CardFooter>
             </Card>
           </TabsContent>
         </Tabs>

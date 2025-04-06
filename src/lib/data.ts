@@ -377,6 +377,12 @@ export const addAdminUser = async (email: string): Promise<void> => {
   }
 };
 
+// Remove an admin user
+export const removeAdminUser = async (id: string): Promise<void> => {
+  const adminRef = doc(db, 'admin', id);
+  await deleteDoc(adminRef);
+};
+
 export const updateInviteStatus = async (inviteId: string, status: 'accepted'): Promise<void> => {
   const contractRef = doc(db, 'contracts', inviteId);
   const contract = await getContract(inviteId);
@@ -814,4 +820,75 @@ export const deleteComment = async (
     comments: updatedComments,
     updatedAt: Timestamp.now()
   });
+};
+
+// Add a user to the legal team
+export const addLegalTeamMember = async (
+  email: string, 
+  displayName: string = '',
+  role: string = 'Legal Reviewer'
+): Promise<void> => {
+  const legalTeamRef = collection(db, 'legalTeam');
+  const legalTeamQuery = query(legalTeamRef, where('email', '==', email.toLowerCase()));
+  const legalTeamSnapshot = await getDocs(legalTeamQuery);
+
+  if (legalTeamSnapshot.empty) {
+    await addDoc(legalTeamRef, {
+      email: email.toLowerCase(),
+      displayName,
+      role,
+      createdAt: new Date().toISOString()
+    });
+  }
+};
+
+// Get all legal team members
+export const getLegalTeamMembers = async (): Promise<any[]> => {
+  const legalTeamRef = collection(db, 'legalTeam');
+  const legalTeamSnapshot = await getDocs(legalTeamRef);
+  
+  return legalTeamSnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+};
+
+// Remove a legal team member
+export const removeLegalTeamMember = async (id: string): Promise<void> => {
+  const legalTeamRef = doc(db, 'legalTeam', id);
+  await deleteDoc(legalTeamRef);
+};
+
+// Create a general invite for a user
+export const inviteUser = async (
+  email: string, 
+  role: string = 'user',
+  invitedBy: string
+): Promise<void> => {
+  // Add to shareInvites collection so they can access the app
+  const invitesRef = collection(db, 'shareInvites');
+  
+  // Check if invite already exists
+  const inviteQuery = query(invitesRef, where('email', '==', email.toLowerCase()));
+  const inviteSnapshot = await getDocs(inviteQuery);
+  
+  if (inviteSnapshot.empty) {
+    await addDoc(invitesRef, {
+      email: email.toLowerCase(),
+      role,
+      invitedBy,
+      createdAt: new Date().toISOString()
+    });
+  }
+};
+
+// Check if a user is a legal team member
+export const isUserLegalTeam = async (email: string): Promise<boolean> => {
+  if (!email) return false;
+
+  const legalTeamRef = collection(db, 'legalTeam');
+  const legalTeamQuery = query(legalTeamRef, where('email', '==', email.toLowerCase()));
+  const legalTeamSnapshot = await getDocs(legalTeamQuery);
+
+  return !legalTeamSnapshot.empty;
 };
