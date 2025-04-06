@@ -3,7 +3,7 @@ import AuthNavbar from '@/components/layout/AuthNavbar';
 import PageTransition from '@/components/layout/PageTransition';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { collection, getDocs, doc, updateDoc, query, where } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, query, where, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DataTable } from '@/components/ui/data-table';
@@ -46,6 +46,7 @@ interface User {
   displayName?: string;
   role?: string;
   createdAt?: string;
+  isPendingInvite?: boolean; // Flag for users who are invited but not registered yet
 }
 
 interface AdminUser {
@@ -118,16 +119,60 @@ const Admin = () => {
       // Fetch legal team members
       const legalTeamData = await getLegalTeamMembers() as LegalTeamMember[];
       
-      // Filter out admin users from the users list
+      // Fetch share invites to check for duplicates
+      const shareInvitesRef = collection(db, 'shareInvites');
+      const shareInvitesSnapshot = await getDocs(shareInvitesRef);
+      const shareInvitesData = shareInvitesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      // Filter out admin users and legal team members from the users list
       const adminEmails = adminsData.map(admin => admin.email.toLowerCase());
       const legalEmails = legalTeamData.map(legal => legal.email.toLowerCase());
+      
+      // Create a set of emails that are already registered in the system
+      const registeredEmails = new Set([
+        ...usersData.map(user => user.email.toLowerCase()),
+        ...adminEmails,
+        ...legalEmails
+      ]);
+      
+      // Clean up any duplicate invites (same user with multiple invites)
+      const processedEmails = new Set<string>();
+      const pendingInvites: User[] = [];
+      
+      // Process shareInvites to add as pending users
+      for (const invite of shareInvitesData) {
+        const email = invite.email.toLowerCase();
+        
+        // Skip if this email is already a registered user
+        if (registeredEmails.has(email)) {
+          continue;
+        }
+        
+        // Skip if we already added this email from another invite
+        if (processedEmails.has(email)) {
+          continue;
+        }
+        
+        processedEmails.add(email);
+        pendingInvites.push({
+          id: invite.id,
+          email: email,
+          role: invite.role || 'Invited',
+          createdAt: invite.createdAt,
+          isPendingInvite: true // Flag to identify pending invites in the UI
+        });
+      }
       
       const filteredUsers = usersData.filter(user => 
         !adminEmails.includes(user.email.toLowerCase()) &&
         !legalEmails.includes(user.email.toLowerCase())
       );
       
-      setUsers(filteredUsers);
+      // Combine regular users with pending invites
+      setUsers([...filteredUsers, ...pendingInvites]);
       setAdmins(adminsData);
       setLegalTeam(legalTeamData);
     } catch (error) {
@@ -379,8 +424,20 @@ const Admin = () => {
     
     try {
       setIsRemovingUser(true);
-      await removeUser(userToRemove.id);
-      toast.success(`User ${userToRemove.email} has been completely removed from the system`);
+      
+      if (userToRemove.isPendingInvite) {
+        // This is a pending invitation - just delete from shareInvites collection
+        const inviteRef = doc(db, 'shareInvites', userToRemove.id);
+        await deleteDoc(inviteRef);
+        toast.success(`Invitation for ${userToRemove.email} has been canceled`);
+      } else {
+        // This is a registered user - use the removeUser function
+        await removeUser(userToRemove.id);
+        toast.success(`User ${userToRemove.email} has been removed from the database`, {
+          description: "Note: Their Firebase Authentication account may still exist."
+        });
+      }
+      
       setUserToRemove(null);
       fetchData(); // Refresh data
     } catch (error) {
@@ -401,6 +458,10 @@ const Admin = () => {
       accessorKey: 'displayName',
       header: 'Name',
       cell: ({ row }) => {
+        if (row.original.isPendingInvite) {
+          return <span className="text-muted-foreground italic">Pending registration</span>;
+        }
+        
         const displayName = row.original.displayName;
         const firstName = row.original.firstName || '';
         const lastName = row.original.lastName || '';
@@ -422,17 +483,30 @@ const Admin = () => {
     {
       accessorKey: 'firstName',
       header: 'First Name',
-      cell: ({ row }) => row.original.firstName || '-',
+      cell: ({ row }) => {
+        if (row.original.isPendingInvite) return '-';
+        return row.original.firstName || '-';
+      }
     },
     {
       accessorKey: 'lastName',
       header: 'Last Name',
-      cell: ({ row }) => row.original.lastName || '-',
+      cell: ({ row }) => {
+        if (row.original.isPendingInvite) return '-';
+        return row.original.lastName || '-';
+      }
     },
     {
       accessorKey: 'role',
       header: 'Role',
-      cell: ({ row }) => row.original.role || 'User',
+      cell: ({ row }) => {
+        if (row.original.isPendingInvite) {
+          return <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-yellow-50 text-yellow-800 border-yellow-200">
+            Invited
+          </span>;
+        }
+        return row.original.role || 'User';
+      },
     },
     {
       accessorKey: 'createdAt',
@@ -612,9 +686,13 @@ const Admin = () => {
                   />
                 )}
               </CardContent>
-              <CardFooter className="border-t pt-6 flex justify-between">
+              <CardFooter className="border-t pt-6 flex flex-col gap-2">
                 <div className="text-sm text-muted-foreground">
-                  Regular users can be removed using the delete icon. This application is invitation-only - new users must be invited via the "Invite User" button before they can sign up.
+                  This section shows both registered users and pending invitations. Regular users can be removed using the delete icon. 
+                  This application is invitation-only - new users must be invited via the "Invite User" button before they can sign up.
+                </div>
+                <div className="text-xs text-amber-600">
+                  <strong>Note:</strong> User removal only affects database records. Firebase Authentication accounts must be deleted separately through Firebase Console or using Admin SDK.
                 </div>
               </CardFooter>
             </Card>
@@ -891,11 +969,28 @@ const Admin = () => {
         <AlertDialog open={!!userToRemove} onOpenChange={(open) => !open && setUserToRemove(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Confirm User Removal</AlertDialogTitle>
+              <AlertDialogTitle>
+                {userToRemove?.isPendingInvite ? 'Cancel Invitation' : 'Confirm User Removal'}
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to remove <span className="font-semibold">{userToRemove?.email}</span>?
-                This will permanently delete the user from the system, including any pending invitations.
-                This action cannot be undone.
+                {userToRemove?.isPendingInvite ? (
+                  <>
+                    Are you sure you want to cancel the invitation for <span className="font-semibold">{userToRemove?.email}</span>?
+                    This will prevent this person from being able to sign up for the application.
+                  </>
+                ) : (
+                  <>
+                    Are you sure you want to remove <span className="font-semibold">{userToRemove?.email}</span>?
+                    This will permanently delete the user's data from the database, including any pending invitations.
+                    <p className="mt-3 text-amber-600 text-sm">
+                      <strong>Note:</strong> This will remove user data from Firestore, but their Firebase Authentication account will remain. 
+                      Users removed this way can still sign in until they are deleted from Firebase Authentication directly.
+                    </p>
+                    <p className="mt-1 text-muted-foreground text-xs">
+                      To fully remove users from Firebase Auth, you'll need to use the Firebase Console or implement a Cloud Function with Admin SDK.
+                    </p>
+                  </>
+                )}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -905,7 +1000,12 @@ const Admin = () => {
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 disabled={isRemovingUser}
               >
-                {isRemovingUser ? 'Removing...' : 'Remove User'}
+                {isRemovingUser 
+                  ? 'Processing...' 
+                  : userToRemove?.isPendingInvite 
+                    ? 'Cancel Invitation' 
+                    : 'Remove User'
+                }
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

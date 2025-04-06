@@ -13,6 +13,8 @@ import {
   Timestamp,
   setDoc
 } from 'firebase/firestore';
+import { getAuth, deleteUser } from "firebase/auth";
+import { auth as firebaseAuth } from "./firebase";
 
 export interface ContractStats {
   totalContracts: number;
@@ -577,10 +579,12 @@ export const registerUser = async (
       const inviteSnapshot = await getDocs(inviteQuery);
       
       if (!inviteSnapshot.empty) {
-        // Delete the invite once the user is registered
-        const inviteDoc = inviteSnapshot.docs[0];
-        await deleteDoc(doc(db, 'shareInvites', inviteDoc.id));
-        console.log('Removed share invite for registered user:', email.toLowerCase());
+        // Delete ALL invites for this user (not just the first one)
+        const deletePromises = inviteSnapshot.docs.map(inviteDoc => 
+          deleteDoc(doc(db, 'shareInvites', inviteDoc.id))
+        );
+        await Promise.all(deletePromises);
+        console.log(`Removed ${inviteSnapshot.docs.length} share invites for registered user:`, email.toLowerCase());
       }
     } catch (error) {
       console.error('Error cleaning up share invite:', error);
@@ -913,13 +917,14 @@ export const isUserLegalTeam = async (email: string): Promise<boolean> => {
 
 // Remove a user from the system
 export const removeUser = async (id: string): Promise<void> => {
-  // First get the user details to know their email
+  // First get the user details to know their email and userId
   const userRef = doc(db, 'users', id);
   const userSnapshot = await getDoc(userRef);
   
   if (userSnapshot.exists()) {
     const userData = userSnapshot.data();
     const email = userData.email?.toLowerCase();
+    const userId = userData.userId; // Firebase Auth UID
     
     // Delete the user from users collection
     await deleteDoc(userRef);
@@ -942,6 +947,28 @@ export const removeUser = async (id: string): Promise<void> => {
       } catch (error) {
         console.error('Error cleaning up share invites for removed user:', error);
         // Continue even if this fails, as the main user has been removed successfully
+      }
+      
+      // Additionally, try to remove the user from Firebase Authentication
+      if (userId) {
+        try {
+          // This will only work for admin-level operations or if the user is the current user
+          // For security reasons, regular clients can only delete their own user account
+          const currentUser = firebaseAuth.currentUser;
+          
+          if (currentUser && currentUser.uid === userId) {
+            // If removing the current user, we can delete them directly
+            await deleteUser(currentUser);
+            console.log('Removed user from Firebase Auth:', userId);
+          } else {
+            // For other users, we can't delete them directly from client-side code
+            // We would need a Firebase Admin SDK on a server/cloud function
+            console.log('Cannot directly delete other users from Firebase Auth - would need Admin SDK');
+          }
+        } catch (error) {
+          console.error('Error removing user from Firebase Auth:', error);
+          // Continue even if this fails, as the user data has been removed
+        }
       }
     }
   } else {
