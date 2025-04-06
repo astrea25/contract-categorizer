@@ -45,20 +45,24 @@ const DroppableFolder = ({
 
   return (
     <div
-      className={`p-3 flex items-center cursor-pointer transition-colors ${
-        isSelected ? 'bg-secondary/40' : isDragOver ? 'bg-secondary/20' : ''
+      className={`p-3 flex items-center cursor-pointer transition-colors relative ${
+        isSelected 
+          ? 'bg-primary/10 text-primary border-l-4 border-primary pl-2' 
+          : isDragOver 
+            ? 'bg-secondary/20' 
+            : ''
       } ${isDragOver ? 'ring-2 ring-primary/50' : ''} hover:bg-secondary/30`}
       onClick={onSelect}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <Folder className="h-4 w-4 mr-2 text-muted-foreground" />
+      <Folder className={`h-4 w-4 mr-2 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
       <div className="flex-1">
-        <span className="font-medium">{name}</span>
+        <span className={`font-medium ${isSelected ? 'text-primary' : ''}`}>{name}</span>
         {count > 0 && <span className="text-xs text-muted-foreground ml-2">({count})</span>}
       </div>
-      <ChevronRight className="h-4 w-4 ml-auto" />
+      <ChevronRight className={`h-4 w-4 ml-auto ${isSelected ? 'text-primary' : ''}`} />
     </div>
   );
 };

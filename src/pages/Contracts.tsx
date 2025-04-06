@@ -20,7 +20,9 @@ import {
   filterByDateRange,
   deleteFolder,
   assignContractToFolder,
-  filterByFolder
+  filterByFolder,
+  getFolders,
+  Folder
 } from '@/lib/data';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -39,6 +41,7 @@ const Contracts = () => {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedFolder, setSelectedFolder] = useState<string | 'all'>('all');
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [filters, setFilters] = useState({
     search: '',
     status: 'all' as ContractStatus | 'all',
@@ -57,6 +60,20 @@ const Contracts = () => {
   const filter = searchParams.get('filter');
 
   const { currentUser } = useAuth();
+
+  // Load folders when component mounts
+  useEffect(() => {
+    const loadFolders = async () => {
+      try {
+        const foldersList = await getFolders();
+        setFolders(foldersList);
+      } catch (error) {
+        console.error('Failed to load folders', error);
+      }
+    };
+    
+    loadFolders();
+  }, []);
 
   useEffect(() => {
     const fetchContracts = async () => {
@@ -146,6 +163,7 @@ const Contracts = () => {
         value: newContract.value || null,
         description: newContract.description || '',
         documentLink: newContract.documentLink || '',
+        folderId: newContract.folderId || (selectedFolder !== 'all' ? selectedFolder : undefined)
       } as Omit<Contract, 'id' | 'createdAt' | 'updatedAt'>;
 
       await createContract(contractToAdd, currentUser.email);
@@ -233,6 +251,13 @@ const Contracts = () => {
     return result;
   }, [contracts, filters, selectedFolder]);
 
+  // Get name of selected folder for display
+  const selectedFolderName = useMemo(() => {
+    if (selectedFolder === 'all') return 'All Contracts';
+    const folder = folders.find(f => f.id === selectedFolder);
+    return folder ? folder.name : '';
+  }, [selectedFolder, folders]);
+
   const hasActiveFilters = 
     filters.search !== '' || 
     filters.status !== 'all' || 
@@ -250,13 +275,27 @@ const Contracts = () => {
         <header className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight mb-2">Contracts</h1>
+              <h1 className="text-3xl font-bold tracking-tight mb-2">
+                {selectedFolder !== 'all' && (
+                  <>
+                    <span className="text-muted-foreground mr-2">Folder:</span>
+                    <span className="bg-primary/10 text-primary px-3 py-1 rounded-md">
+                      {selectedFolderName}
+                    </span>
+                  </>
+                )}
+                {selectedFolder === 'all' && 'All Contracts'}
+              </h1>
               <p className="text-muted-foreground">
-                Manage and track all your contracts in one place
+                {selectedFolder !== 'all' 
+                  ? `Viewing contracts in the "${selectedFolderName}" folder`
+                  : 'Manage and track all your contracts in one place'}
               </p>
             </div>
             <ContractForm
               onSave={handleSaveContract}
+              initialFolder={selectedFolder !== 'all' ? selectedFolder : undefined}
+              foldersList={folders}
               trigger={
                 <Button className="gap-1">
                   <PlusCircle size={16} />
@@ -354,15 +393,19 @@ const Contracts = () => {
                 <p className="text-muted-foreground mb-6">
                   {contracts.length === 0
                     ? "You haven't created any contracts yet."
-                    : "There are no contracts matching your current filters."
+                    : selectedFolder !== 'all'
+                      ? "This folder doesn't have any contracts yet."
+                      : "There are no contracts matching your current filters."
                   }
                 </p>
-                {contracts.length === 0 ? (
+                {contracts.length === 0 || selectedFolder !== 'all' ? (
                   <ContractForm
                     onSave={handleSaveContract}
+                    initialFolder={selectedFolder !== 'all' ? selectedFolder : undefined}
+                    foldersList={folders}
                     trigger={
                       <Button>
-                        Create Your First Contract
+                        Create {selectedFolder !== 'all' ? 'First Contract in this Folder' : 'Your First Contract'}
                       </Button>
                     }
                   />

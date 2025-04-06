@@ -24,11 +24,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CalendarIcon, Plus, X } from 'lucide-react';
+import { CalendarIcon, FolderIcon, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { useState } from 'react';
-import { Contract, ContractStatus, ContractType, contractTypeLabels } from '@/lib/data';
+import { useState, useEffect } from 'react';
+import { Contract, ContractStatus, ContractType, contractTypeLabels, Folder } from '@/lib/data';
 import { toast } from 'sonner';
 
 type Party = {
@@ -39,11 +39,19 @@ type Party = {
 
 interface ContractFormProps {
   initialData?: Partial<Contract>;
+  initialFolder?: string;
+  foldersList?: Folder[];
   onSave: (contract: Partial<Contract>) => void;
   trigger?: React.ReactNode;
 }
 
-const ContractForm = ({ initialData, onSave, trigger }: ContractFormProps) => {
+const ContractForm = ({ 
+  initialData, 
+  initialFolder, 
+  foldersList = [], 
+  onSave, 
+  trigger 
+}: ContractFormProps) => {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState<Partial<Contract>>(
     initialData || {
@@ -59,8 +67,19 @@ const ContractForm = ({ initialData, onSave, trigger }: ContractFormProps) => {
       endDate: null,
       value: null,
       description: '',
+      folderId: initialFolder || undefined
     }
   );
+
+  // Update folder if initialFolder changes
+  useEffect(() => {
+    if (initialFolder) {
+      setFormData(prev => ({
+        ...prev,
+        folderId: initialFolder
+      }));
+    }
+  }, [initialFolder]);
 
   const [parties, setParties] = useState<Party[]>(
     initialData?.parties || [
@@ -80,7 +99,10 @@ const ContractForm = ({ initialData, onSave, trigger }: ContractFormProps) => {
   };
 
   const handleSelectChange = (name: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ 
+      ...prev, 
+      [name]: value === "none" ? undefined : value
+    }));
   };
 
   const handleStartDateChange = (date: Date | undefined) => {
@@ -215,6 +237,49 @@ const ContractForm = ({ initialData, onSave, trigger }: ContractFormProps) => {
                 </Select>
               </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="folder">Folder</Label>
+                <Select
+                  value={formData.folderId || "none"}
+                  onValueChange={(value) => handleSelectChange('folderId', value)}
+                >
+                  <SelectTrigger id="folder" className="flex items-center">
+                    <SelectValue placeholder="Select folder">
+                      <div className="flex items-center">
+                        <FolderIcon className="mr-2 h-4 w-4" />
+                        <span>
+                          {formData.folderId
+                            ? foldersList.find(f => f.id === formData.folderId)?.name || 'Select folder'
+                            : 'None (Unfiled)'}
+                        </span>
+                      </div>
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None (Unfiled)</SelectItem>
+                    {foldersList.map((folder) => (
+                      <SelectItem key={folder.id} value={folder.id}>
+                        {folder.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="value">Contract Value</Label>
+                <Input
+                  id="value"
+                  name="value"
+                  type="number"
+                  value={formData.value !== null ? formData.value : ''}
+                  onChange={handleNumberChange}
+                  placeholder="Enter contract value (optional)"
+                />
+              </div>
+            </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -276,18 +341,6 @@ const ContractForm = ({ initialData, onSave, trigger }: ContractFormProps) => {
                   </PopoverContent>
                 </Popover>
               </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="value">Contract Value</Label>
-              <Input
-                id="value"
-                name="value"
-                type="number"
-                value={formData.value !== null ? formData.value : ''}
-                onChange={handleNumberChange}
-                placeholder="Enter contract value (optional)"
-              />
             </div>
             
             <div className="space-y-2">
@@ -367,18 +420,18 @@ const ContractForm = ({ initialData, onSave, trigger }: ContractFormProps) => {
                 className="min-h-[100px]"
               />
             </div>
-          </div>
-      
-          <div className="space-y-2">
-            <Label htmlFor="documentLink">Document Link</Label>
-            <Input
-              id="documentLink"
-              name="documentLink"
-              type="url"
-              value={formData.documentLink || ''}
-              onChange={handleInputChange}
-              placeholder="Enter document link"
-            />
+          
+            <div className="space-y-2">
+              <Label htmlFor="documentLink">Document Link</Label>
+              <Input
+                id="documentLink"
+                name="documentLink"
+                type="url"
+                value={formData.documentLink || ''}
+                onChange={handleInputChange}
+                placeholder="Enter document link"
+              />
+            </div>
           </div>
           
           <DialogFooter>
