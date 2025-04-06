@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { getContractStats, getContracts, Contract } from '@/lib/data';
+import { 
+  getContractStats, 
+  getContracts, 
+  Contract, 
+  getUserContractStats,
+  getUserContracts,
+  isUserAdmin,
+  isUserLegalTeam
+} from '@/lib/data';
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import { ArrowRight, Calendar, FileText, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +17,7 @@ import AuthNavbar from '@/components/layout/AuthNavbar';
 import ContractCard from '@/components/contracts/ContractCard';
 import PageTransition from '@/components/layout/PageTransition';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Index = () => {
   const [stats, setStats] = useState({
@@ -21,25 +30,63 @@ const Index = () => {
   });
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLegalTeam, setIsLegalTeam] = useState(false);
+  const { currentUser } = useAuth();
+
+  useEffect(() => {
+    const checkUserRole = async () => {
+      if (currentUser?.email) {
+        const admin = await isUserAdmin(currentUser.email);
+        const legal = await isUserLegalTeam(currentUser.email);
+        setIsAdmin(admin);
+        setIsLegalTeam(legal);
+      }
+    };
+    
+    checkUserRole();
+  }, [currentUser]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const contractStats = await getContractStats();
-        setStats(contractStats);
-
-        const contractsList = await getContracts();
-        setContracts(contractsList);
+        
+        // Use different statistics fetching based on user role
+        if (isAdmin || isLegalTeam) {
+          // Admins and legal team can see all contract stats
+          const contractStats = await getContractStats();
+          setStats(contractStats);
+          
+          // Get recent contracts for the dashboard
+          const allContracts = await getContracts();
+          // Sort by last updated and take the 5 most recent
+          const recentContracts = [...allContracts]
+            .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+            .slice(0, 5);
+          setContracts(recentContracts);
+        } else if (currentUser?.email) {
+          // Regular users can only see their own contract stats
+          const contractStats = await getUserContractStats(currentUser.email);
+          setStats(contractStats);
+          
+          // Get user's contracts for the dashboard
+          const userContracts = await getUserContracts(currentUser.email);
+          // Sort by last updated and take the 5 most recent
+          const recentContracts = [...userContracts]
+            .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+            .slice(0, 5);
+          setContracts(recentContracts);
+        }
       } catch (error) {
-  
+        console.error("Error fetching dashboard data:", error);
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, []);
+  }, [currentUser, isAdmin, isLegalTeam]);
   
   const chartData = [
     { name: 'Requested', value: contracts.filter(c => c.status === 'requested').length },

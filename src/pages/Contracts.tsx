@@ -23,7 +23,10 @@ import {
   assignContractToFolder,
   filterByFolder,
   getFolders,
-  Folder
+  Folder,
+  getUserContracts,
+  isUserAdmin,
+  isUserLegalTeam
 } from '@/lib/data';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -65,6 +68,22 @@ const Contracts = () => {
   const filter = searchParams.get('filter');
 
   const { currentUser } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLegalTeam, setIsLegalTeam] = useState(false);
+
+  // Check if user is admin or legal team
+  useEffect(() => {
+    const checkUserRole = async () => {
+      if (currentUser?.email) {
+        const admin = await isUserAdmin(currentUser.email);
+        const legal = await isUserLegalTeam(currentUser.email);
+        setIsAdmin(admin);
+        setIsLegalTeam(legal);
+      }
+    };
+    
+    checkUserRole();
+  }, [currentUser]);
 
   // Load folders when component mounts
   useEffect(() => {
@@ -84,8 +103,16 @@ const Contracts = () => {
     const fetchContracts = async () => {
       try {
         setLoading(true);
-        const contractsList = await getContracts();
-        setContracts(contractsList);
+        // Use different contract fetching functions based on user role
+        if (isAdmin || isLegalTeam) {
+          // Admins and legal team can see all contracts
+          const contractsList = await getContracts();
+          setContracts(contractsList);
+        } else if (currentUser?.email) {
+          // Regular users can only see contracts they are involved with
+          const contractsList = await getUserContracts(currentUser.email);
+          setContracts(contractsList);
+        }
       } catch (error) {
         toast.error("Failed to load contracts");
       } finally {
@@ -94,11 +121,22 @@ const Contracts = () => {
     };
 
     fetchContracts();
-  }, []);
+  }, [currentUser, isAdmin, isLegalTeam]);
 
   useEffect(() => {
     const fetchAndFilterContracts = async () => {
-      const allContracts = await getContracts();
+      // Use different contract fetching functions based on user role
+      let allContracts;
+      if (isAdmin || isLegalTeam) {
+        // Admins and legal team can see all contracts
+        allContracts = await getContracts();
+      } else if (currentUser?.email) {
+        // Regular users can only see contracts they are involved with
+        allContracts = await getUserContracts(currentUser.email);
+      } else {
+        allContracts = [];
+      }
+      
       let filteredContracts = [...allContracts];
 
       if (status) {
@@ -131,7 +169,7 @@ const Contracts = () => {
     };
 
     fetchAndFilterContracts();
-  }, [status, filter]);
+  }, [status, filter, currentUser, isAdmin, isLegalTeam]);
 
   const handleFilterChange = (newFilters: typeof filters) => {
     setFilters(newFilters);

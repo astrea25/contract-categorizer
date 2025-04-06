@@ -10,8 +10,17 @@ import ContractForm from '@/components/contracts/ContractForm';
 import ContractProgressBar from '@/components/contracts/ContractProgressBar';
 import StatusSelectCard from '@/components/contracts/StatusSelectCard';
 import CommentSection from '@/components/contracts/CommentSection';
-import { Contract, ContractStatus, ContractType, getContract, updateContract, contractTypeLabels } from '@/lib/data';
-import { ArrowLeft, CalendarClock, Edit, FileText, Users, Wallet } from 'lucide-react';
+import { 
+  Contract, 
+  ContractStatus, 
+  ContractType, 
+  getContract, 
+  updateContract, 
+  contractTypeLabels,
+  isUserAdmin,
+  isUserLegalTeam
+} from '@/lib/data';
+import { ArrowLeft, CalendarClock, Edit, FileText, Users, Wallet, ShieldAlert } from 'lucide-react';
 import { formatDistance } from 'date-fns';
 import { toast } from 'sonner';
 import PageTransition from '@/components/layout/PageTransition';
@@ -26,33 +35,78 @@ const ContractDetail = () => {
   const [loading, setLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const fetchContract = async () => {
-    if (!id) return;
-    
-    try {
-      const contractData = await getContract(id);
-      
-      if (contractData) {
-        setContract(contractData);
-        setError(null);
-      } else {
-        setError('Contract not found');
-      }
-    } catch (error) {
-      setError('Failed to load contract details');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLegalTeam, setIsLegalTeam] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
   useEffect(() => {
-    setLoading(true);
-    fetchContract();
-  }, [id]);
+    const checkUserAndFetchContract = async () => {
+      if (!id || !currentUser?.email) {
+        setLoading(false);
+        return;
+      }
+      
+      setLoading(true);
+      
+      try {
+        // Check admin status first
+        const admin = await isUserAdmin(currentUser.email);
+        const legal = await isUserLegalTeam(currentUser.email);
+        setIsAdmin(admin);
+        setIsLegalTeam(legal);
+        
+        // Fetch the contract data
+        const contractData = await getContract(id);
+        
+        if (contractData) {
+          setContract(contractData);
+          setError(null);
+          
+          // If admin or legal team, authorize immediately
+          if (admin || legal) {
+            setIsAuthorized(true);
+          } else {
+            // Check other authorization criteria
+            const userEmail = currentUser.email.toLowerCase();
+            
+            // Check if user is the owner of the contract
+            if (contractData.owner.toLowerCase() === userEmail) {
+              setIsAuthorized(true);
+            } 
+            // Check if user is in the parties list
+            else if (contractData.parties.some(party => 
+              party.email.toLowerCase() === userEmail
+            )) {
+              setIsAuthorized(true);
+            }
+            // Check if user is in the sharedWith list with accepted status
+            else if (contractData.sharedWith?.some(share => 
+              share.email.toLowerCase() === userEmail && 
+              share.inviteStatus === 'accepted'
+            )) {
+              setIsAuthorized(true);
+            }
+            // Otherwise, user is not authorized
+            else {
+              setIsAuthorized(false);
+              setError('You are not authorized to view this contract');
+            }
+          }
+        } else {
+          setError('Contract not found');
+        }
+      } catch (error) {
+        setError('Failed to load contract details');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    checkUserAndFetchContract();
+  }, [id, currentUser]);
 
   const handleSaveContract = async (updatedData: Partial<Contract>) => {
-    if (!contract || !id || !currentUser?.email) return;
+    if (!contract || !id || !currentUser?.email || !isAuthorized) return;
     
     try {
       await updateContract(id, updatedData, currentUser.email);
@@ -68,7 +122,7 @@ const ContractDetail = () => {
   };
 
   const handleStatusChange = async (newStatus: ContractStatus) => {
-    if (!contract || !id || !currentUser?.email) return;
+    if (!contract || !id || !currentUser?.email || !isAuthorized) return;
     
     try {
       setUpdatingStatus(true);
@@ -105,13 +159,16 @@ const ContractDetail = () => {
     );
   }
 
-  if (error) {
+  if (error || !isAuthorized) {
     return (
       <>
         <AuthNavbar />
         <div className="container mx-auto p-4 sm:p-6">
           <Alert variant="destructive" className="mb-4">
-            <AlertDescription>{error}</AlertDescription>
+            <div className="flex gap-2 items-center">
+              <ShieldAlert className="h-5 w-5" />
+              <AlertDescription>{error || "You don't have access to this contract"}</AlertDescription>
+            </div>
           </Alert>
           <Button asChild variant="outline">
             <Link to="/contracts" className="flex items-center gap-2">
@@ -395,7 +452,23 @@ const ContractDetail = () => {
             contractId={id!}
             comments={contract.comments || []}
             userEmail={currentUser.email!}
-            onCommentsChange={fetchContract}
+            onCommentsChange={() => {
+              // Fetch the latest contract data
+              const fetchLatestContract = async () => {
+                if (!id) return;
+                
+                try {
+                  const contractData = await getContract(id);
+                  if (contractData) {
+                    setContract(contractData);
+                  }
+                } catch (error) {
+                  console.error('Error fetching updated contract:', error);
+                }
+              };
+              
+              fetchLatestContract();
+            }}
           />
         )}
       </div>

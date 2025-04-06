@@ -976,3 +976,111 @@ export const removeUser = async (id: string): Promise<void> => {
     return;
   }
 };
+
+// Function to get contracts for a regular user - only returns contracts where the user
+// is either the owner or mentioned in the parties list or shared with list
+export const getUserContracts = async (userEmail: string): Promise<Contract[]> => {
+  if (!userEmail) return [];
+  
+  const lowercaseEmail = userEmail.toLowerCase();
+  
+  // Get all contracts
+  const contracts = await getContracts();
+  
+  // Filter contracts to only include those where the user is involved
+  return contracts.filter(contract => {
+    // Check if user is the owner
+    if (contract.owner.toLowerCase() === lowercaseEmail) return true;
+    
+    // Check if user is in the parties list
+    const isParty = contract.parties.some(party => 
+      party.email.toLowerCase() === lowercaseEmail
+    );
+    if (isParty) return true;
+    
+    // Check if user is in the sharedWith list with accepted status
+    const isShared = contract.sharedWith?.some(share => 
+      share.email.toLowerCase() === lowercaseEmail && 
+      share.inviteStatus === 'accepted'
+    );
+    if (isShared) return true;
+    
+    // User is not involved with this contract
+    return false;
+  });
+};
+
+// Function to get contract statistics for a regular user
+export const getUserContractStats = async (userEmail: string): Promise<ContractStats> => {
+  try {
+    // Get only the user's contracts
+    const contracts = await getUserContracts(userEmail);
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const thirtyDaysFromNow = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
+
+    const totalContracts = contracts.length;
+    const finishedContracts = contracts.filter(c => c.status === 'finished').length;
+    const pendingApprovalContracts = contracts.filter(c => 
+      c.status === 'approval'
+    ).length;
+    
+    const expiringContracts = contracts.filter(c => {
+      if (!c.endDate) {
+        return false;
+      }
+
+      try {
+        const endDate = new Date(c.endDate);
+        
+        if (isNaN(endDate.getTime())) {
+          return false;
+        }
+
+        const isExpiringSoon = endDate <= thirtyDaysFromNow && endDate >= now;
+        
+        return isExpiringSoon;
+      } catch (error) {
+        return false;
+      }
+    }).length;
+
+    const totalValue = contracts.reduce((sum, contract) => {
+      return sum + (contract.value || 0);
+    }, 0);
+
+    const expiringThisYear = contracts.filter(c => {
+      if (!c.endDate) {
+        return false;
+      }
+
+      try {
+        const endDate = new Date(c.endDate);
+        
+        if (isNaN(endDate.getTime())) {
+          return false;
+        }
+
+        const isExpiringThisYear = endDate.getFullYear() === currentYear;
+        
+        return isExpiringThisYear;
+      } catch (error) {
+        return false;
+      }
+    }).length;
+
+    const stats = {
+      totalContracts,
+      finishedContracts,
+      pendingApprovalContracts,
+      expiringContracts,
+      totalValue,
+      expiringThisYear
+    };
+
+    return stats;
+  } catch (error) {
+    throw error;
+  }
+};
