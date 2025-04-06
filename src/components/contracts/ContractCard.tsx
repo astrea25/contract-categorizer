@@ -1,4 +1,3 @@
-
 import { Contract, contractTypeLabels } from '@/lib/data';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import ContractStatusBadge from './ContractStatusBadge';
@@ -58,7 +57,7 @@ const ContractCard = ({ contract, className }: ContractCardProps) => {
             <div className="flex items-center text-sm">
               <DollarSign size={16} className="mr-2 text-muted-foreground" />
               <span className="text-muted-foreground">
-                ${value.toLocaleString()}
+                ₱{value.toLocaleString()}
               </span>
             </div>
           )}

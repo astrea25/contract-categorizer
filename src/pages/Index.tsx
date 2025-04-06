@@ -13,8 +13,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 const Index = () => {
   const [stats, setStats] = useState({
     totalContracts: 0,
-    activeContracts: 0,
-    pendingContracts: 0,
+    finishedContracts: 0,
+    pendingApprovalContracts: 0,
     expiringContracts: 0,
     totalValue: 0,
     expiringThisYear: 0
@@ -42,15 +42,16 @@ const Index = () => {
   }, []);
   
   const chartData = [
-    { name: 'Active', value: stats.activeContracts },
-    { name: 'Pending', value: stats.pendingContracts },
+    { name: 'Requested', value: contracts.filter(c => c.status === 'requested').length },
     { name: 'Draft', value: contracts.filter(c => c.status === 'draft').length },
-    { name: 'Expired', value: contracts.filter(c => c.status === 'expired').length },
-    { name: 'Terminated', value: contracts.filter(c => c.status === 'terminated').length },
+    { name: 'Legal Review', value: contracts.filter(c => c.status === 'legal_review').length },
+    { name: 'Management Review', value: contracts.filter(c => c.status === 'management_review').length },
+    { name: 'Approval', value: contracts.filter(c => c.status === 'approval').length },
+    { name: 'Finished', value: contracts.filter(c => c.status === 'finished').length },
   ];
   
   const activeContracts = contracts
-    .filter(c => c.status === 'active')
+    .filter(c => c.status === 'finished')
     .sort((a, b) => {
       if (!a.endDate) return 1;
       if (!b.endDate) return -1;
@@ -110,15 +111,15 @@ const Index = () => {
                 <Skeleton className="h-8 w-16" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{stats.activeContracts}</div>
+                  <div className="text-2xl font-bold">{stats.finishedContracts}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Currently in force
+                    Currently finished
                   </p>
                   <Link 
-                    to="/contracts?status=active"
+                    to="/contracts?status=finished"
                     className="text-xs text-primary hover:underline inline-flex items-center mt-2"
                   >
-                    View active contracts
+                    View finished contracts
                     <ArrowRight className="h-3 w-3 ml-1" />
                   </Link>
                 </>

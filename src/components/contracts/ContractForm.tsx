@@ -1,4 +1,3 @@
-
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -199,11 +198,12 @@ const ContractForm = ({ initialData, onSave, trigger }: ContractFormProps) => {
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="requested">Requested</SelectItem>
                     <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="expired">Expired</SelectItem>
-                    <SelectItem value="terminated">Terminated</SelectItem>
+                    <SelectItem value="legal_review">Legal Review</SelectItem>
+                    <SelectItem value="management_review">Management Review</SelectItem>
+                    <SelectItem value="approval">Approval</SelectItem>
+                    <SelectItem value="finished">Finished</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

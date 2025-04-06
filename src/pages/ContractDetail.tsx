@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -148,7 +147,38 @@ const ContractDetail = () => {
           </div>
         </div>
         
-        <div className="grid gap-6 md:grid-cols-3 mb-8">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
+          <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Status</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center space-x-2">
+                <ContractStatusBadge status={contract.status} />
+              </div>
+            </CardContent>
+          </Card>
+
+          {contract.value !== null && (
+          <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Contract Value</CardTitle>
+              <Wallet className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm">
+                <div className="font-medium">
+                  ₱{contract.value.toLocaleString()}
+                </div>
+                <p className="text-muted-foreground mt-1">
+                  Last updated {new Date(contract.updatedAt).toLocaleDateString()}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          )}
+          
           <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Duration</CardTitle>
@@ -162,23 +192,6 @@ const ContractDetail = () => {
                     Expires {daysRemaining}
                   </p>
                 )}
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Contract Value</CardTitle>
-              <Wallet className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm">
-                <div className="font-medium">
-                  {contract.value ? `$${contract.value.toLocaleString()}` : 'No value specified'}
-                </div>
-                <p className="text-muted-foreground mt-1">
-                  Last updated {new Date(contract.updatedAt).toLocaleDateString()}
-                </p>
               </div>
             </CardContent>
           </Card>
