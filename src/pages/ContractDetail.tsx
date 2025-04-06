@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import AuthNavbar from '@/components/layout/AuthNavbar';
 import ContractStatusBadge from '@/components/contracts/ContractStatusBadge';
 import ContractForm from '@/components/contracts/ContractForm';
+import ContractProgressBar from '@/components/contracts/ContractProgressBar';
 import { Contract, ContractType, getContract, updateContract, contractTypeLabels } from '@/lib/data';
 import { ArrowLeft, CalendarClock, Edit, FileText, Users, Wallet } from 'lucide-react';
 import { formatDistance } from 'date-fns';
@@ -364,6 +365,11 @@ const ContractDetail = () => {
                 </>
               )}
             </div>
+            
+            <Separator className="my-6" />
+            
+            {/* Add the progress bar component */}
+            <ContractProgressBar currentStatus={contract.status} />
           </CardContent>
         </Card>
       </div>
