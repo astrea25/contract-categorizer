@@ -352,6 +352,31 @@ export const isUserAllowed = async (email: string): Promise<boolean> => {
   return !shareSnapshot.empty; // User is either invited or not
 };
 
+// Check if a user is an admin
+export const isUserAdmin = async (email: string): Promise<boolean> => {
+  if (!email) return false;
+
+  const adminRef = collection(db, 'admin');
+  const adminQuery = query(adminRef, where('email', '==', email.toLowerCase()));
+  const adminSnapshot = await getDocs(adminQuery);
+
+  return !adminSnapshot.empty;
+};
+
+// Add an admin user (for testing)
+export const addAdminUser = async (email: string): Promise<void> => {
+  const adminRef = collection(db, 'admin');
+  const adminQuery = query(adminRef, where('email', '==', email.toLowerCase()));
+  const adminSnapshot = await getDocs(adminQuery);
+
+  if (adminSnapshot.empty) {
+    await addDoc(adminRef, {
+      email: email.toLowerCase(),
+      createdAt: new Date().toISOString()
+    });
+  }
+};
+
 export const updateInviteStatus = async (inviteId: string, status: 'accepted'): Promise<void> => {
   const contractRef = doc(db, 'contracts', inviteId);
   const contract = await getContract(inviteId);
@@ -522,16 +547,37 @@ export const registerUser = async (
   const userQuery = query(usersRef, where('email', '==', email.toLowerCase()));
   const userSnapshot = await getDocs(userQuery);
   
+  // Ensure displayName is set properly
+  const finalDisplayName = displayName || `${firstName} ${lastName}`.trim();
+  
   if (userSnapshot.empty) {
     // Create a new user document
+    console.log('Creating new user with display name:', finalDisplayName);
     await addDoc(usersRef, {
       userId,
       email: email.toLowerCase(),
       firstName,
       lastName,
-      displayName: displayName || `${firstName} ${lastName}`.trim(),
+      displayName: finalDisplayName,
       role: 'user', // Default role
       createdAt: new Date().toISOString(),
+    });
+  } else {
+    // Update existing user document with the display name
+    const userDoc = userSnapshot.docs[0];
+    const userData = userDoc.data();
+    
+    console.log('Updating existing user:', {
+      current: userData.displayName,
+      new: finalDisplayName
+    });
+    
+    // Always update with the latest display name
+    await updateDoc(doc(db, 'users', userDoc.id), {
+      displayName: finalDisplayName || userData.displayName,
+      firstName: firstName || userData.firstName || '',
+      lastName: lastName || userData.lastName || '',
+      updatedAt: new Date().toISOString()
     });
   }
 };

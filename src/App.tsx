@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { PrivateRoute } from "@/components/auth/PrivateRoute";
+import { AdminRoute } from "@/components/auth/AdminRoute";
 import Index from "./pages/Index";
 import Contracts from "./pages/Contracts";
 import ContractDetail from "./pages/ContractDetail";
@@ -12,6 +13,8 @@ import AcceptInvite from "./pages/AcceptInvite";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import NotFound from "./pages/NotFound";
+import Admin from "./pages/Admin";
+import MakeAdmin from "./pages/MakeAdmin";
 
 const queryClient = new QueryClient();
 
@@ -26,11 +29,16 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<SignUp />} />
             <Route path="/accept-invite/:inviteId" element={<AcceptInvite />} />
+            <Route path="/make-admin" element={<MakeAdmin />} />
             
             <Route element={<PrivateRoute />}>
               <Route path="/" element={<Index />} />
               <Route path="/contracts" element={<Contracts />} />
               <Route path="/contract/:id" element={<ContractDetail />} />
+            </Route>
+            
+            <Route element={<AdminRoute />}>
+              <Route path="/admin" element={<Admin />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />

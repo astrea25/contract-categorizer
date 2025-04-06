@@ -144,6 +144,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           setCurrentUser(user);
           setError(null);
+          
+          // For testing: Makes the current user an admin
+          // if (user.email) {
+          //   import('@/lib/data').then(({ addAdminUser, registerUser }) => {
+          //     addAdminUser(user.email || '');
+          //     
+          //     // Extract name from display name if available
+          //     const displayName = user.displayName || '';
+          //     const nameArray = displayName.split(' ');
+          //     const firstName = nameArray[0] || '';
+          //     const lastName = nameArray.slice(1).join(' ') || '';
+          //     
+          //     // Register or update user data
+          //     registerUser(
+          //       user.uid,
+          //       user.email || '',
+          //       firstName,
+          //       lastName,
+          //       displayName
+          //     );
+          //   });
+          // }
+          
+          // Only keep user registration without making them admin
+          if (user.email) {
+            import('@/lib/data').then(({ registerUser }) => {
+              // Extract name from display name if available
+              const displayName = user.displayName || '';
+              const nameArray = displayName.split(' ');
+              const firstName = nameArray[0] || '';
+              const lastName = nameArray.slice(1).join(' ') || '';
+              
+              // Register or update user data
+              registerUser(
+                user.uid,
+                user.email || '',
+                firstName,
+                lastName,
+                displayName
+              );
+            });
+          }
         }
       } else {
         setCurrentUser(null);

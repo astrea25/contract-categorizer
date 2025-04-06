@@ -1,13 +1,28 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { LogOut, Menu, X } from "lucide-react";
-import { useState } from "react";
+import { LogOut, Menu, X, Shield } from "lucide-react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { isUserAdmin } from "@/lib/data";
 
 const AuthNavbar = () => {
   const { currentUser, signOut } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (currentUser?.email) {
+        const admin = await isUserAdmin(currentUser.email);
+        setIsAdmin(admin);
+      }
+    };
+
+    if (currentUser) {
+      checkAdminStatus();
+    }
+  }, [currentUser]);
 
   const handleSignOut = async () => {
     try {
@@ -44,36 +59,48 @@ const AuthNavbar = () => {
               >
                 Contracts
               </Link>
+              {isAdmin && (
+                <Link
+                  to="/admin"
+                  className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium hover:border-primary hover:text-foreground text-primary"
+                >
+                  <Shield className="h-4 w-4 mr-1" />
+                  Admin
+                </Link>
+              )}
             </div>
           </div>
           
-          <div className="hidden sm:ml-6 sm:flex sm:items-center">
-            {currentUser && (
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-muted-foreground">
-                  {userDisplayName}
-                </span>
-                <Button variant="ghost" size="sm" onClick={handleSignOut}>
-                  <LogOut className="h-4 w-4 mr-1" />
-                  Sign out
-                </Button>
+          <div className="flex items-center">
+            <div className="hidden sm:flex sm:items-center sm:ml-6">
+              <div className="flex items-center space-x-4">
+                {currentUser && (
+                  <div className="flex items-center">
+                    <span className="text-sm text-muted-foreground mr-4">
+                      {userDisplayName}
+                    </span>
+                    <Button variant="outline" size="sm" onClick={handleSignOut}>
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Sign out
+                    </Button>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          
-          {/* Mobile menu button */}
-          <div className="flex items-center sm:hidden">
-            <button
-              type="button"
-              className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-background hover:text-foreground focus:outline-none"
-              onClick={() => setIsOpen(!isOpen)}
-            >
-              {isOpen ? (
-                <X className="block h-6 w-6" />
-              ) : (
-                <Menu className="block h-6 w-6" />
-              )}
-            </button>
+            </div>
+            
+            {/* Mobile menu button */}
+            <div className="flex items-center sm:hidden">
+              <button
+                className="text-foreground focus:outline-none"
+                onClick={() => setIsOpen(!isOpen)}
+              >
+                {isOpen ? (
+                  <X className="h-6 w-6" />
+                ) : (
+                  <Menu className="h-6 w-6" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -96,6 +123,18 @@ const AuthNavbar = () => {
             >
               Contracts
             </Link>
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className="block border-l-4 border-transparent py-2 pl-3 pr-4 text-base font-medium hover:border-primary hover:bg-muted hover:text-foreground text-primary"
+                onClick={() => setIsOpen(false)}
+              >
+                <div className="flex items-center">
+                  <Shield className="h-4 w-4 mr-2" />
+                  Admin
+                </div>
+              </Link>
+            )}
             {currentUser && (
               <div className="border-t pt-4 pb-2">
                 <div className="px-4 py-2">
