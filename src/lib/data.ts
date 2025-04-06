@@ -50,6 +50,12 @@ export interface Contract {
     role: 'viewer' | 'editor';
     inviteStatus: 'pending' | 'accepted';
   }[];
+  timeline?: {
+    timestamp: string;
+    action: string;
+    userEmail: string;
+    details?: string;
+  }[];
 }
 
 export interface ShareInvite {
@@ -136,24 +142,137 @@ export const getContract = async (id: string): Promise<Contract | null> => {
 };
 
 export const createContract = async (
-  contract: Omit<Contract, 'id' | 'createdAt' | 'updatedAt'>
+  contract: Omit<Contract, 'id' | 'createdAt' | 'updatedAt'>,
+  creatorEmail: string
 ): Promise<string> => {
   const now = Timestamp.now();
+  const initialStatus = contract.status || 'draft';
+  const formattedStatus = initialStatus
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+
   const contractToCreate = {
     ...contract,
     createdAt: now,
     updatedAt: now,
+    timeline: [{
+      timestamp: now.toDate().toISOString(),
+      action: `Contract Created with ${formattedStatus} Status`,
+      userEmail: creatorEmail,
+      details: 'Contract was initially created'
+    }]
   };
   const docRef = await addDoc(collection(db, 'contracts'), contractToCreate);
   return docRef.id;
 };
 
-export const updateContract = async (id: string, contract: Partial<Omit<Contract, 'id' | 'createdAt'>>): Promise<void> => {
+export const updateContract = async (id: string, contract: Partial<Omit<Contract, 'id' | 'createdAt'>>, editorEmail: string): Promise<void> => {
   const contractRef = doc(db, 'contracts', id);
+  const currentContract = await getContract(id);
+  
+  if (!currentContract) {
+    throw new Error('Contract not found');
+  }
+  
+  // Determine what changed
+  const changes: string[] = [];
+  let statusChanged = false;
+  let newStatus = '';
+  
+  if (contract.title && contract.title !== currentContract.title) {
+    changes.push('title');
+  }
+  if (contract.status && contract.status !== currentContract.status) {
+    changes.push('status');
+    statusChanged = true;
+    newStatus = contract.status;
+  }
+  if (contract.projectName && contract.projectName !== currentContract.projectName) {
+    changes.push('project name');
+  }
+  if (contract.value !== undefined && contract.value !== currentContract.value) {
+    changes.push('contract value');
+  }
+  if (contract.description && contract.description !== currentContract.description) {
+    changes.push('description');
+  }
+  if (contract.startDate && contract.startDate !== currentContract.startDate) {
+    changes.push('start date');
+  }
+  if (contract.endDate !== undefined && contract.endDate !== currentContract.endDate) {
+    changes.push('end date');
+  }
+  if (contract.documentLink !== undefined && contract.documentLink !== currentContract.documentLink) {
+    changes.push('document link');
+  }
+  
+  // More robust comparison for parties
+  if (contract.parties) {
+    const partiesChanged = arePartiesDifferent(contract.parties, currentContract.parties);
+    if (partiesChanged) {
+      changes.push('parties');
+    }
+  }
+  
+  // Create a timeline entry if changes were made
+  const now = Timestamp.now();
+  const existingTimeline = currentContract.timeline || [];
+  let timeline = [...existingTimeline];
+  
+  if (changes.length > 0) {
+    // If status changed, use that as the primary action
+    const action = statusChanged 
+      ? `Status Changed to ${newStatus
+          .split('_')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ')}`
+      : 'Contract Edited';
+      
+    timeline.push({
+      timestamp: now.toDate().toISOString(),
+      action,
+      userEmail: editorEmail,
+      details: `Changed: ${changes.join(', ')}`
+    });
+  }
+  
   await updateDoc(contractRef, {
     ...contract,
-    updatedAt: Timestamp.now()
+    updatedAt: now,
+    timeline
   });
+};
+
+// Helper function to properly compare parties arrays
+const arePartiesDifferent = (newParties: any[], oldParties: any[]): boolean => {
+  if (newParties.length !== oldParties.length) {
+    return true;
+  }
+  
+  // Sort both arrays to ensure consistent comparison
+  const sortParties = (p: any[]) => [...p].sort((a, b) => 
+    (a.name + a.email + a.role).localeCompare(b.name + b.email + b.role)
+  );
+  
+  const sortedNewParties = sortParties(newParties);
+  const sortedOldParties = sortParties(oldParties);
+  
+  // Compare each party's properties
+  for (let i = 0; i < sortedNewParties.length; i++) {
+    const newParty = sortedNewParties[i];
+    const oldParty = sortedOldParties[i];
+    
+    if (
+      newParty.name !== oldParty.name ||
+      newParty.email !== oldParty.email ||
+      newParty.role !== oldParty.role
+    ) {
+      return true;
+    }
+  }
+  
+  return false;
 };
 
 export const deleteContract = async (id: string): Promise<void> => {

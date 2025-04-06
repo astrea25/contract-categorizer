@@ -1,4 +1,3 @@
-
 import { ContractStatus, statusColors } from '@/lib/data';
 import { cn } from '@/lib/utils';
 
@@ -10,6 +9,12 @@ interface ContractStatusBadgeProps {
 const ContractStatusBadge = ({ status, className }: ContractStatusBadgeProps) => {
   const { bg, text, border } = statusColors[status];
   
+  // Format status: replace underscores with spaces and capitalize each word
+  const formattedStatus = status
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+  
   return (
     <span 
       className={cn(
@@ -20,7 +25,7 @@ const ContractStatusBadge = ({ status, className }: ContractStatusBadgeProps) =>
         className
       )}
     >
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      {formattedStatus}
     </span>
   );
 };

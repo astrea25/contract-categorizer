@@ -13,9 +13,11 @@ import { formatDistance } from 'date-fns';
 import { toast } from 'sonner';
 import PageTransition from '@/components/layout/PageTransition';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/contexts/AuthContext';
 
 const ContractDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [contract, setContract] = useState<Contract | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,7 +38,6 @@ const ContractDetail = () => {
           setError('Contract not found');
         }
       } catch (error) {
-
         setError('Failed to load contract details');
       } finally {
         setLoading(false);
@@ -47,10 +48,10 @@ const ContractDetail = () => {
   }, [id]);
 
   const handleSaveContract = async (updatedData: Partial<Contract>) => {
-    if (!contract || !id) return;
+    if (!contract || !id || !currentUser?.email) return;
     
     try {
-      await updateContract(id, updatedData);
+      await updateContract(id, updatedData, currentUser.email);
       
       const updatedContract = await getContract(id);
       if (updatedContract) {
@@ -58,7 +59,6 @@ const ContractDetail = () => {
         toast.success('Contract updated successfully');
       }
     } catch (error) {
-
       toast.error('Failed to update contract');
     }
   };
@@ -273,57 +273,95 @@ const ContractDetail = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-start">
-                <div className="flex flex-col items-center mr-4">
-                  <div className="w-3 h-3 rounded-full bg-primary"></div>
-                  <div className="w-0.5 h-full bg-border"></div>
-                </div>
-                <div>
-                  <div className="font-medium">Contract Created</div>
-                  <div className="text-sm text-muted-foreground">
-                    {new Date(contract.createdAt).toLocaleString()}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex items-start">
-                <div className="flex flex-col items-center mr-4">
-                  <div className="w-3 h-3 rounded-full bg-primary"></div>
-                  <div className="w-0.5 h-full bg-border"></div>
-                </div>
-                <div>
-                  <div className="font-medium">Contract Started</div>
-                  <div className="text-sm text-muted-foreground">
-                    {new Date(contract.startDate).toLocaleDateString()}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex items-start">
-                <div className="flex flex-col items-center mr-4">
-                  <div className="w-3 h-3 rounded-full bg-primary"></div>
-                  <div className="w-0.5 h-full bg-border"></div>
-                </div>
-                <div>
-                  <div className="font-medium">Last Updated</div>
-                  <div className="text-sm text-muted-foreground">
-                    {new Date(contract.updatedAt).toLocaleString()}
-                  </div>
-                </div>
-              </div>
-              
-              {contract.endDate && (
-                <div className="flex items-start">
-                  <div className="flex flex-col items-center mr-4">
-                    <div className="w-3 h-3 rounded-full bg-muted-foreground"></div>
-                  </div>
-                  <div>
-                    <div className="font-medium">Contract End Date</div>
-                    <div className="text-sm text-muted-foreground">
-                      {new Date(contract.endDate).toLocaleDateString()}
+              {/* Contract timeline events */}
+              {contract.timeline && contract.timeline.length > 0 ? (
+                contract.timeline.map((event, index) => {
+                  // Check if this is a status change event
+                  const isStatusChange = event.action.startsWith('Status Changed to');
+                  
+                  return (
+                    <div key={index} className="flex items-start">
+                      <div className="flex flex-col items-center mr-4">
+                        <div className={`w-3 h-3 rounded-full ${isStatusChange ? 'bg-blue-500' : 'bg-primary'}`}></div>
+                        {index < contract.timeline!.length - 1 && (
+                          <div className="w-0.5 h-full bg-border"></div>
+                        )}
+                      </div>
+                      <div>
+                        <div className={`font-medium ${isStatusChange ? 'text-blue-700' : ''}`}>
+                          {event.action}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {new Date(event.timestamp).toLocaleString()}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          By: {event.userEmail}
+                        </div>
+                        {event.details && (
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {event.details}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <>
+                  {/* Legacy timeline events if no timeline array exists */}
+                  <div className="flex items-start">
+                    <div className="flex flex-col items-center mr-4">
+                      <div className="w-3 h-3 rounded-full bg-primary"></div>
+                      <div className="w-0.5 h-full bg-border"></div>
+                    </div>
+                    <div>
+                      <div className="font-medium">Contract Created</div>
+                      <div className="text-sm text-muted-foreground">
+                        {new Date(contract.createdAt).toLocaleString()}
+                      </div>
                     </div>
                   </div>
-                </div>
+                  
+                  <div className="flex items-start">
+                    <div className="flex flex-col items-center mr-4">
+                      <div className="w-3 h-3 rounded-full bg-primary"></div>
+                      <div className="w-0.5 h-full bg-border"></div>
+                    </div>
+                    <div>
+                      <div className="font-medium">Contract Started</div>
+                      <div className="text-sm text-muted-foreground">
+                        {new Date(contract.startDate).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start">
+                    <div className="flex flex-col items-center mr-4">
+                      <div className="w-3 h-3 rounded-full bg-primary"></div>
+                      {contract.endDate && <div className="w-0.5 h-full bg-border"></div>}
+                    </div>
+                    <div>
+                      <div className="font-medium">Last Updated</div>
+                      <div className="text-sm text-muted-foreground">
+                        {new Date(contract.updatedAt).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {contract.endDate && (
+                    <div className="flex items-start">
+                      <div className="flex flex-col items-center mr-4">
+                        <div className="w-3 h-3 rounded-full bg-muted-foreground"></div>
+                      </div>
+                      <div>
+                        <div className="font-medium">Contract End Date</div>
+                        <div className="text-sm text-muted-foreground">
+                          {new Date(contract.endDate).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </CardContent>

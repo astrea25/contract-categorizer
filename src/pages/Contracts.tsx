@@ -28,6 +28,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Contracts = () => {
   const { toast: uiToast } = useToast();
@@ -49,6 +50,8 @@ const Contracts = () => {
   const [searchParams] = useSearchParams();
   const status = searchParams.get('status');
   const filter = searchParams.get('filter');
+
+  const { currentUser } = useAuth();
 
   useEffect(() => {
     const fetchContracts = async () => {
@@ -126,6 +129,8 @@ const Contracts = () => {
   };
 
   const handleSaveContract = async (newContract: Partial<Contract>) => {
+    if (!currentUser?.email) return;
+    
     try {
       const contractToAdd = {
         title: newContract.title || 'Untitled Contract',
@@ -141,7 +146,7 @@ const Contracts = () => {
         documentLink: newContract.documentLink || '',
       } as Omit<Contract, 'id' | 'createdAt' | 'updatedAt'>;
 
-      await createContract(contractToAdd);
+      await createContract(contractToAdd, currentUser.email);
       
       const updatedContracts = await getContracts();
       setContracts(updatedContracts);
