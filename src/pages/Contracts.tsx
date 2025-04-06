@@ -6,6 +6,7 @@ import FilterBar from '@/components/contracts/FilterBar';
 import DraggableContractCard from '@/components/contracts/DraggableContractCard';
 import FolderList from '@/components/contracts/FolderList';
 import ContractForm from '@/components/contracts/ContractForm';
+import SortDropdown, { SortOption, SortField } from '@/components/contracts/SortDropdown';
 import { 
   Contract,
   ContractStatus,
@@ -42,6 +43,10 @@ const Contracts = () => {
   const [loading, setLoading] = useState(true);
   const [selectedFolder, setSelectedFolder] = useState<string | 'all'>('all');
   const [folders, setFolders] = useState<Folder[]>([]);
+  const [sort, setSort] = useState<SortOption>({
+    field: 'updatedAt',
+    direction: 'desc'
+  });
   const [filters, setFilters] = useState({
     search: '',
     status: 'all' as ContractStatus | 'all',
@@ -219,7 +224,83 @@ const Contracts = () => {
     }
   };
 
-  const filteredContracts = useMemo(() => {
+  // Sort contracts based on sort field and direction
+  const sortContracts = (contractsToSort: Contract[], sortOption: SortOption) => {
+    const { field, direction } = sortOption;
+    const multiplier = direction === 'asc' ? 1 : -1;
+
+    return [...contractsToSort].sort((a, b) => {
+      switch (field) {
+        case 'title':
+          return multiplier * a.title.localeCompare(b.title);
+        
+        case 'updatedAt':
+          // Handle potentially missing updatedAt values
+          if (!a.updatedAt && !b.updatedAt) return 0;
+          if (!a.updatedAt) return multiplier * 1;
+          if (!b.updatedAt) return multiplier * -1;
+          
+          try {
+            return multiplier * (new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime());
+          } catch (error) {
+            console.error('Error sorting by updatedAt:', error);
+            return 0;
+          }
+        
+        case 'createdAt':
+          // Handle potentially missing createdAt values
+          if (!a.createdAt && !b.createdAt) return 0;
+          if (!a.createdAt) return multiplier * 1;
+          if (!b.createdAt) return multiplier * -1;
+          
+          try {
+            return multiplier * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+          } catch (error) {
+            console.error('Error sorting by createdAt:', error);
+            return 0;
+          }
+        
+        case 'startDate':
+          // Handle potentially missing startDate values
+          if (!a.startDate && !b.startDate) return 0;
+          if (!a.startDate) return multiplier * 1;
+          if (!b.startDate) return multiplier * -1;
+          
+          try {
+            return multiplier * (new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+          } catch (error) {
+            console.error('Error sorting by startDate:', error);
+            return 0;
+          }
+        
+        case 'endDate':
+          // Handle null endDates (ongoing contracts)
+          if (!a.endDate && !b.endDate) return 0;
+          if (!a.endDate) return multiplier * 1;
+          if (!b.endDate) return multiplier * -1;
+          
+          try {
+            return multiplier * (new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
+          } catch (error) {
+            console.error('Error sorting by endDate:', error);
+            return 0;
+          }
+        
+        case 'value':
+          // Handle null values
+          if (a.value === null && b.value === null) return 0;
+          if (a.value === null) return multiplier * 1;
+          if (b.value === null) return multiplier * -1;
+          return multiplier * (a.value - b.value);
+        
+        default:
+          return 0;
+      }
+    });
+  };
+
+  // Apply filters and sorting
+  const filteredAndSortedContracts = useMemo(() => {
     let result = [...contracts];
 
     // Filter by folder first
@@ -248,8 +329,10 @@ const Contracts = () => {
           contract.description.toLowerCase().includes(searchLower)
       );
     }
-    return result;
-  }, [contracts, filters, selectedFolder]);
+
+    // Apply sorting
+    return sortContracts(result, sort);
+  }, [contracts, filters, selectedFolder, sort]);
 
   // Get name of selected folder for display
   const selectedFolderName = useMemo(() => {
@@ -306,6 +389,8 @@ const Contracts = () => {
           </div>
           <FilterBar
             onFilterChange={handleFilterChange}
+            currentSort={sort}
+            onSortChange={setSort}
             className="glass p-4 rounded-lg"
           />
           
@@ -377,9 +462,9 @@ const Contracts = () => {
                   <Skeleton key={i} className="h-48 w-full" />
                 ))}
               </div>
-            ) : filteredContracts.length > 0 ? (
+            ) : filteredAndSortedContracts.length > 0 ? (
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {filteredContracts.map(contract => (
+                {filteredAndSortedContracts.map(contract => (
                   <DraggableContractCard
                     key={contract.id}
                     contract={contract}
