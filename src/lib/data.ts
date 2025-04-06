@@ -74,6 +74,7 @@ export interface Comment {
   id: string;
   text: string;
   userEmail: string;
+  userName?: string; // Display name for the comment
   timestamp: string;
   replies?: Comment[];
 }
@@ -508,7 +509,13 @@ export const getContractStats = async (): Promise<ContractStats> => {
 };
 
 // Add a function to register users in the database
-export const registerUser = async (userId: string, email: string, displayName?: string): Promise<void> => {
+export const registerUser = async (
+  userId: string, 
+  email: string, 
+  firstName: string = '',
+  lastName: string = '',
+  displayName: string = ''
+): Promise<void> => {
   const usersRef = collection(db, 'users');
   
   // Check if user already exists
@@ -520,7 +527,9 @@ export const registerUser = async (userId: string, email: string, displayName?: 
     await addDoc(usersRef, {
       userId,
       email: email.toLowerCase(),
-      displayName: displayName || '',
+      firstName,
+      lastName,
+      displayName: displayName || `${firstName} ${lastName}`.trim(),
       role: 'user', // Default role
       createdAt: new Date().toISOString(),
     });
@@ -630,7 +639,8 @@ export const renameFolder = async (
 export const addComment = async (
   contractId: string,
   text: string,
-  userEmail: string
+  userEmail: string,
+  userName?: string
 ): Promise<string> => {
   const contractRef = doc(db, 'contracts', contractId);
   const contract = await getContract(contractId);
@@ -646,6 +656,7 @@ export const addComment = async (
     id: commentId,
     text,
     userEmail,
+    userName,
     timestamp: now.toDate().toISOString(),
     replies: []
   };
@@ -679,7 +690,8 @@ export const addReply = async (
   contractId: string,
   parentCommentId: string,
   text: string,
-  userEmail: string
+  userEmail: string,
+  userName?: string
 ): Promise<string> => {
   const contractRef = doc(db, 'contracts', contractId);
   const contract = await getContract(contractId);
@@ -695,6 +707,7 @@ export const addReply = async (
     id: replyId,
     text,
     userEmail,
+    userName,
     timestamp: now.toDate().toISOString()
   };
   

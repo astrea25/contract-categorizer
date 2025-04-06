@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CommentSectionProps {
   contractId: string;
@@ -32,6 +33,7 @@ const CommentSection = ({
   userEmail,
   onCommentsChange 
 }: CommentSectionProps) => {
+  const { currentUser } = useAuth();
   const [newComment, setNewComment] = useState('');
   const [replyText, setReplyText] = useState<Record<string, string>>({});
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
@@ -46,7 +48,12 @@ const CommentSection = ({
     
     try {
       setIsSubmitting(true);
-      await addComment(contractId, newComment.trim(), userEmail);
+      await addComment(
+        contractId, 
+        newComment.trim(), 
+        userEmail, 
+        currentUser?.displayName || ''
+      );
       setNewComment('');
       onCommentsChange();
       toast.success('Comment added successfully');
@@ -63,7 +70,13 @@ const CommentSection = ({
     
     try {
       setIsSubmitting(true);
-      await addReply(contractId, parentId, reply.trim(), userEmail);
+      await addReply(
+        contractId, 
+        parentId, 
+        reply.trim(), 
+        userEmail, 
+        currentUser?.displayName || ''
+      );
       setReplyText(prev => ({ ...prev, [parentId]: '' }));
       setReplyingTo(null);
       onCommentsChange();
@@ -88,8 +101,21 @@ const CommentSection = ({
     }
   };
 
-  const getInitials = (email: string) => {
-    return email.substring(0, 2).toUpperCase();
+  // Get initials from name or email
+  const getInitials = (comment: Comment) => {
+    if (comment.userName) {
+      const nameParts = comment.userName.split(' ');
+      if (nameParts.length > 1) {
+        return (nameParts[0].charAt(0) + nameParts[1].charAt(0)).toUpperCase();
+      }
+      return comment.userName.substring(0, 2).toUpperCase();
+    }
+    return comment.userEmail.substring(0, 2).toUpperCase();
+  };
+
+  // Get display name or email
+  const getDisplayName = (comment: Comment) => {
+    return comment.userName || comment.userEmail;
   };
 
   const sortedComments = [...(comments || [])].sort((a, b) => 
@@ -110,7 +136,9 @@ const CommentSection = ({
           <div className="flex gap-4">
             <Avatar className="h-10 w-10 bg-primary/10">
               <AvatarFallback className="text-primary font-medium">
-                {getInitials(userEmail)}
+                {currentUser?.displayName ? 
+                  currentUser.displayName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) : 
+                  userEmail.substring(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 space-y-2">
@@ -144,12 +172,12 @@ const CommentSection = ({
                   <div className="flex gap-3">
                     <Avatar className="h-8 w-8 bg-primary/10">
                       <AvatarFallback className="text-primary text-sm font-medium">
-                        {getInitials(comment.userEmail)}
+                        {getInitials(comment)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
-                        <div className="font-medium text-sm">{comment.userEmail}</div>
+                        <div className="font-medium text-sm">{getDisplayName(comment)}</div>
                         <div className="text-xs text-muted-foreground">
                           {formatDistanceToNow(new Date(comment.timestamp), { addSuffix: true })}
                         </div>
@@ -222,12 +250,12 @@ const CommentSection = ({
                           <div className="flex gap-3">
                             <Avatar className="h-6 w-6 bg-secondary">
                               <AvatarFallback className="text-muted-foreground text-xs font-medium">
-                                {getInitials(reply.userEmail)}
+                                {getInitials(reply)}
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1">
                               <div className="flex items-center justify-between">
-                                <div className="font-medium text-xs">{reply.userEmail}</div>
+                                <div className="font-medium text-xs">{getDisplayName(reply)}</div>
                                 <div className="text-xs text-muted-foreground">
                                   {formatDistanceToNow(new Date(reply.timestamp), { addSuffix: true })}
                                 </div>

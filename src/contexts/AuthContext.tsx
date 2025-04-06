@@ -5,7 +5,8 @@ import {
   signOut as firebaseSignOut, 
   onAuthStateChanged,
   createUserWithEmailAndPassword,
-  signInWithEmailAndPassword
+  signInWithEmailAndPassword,
+  updateProfile
 } from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
 import { isUserAllowed, registerUser } from "@/lib/data";
@@ -15,7 +16,7 @@ interface AuthContextType {
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
-  signUpWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, firstName?: string, lastName?: string) => Promise<void>;
   signOut: () => Promise<void>;
   error: string | null;
 }
@@ -46,6 +47,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
+      // Extract first and last name from Google displayName
+      const displayName = result.user.displayName || '';
+      const nameArray = displayName.split(' ');
+      const firstName = nameArray[0] || '';
+      const lastName = nameArray.slice(1).join(' ') || '';
+      
+      // Register the user with first and last name from Google
+      await registerUser(
+        result.user.uid, 
+        result.user.email || '', 
+        firstName,
+        lastName,
+        displayName
+      );
+      
       setError(null);
     } catch (error) {
       setError('Failed to sign in. Please try again.');
@@ -75,11 +91,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signUpWithEmail = async (email: string, password: string) => {
+  const signUpWithEmail = async (email: string, password: string, firstName = '', lastName = '') => {
     try {
       const result = await createUserWithEmailAndPassword(auth, email, password);
-      // Register the user in Firestore
-      await registerUser(result.user.uid, result.user.email || '', result.user.displayName || '');
+      
+      // Update the user profile with the display name
+      const displayName = `${firstName} ${lastName}`.trim();
+      if (displayName) {
+        await updateProfile(result.user, { displayName });
+      }
+      
+      // Register the user in Firestore with first and last name
+      await registerUser(
+        result.user.uid, 
+        result.user.email || '', 
+        firstName,
+        lastName,
+        displayName
+      );
+      
       setError(null);
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') {

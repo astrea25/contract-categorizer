@@ -18,6 +18,9 @@ const AuthNavbar = () => {
     }
   };
 
+  // Get user's display name or fall back to email
+  const userDisplayName = currentUser?.displayName || currentUser?.email || '';
+
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 sm:px-6">
@@ -48,7 +51,7 @@ const AuthNavbar = () => {
             {currentUser && (
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-muted-foreground">
-                  {currentUser.email}
+                  {userDisplayName}
                 </span>
                 <Button variant="ghost" size="sm" onClick={handleSignOut}>
                   <LogOut className="h-4 w-4 mr-1" />
@@ -97,7 +100,7 @@ const AuthNavbar = () => {
               <div className="border-t pt-4 pb-2">
                 <div className="px-4 py-2">
                   <p className="text-sm text-muted-foreground">
-                    {currentUser.email}
+                    {userDisplayName}
                   </p>
                   <Button 
                     variant="ghost" 

@@ -13,6 +13,8 @@ import { z } from "zod";
 
 // Validation schema for registration form
 const signUpSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(6, "Password must be at least 6 characters long"),
   confirmPassword: z.string().min(6, "Password must be at least 6 characters long")
@@ -25,6 +27,8 @@ const SignUp = () => {
   const { signUpWithEmail, currentUser, error: authError } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -42,7 +46,13 @@ const SignUp = () => {
 
     try {
       // Validate form data
-      const validationResult = signUpSchema.safeParse({ email, password, confirmPassword });
+      const validationResult = signUpSchema.safeParse({ 
+        firstName, 
+        lastName, 
+        email, 
+        password, 
+        confirmPassword 
+      });
       
       if (!validationResult.success) {
         const error = validationResult.error.errors[0];
@@ -51,7 +61,7 @@ const SignUp = () => {
       }
 
       setIsLoading(true);
-      await signUpWithEmail(email, password);
+      await signUpWithEmail(email, password, firstName, lastName);
       toast.success("Account created successfully!");
       // Navigation is handled by the useEffect when currentUser changes
     } catch (error: any) {
@@ -68,7 +78,7 @@ const SignUp = () => {
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold">Create an Account</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Enter your email and create a password to sign up
+              Enter your details to sign up for an account
             </p>
           </CardHeader>
           <CardContent>
@@ -80,6 +90,30 @@ const SignUp = () => {
             )}
             
             <form onSubmit={handleSignUp} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input 
+                    id="firstName" 
+                    placeholder="John" 
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input 
+                    id="lastName" 
+                    placeholder="Smith" 
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input 
