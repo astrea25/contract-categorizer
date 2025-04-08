@@ -11,10 +11,13 @@ import { ColumnDef } from '@tanstack/react-table';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  getLegalTeamMembers, 
-  addLegalTeamMember, 
+import {
+  getLegalTeamMembers,
+  addLegalTeamMember,
   removeLegalTeamMember,
+  getManagementTeamMembers,
+  addManagementTeamMember,
+  removeManagementTeamMember,
   inviteUser,
   addAdminUser,
   removeAdminUser,
@@ -25,7 +28,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -62,10 +65,19 @@ interface LegalTeamMember {
   createdAt?: string;
 }
 
+interface ManagementTeamMember {
+  id: string;
+  email: string;
+  displayName?: string;
+  role?: string;
+  createdAt?: string;
+}
+
 const Admin = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [legalTeam, setLegalTeam] = useState<LegalTeamMember[]>([]);
+  const [managementTeam, setManagementTeam] = useState<ManagementTeamMember[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>('users');
   const { currentUser } = useAuth();
@@ -85,9 +97,14 @@ const Admin = () => {
   // State for legal team member form
   const [legalUserSearch, setLegalUserSearch] = useState('');
   const [filteredLegalUsers, setFilteredLegalUsers] = useState<User[]>([]);
-  const [newLegalRole, setNewLegalRole] = useState('Legal Reviewer');
   const [isLegalDialogOpen, setIsLegalDialogOpen] = useState(false);
   const [addingLegal, setAddingLegal] = useState(false);
+
+  // State for management team member form
+  const [managementUserSearch, setManagementUserSearch] = useState('');
+  const [filteredManagementUsers, setFilteredManagementUsers] = useState<User[]>([]);
+  const [isManagementDialogOpen, setIsManagementDialogOpen] = useState(false);
+  const [addingManagement, setAddingManagement] = useState(false);
 
   // State for user removal confirmation
   const [userToRemove, setUserToRemove] = useState<User | null>(null);
@@ -96,7 +113,7 @@ const Admin = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch users
       const usersRef = collection(db, 'users');
       const usersSnapshot = await getDocs(usersRef);
@@ -104,7 +121,7 @@ const Admin = () => {
         id: doc.id,
         ...doc.data()
       })) as User[];
-      
+
       // Fetch admins
       const adminsRef = collection(db, 'admin');
       const adminsSnapshot = await getDocs(adminsRef);
@@ -112,10 +129,13 @@ const Admin = () => {
         id: doc.id,
         ...doc.data()
       })) as AdminUser[];
-      
+
       // Fetch legal team members
       const legalTeamData = await getLegalTeamMembers() as LegalTeamMember[];
-      
+
+      // Fetch management team members
+      const managementTeamData = await getManagementTeamMembers() as ManagementTeamMember[];
+
       // Fetch share invites to check for duplicates
       const shareInvitesRef = collection(db, 'shareInvites');
       const shareInvitesSnapshot = await getDocs(shareInvitesRef);
@@ -123,36 +143,38 @@ const Admin = () => {
         id: doc.id,
         ...doc.data()
       }));
-      
-      // Filter out admin users and legal team members from the users list
+
+      // Filter out admin users, legal team, and management team members from the users list
       const adminEmails = adminsData.map(admin => admin.email.toLowerCase());
       const legalEmails = legalTeamData.map(legal => legal.email.toLowerCase());
-      
+      const managementEmails = managementTeamData.map(management => management.email.toLowerCase());
+
       // Create a set of emails that are already registered in the system
       const registeredEmails = new Set([
         ...usersData.map(user => user.email.toLowerCase()),
         ...adminEmails,
-        ...legalEmails
+        ...legalEmails,
+        ...managementEmails
       ]);
-      
+
       // Clean up any duplicate invites (same user with multiple invites)
       const processedEmails = new Set<string>();
       const pendingInvites: User[] = [];
-      
+
       // Process shareInvites to add as pending users
       for (const invite of shareInvitesData) {
         const email = invite.email.toLowerCase();
-        
+
         // Skip if this email is already a registered user
         if (registeredEmails.has(email)) {
           continue;
         }
-        
+
         // Skip if we already added this email from another invite
         if (processedEmails.has(email)) {
           continue;
         }
-        
+
         processedEmails.add(email);
         pendingInvites.push({
           id: invite.id,
@@ -162,16 +184,18 @@ const Admin = () => {
           isPendingInvite: true // Flag to identify pending invites in the UI
         });
       }
-      
-      const filteredUsers = usersData.filter(user => 
+
+      const filteredUsers = usersData.filter(user =>
         !adminEmails.includes(user.email.toLowerCase()) &&
-        !legalEmails.includes(user.email.toLowerCase())
+        !legalEmails.includes(user.email.toLowerCase()) &&
+        !managementEmails.includes(user.email.toLowerCase())
       );
-      
+
       // Combine regular users with pending invites
       setUsers([...filteredUsers, ...pendingInvites]);
       setAdmins(adminsData);
       setLegalTeam(legalTeamData);
+      setManagementTeam(managementTeamData);
     } catch (error) {
       console.error('Error fetching admin data:', error);
       toast.error('Error fetching data');
@@ -194,11 +218,11 @@ const Admin = () => {
     try {
       setInviting(true);
       await inviteUser(
-        newUserEmail, 
+        newUserEmail,
         'user', // Default role
         currentUser?.email || 'admin'
       );
-      
+
       toast.success(`Invitation sent to ${newUserEmail}`);
       setNewUserEmail('');
       setIsInviteDialogOpen(false);
@@ -214,9 +238,9 @@ const Admin = () => {
   useEffect(() => {
     if (isAdminDialogOpen) {
       const adminEmails = admins.map(admin => admin.email.toLowerCase());
-      
+
       if (adminUserSearch.trim() !== '') {
-        const filtered = users.filter(user => 
+        const filtered = users.filter(user =>
           !adminEmails.includes(user.email.toLowerCase()) &&
           (user.email.toLowerCase().includes(adminUserSearch.toLowerCase()) ||
            user.displayName?.toLowerCase().includes(adminUserSearch.toLowerCase()) ||
@@ -260,13 +284,15 @@ const Admin = () => {
     }
   };
 
+
+
   // Filter users for adding to legal team
   useEffect(() => {
     if (isLegalDialogOpen) {
       const legalEmails = legalTeam.map(member => member.email.toLowerCase());
-      
+
       if (legalUserSearch.trim() !== '') {
-        const filtered = users.filter(user => 
+        const filtered = users.filter(user =>
           !legalEmails.includes(user.email.toLowerCase()) &&
           (user.email.toLowerCase().includes(legalUserSearch.toLowerCase()) ||
            user.displayName?.toLowerCase().includes(legalUserSearch.toLowerCase()) ||
@@ -283,19 +309,19 @@ const Admin = () => {
   const handleAddLegalMember = async (user: User) => {
     try {
       setAddingLegal(true);
-      
+
       // Get the display name from user
       const displayName = user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim();
-      
-      await addLegalTeamMember(user.email, displayName, newLegalRole);
-      
+
+      await addLegalTeamMember(user.email, displayName);
+
       // Also add to shareInvites so they can access the app
       await inviteUser(
-        user.email, 
-        'legal', 
+        user.email,
+        'legal',
         currentUser?.email || 'admin'
       );
-      
+
       toast.success(`${user.email} is now a legal team member`);
       setLegalUserSearch('');
       setFilteredLegalUsers([]);
@@ -321,19 +347,80 @@ const Admin = () => {
     }
   };
 
+  // Filter users for adding to management team
+  useEffect(() => {
+    if (isManagementDialogOpen) {
+      const managementEmails = managementTeam.map(member => member.email.toLowerCase());
+
+      if (managementUserSearch.trim() !== '') {
+        const filtered = users.filter(user =>
+          !managementEmails.includes(user.email.toLowerCase()) &&
+          (user.email.toLowerCase().includes(managementUserSearch.toLowerCase()) ||
+           user.displayName?.toLowerCase().includes(managementUserSearch.toLowerCase()) ||
+           `${user.firstName || ''} ${user.lastName || ''}`.trim().toLowerCase().includes(managementUserSearch.toLowerCase()))
+        );
+        setFilteredManagementUsers(filtered);
+      } else {
+        setFilteredManagementUsers([]);
+      }
+    }
+  }, [managementUserSearch, isManagementDialogOpen, managementTeam, users]);
+
+  // Function to add a management team member
+  const handleAddManagementMember = async (user: User) => {
+    try {
+      setAddingManagement(true);
+
+      // Get the display name from user
+      const displayName = user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim();
+
+      await addManagementTeamMember(user.email, displayName);
+
+      // Also add to shareInvites so they can access the app
+      await inviteUser(
+        user.email,
+        'management',
+        currentUser?.email || 'admin'
+      );
+
+      toast.success(`${user.email} is now a management team member`);
+      setManagementUserSearch('');
+      setFilteredManagementUsers([]);
+      setIsManagementDialogOpen(false);
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error('Error adding management team member:', error);
+      toast.error('Failed to add management team member');
+    } finally {
+      setAddingManagement(false);
+    }
+  };
+
+  // Function to remove a management team member
+  const handleRemoveManagementMember = async (id: string, email: string) => {
+    try {
+      await removeManagementTeamMember(id);
+      toast.success(`Removed ${email} from the management team`);
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error('Error removing management team member:', error);
+      toast.error('Failed to remove management team member');
+    }
+  };
+
   // Function to update display names for users without one
   const updateMissingDisplayNames = async () => {
     try {
       // Find users missing display names but with first/last names
-      const usersToUpdate = users.filter(user => 
+      const usersToUpdate = users.filter(user =>
         !user.displayName && (user.firstName || user.lastName)
       );
-      
+
       if (usersToUpdate.length === 0) {
         toast.info("No users with missing display names found");
         return;
       }
-      
+
       // Update each user
       for (const user of usersToUpdate) {
         const displayName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
@@ -343,7 +430,7 @@ const Admin = () => {
           });
         }
       }
-      
+
       toast.success(`Updated display names for ${usersToUpdate.length} users`);
       fetchData(); // Refresh data
     } catch (error) {
@@ -364,13 +451,13 @@ const Admin = () => {
       const usersRef = collection(db, 'users');
       const userQuery = query(usersRef, where('email', '==', currentUser.email?.toLowerCase() || ''));
       const userSnapshot = await getDocs(userQuery);
-      
+
       if (!userSnapshot.empty) {
         const userDoc = userSnapshot.docs[0];
         await updateDoc(doc(db, 'users', userDoc.id), {
           displayName: currentUser.displayName || ''
         });
-        
+
         toast.success("Successfully synced display name from Firebase Auth");
         fetchData(); // Refresh data
       } else {
@@ -388,7 +475,7 @@ const Admin = () => {
     console.log("Users from Firestore:", users);
     console.log("Admin users:", admins);
     console.log("Legal team:", legalTeam);
-    
+
     if (users.length > 0) {
       // Show details of the first user
       const firstUser = users[0];
@@ -404,10 +491,10 @@ const Admin = () => {
   // Function to handle user removal
   const handleRemoveUser = async () => {
     if (!userToRemove) return;
-    
+
     try {
       setIsRemovingUser(true);
-      
+
       if (userToRemove.isPendingInvite) {
         // This is a pending invitation - just delete from shareInvites collection
         const inviteRef = doc(db, 'shareInvites', userToRemove.id);
@@ -420,7 +507,7 @@ const Admin = () => {
           description: "Note: Their Firebase Authentication account may still exist."
         });
       }
-      
+
       setUserToRemove(null);
       fetchData(); // Refresh data
     } catch (error) {
@@ -444,12 +531,12 @@ const Admin = () => {
         if (row.original.isPendingInvite) {
           return <span className="text-muted-foreground italic">Pending registration</span>;
         }
-        
+
         const displayName = row.original.displayName;
         const firstName = row.original.firstName || '';
         const lastName = row.original.lastName || '';
         const fullName = `${firstName} ${lastName}`.trim();
-        
+
         // Show both options for debugging
         return (
           <div>
@@ -500,8 +587,8 @@ const Admin = () => {
       id: 'actions',
       header: 'Actions',
       cell: ({ row }) => (
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           size="icon"
           onClick={() => setUserToRemove(row.original)}
         >
@@ -521,8 +608,8 @@ const Admin = () => {
       id: 'actions',
       header: 'Actions',
       cell: ({ row }) => (
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           size="icon"
           onClick={() => handleRemoveAdmin(row.original.id, row.original.email)}
         >
@@ -544,9 +631,35 @@ const Admin = () => {
       cell: ({ row }) => row.original.displayName || '-',
     },
     {
-      accessorKey: 'role',
-      header: 'Role',
-      cell: ({ row }) => row.original.role || 'Legal Reviewer',
+      accessorKey: 'createdAt',
+      header: 'Added On',
+      cell: ({ row }) => row.original.createdAt ? new Date(row.original.createdAt).toLocaleDateString() : '-',
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => handleRemoveLegalMember(row.original.id, row.original.email)}
+        >
+          <Trash2 className="h-4 w-4 text-destructive" />
+        </Button>
+      ),
+    },
+  ];
+
+  // Define columns for management team table
+  const managementColumns: ColumnDef<ManagementTeamMember>[] = [
+    {
+      accessorKey: 'email',
+      header: 'Email',
+    },
+    {
+      accessorKey: 'displayName',
+      header: 'Name',
+      cell: ({ row }) => row.original.displayName || '-',
     },
     {
       accessorKey: 'createdAt',
@@ -557,10 +670,10 @@ const Admin = () => {
       id: 'actions',
       header: 'Actions',
       cell: ({ row }) => (
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           size="icon"
-          onClick={() => handleRemoveLegalMember(row.original.id, row.original.email)}
+          onClick={() => handleRemoveManagementMember(row.original.id, row.original.email)}
         >
           <Trash2 className="h-4 w-4 text-destructive" />
         </Button>
@@ -626,8 +739,9 @@ const Admin = () => {
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="admins">Admins</TabsTrigger>
             <TabsTrigger value="legalTeam">Legal Team</TabsTrigger>
+            <TabsTrigger value="managementTeam">Management Team</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="users">
             <Card>
               <CardHeader>
@@ -638,22 +752,22 @@ const Admin = () => {
               </CardHeader>
               <CardContent>
                 <div className="mb-4 flex flex-wrap gap-2">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={updateMissingDisplayNames}
                     disabled={loading}
                   >
                     Fix Missing Display Names
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={syncAuthDisplayNames}
                     disabled={loading}
                   >
                     Sync Auth Display Name
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={debugUserData}
                     disabled={loading}
                   >
@@ -663,15 +777,15 @@ const Admin = () => {
                 {loading ? (
                   <Skeleton className="w-full h-64" />
                 ) : (
-                  <DataTable 
-                    columns={userColumns} 
-                    data={users} 
+                  <DataTable
+                    columns={userColumns}
+                    data={users}
                   />
                 )}
               </CardContent>
               <CardFooter className="border-t pt-6 flex flex-col gap-2">
                 <div className="text-sm text-muted-foreground">
-                  This section shows both registered users and pending invitations. Regular users can be removed using the delete icon. 
+                  This section shows both registered users and pending invitations. Regular users can be removed using the delete icon.
                   This application is invitation-only - new users must be invited via the "Invite User" button before they can sign up.
                 </div>
                 <div className="text-xs text-amber-600">
@@ -680,7 +794,7 @@ const Admin = () => {
               </CardFooter>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="admins">
             <Card>
               <CardHeader>
@@ -725,7 +839,7 @@ const Admin = () => {
                             {filteredAdminUsers.length > 0 && (
                               <div className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-popover border rounded-md shadow-md">
                                 {filteredAdminUsers.map(user => (
-                                  <div 
+                                  <div
                                     key={user.id}
                                     className="p-2 hover:bg-accent cursor-pointer flex justify-between items-center"
                                     onClick={() => handleAddAdmin(user)}
@@ -770,9 +884,9 @@ const Admin = () => {
                 {loading ? (
                   <Skeleton className="w-full h-64" />
                 ) : (
-                  <DataTable 
-                    columns={adminColumns} 
-                    data={admins} 
+                  <DataTable
+                    columns={adminColumns}
+                    data={admins}
                   />
                 )}
               </CardContent>
@@ -827,7 +941,7 @@ const Admin = () => {
                             {filteredLegalUsers.length > 0 && (
                               <div className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-popover border rounded-md shadow-md">
                                 {filteredLegalUsers.map(user => (
-                                  <div 
+                                  <div
                                     key={user.id}
                                     className="p-2 hover:bg-accent cursor-pointer flex justify-between items-center"
                                     onClick={() => handleAddLegalMember(user)}
@@ -858,20 +972,6 @@ const Admin = () => {
                             Type to search for users to add to the legal team
                           </div>
                         )}
-                        <div className="grid gap-2">
-                          <Label htmlFor="legalRole">Role for Selected User</Label>
-                          <Select value={newLegalRole} onValueChange={setNewLegalRole}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select role" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Legal Reviewer">Legal Reviewer</SelectItem>
-                              <SelectItem value="Senior Legal Counsel">Senior Legal Counsel</SelectItem>
-                              <SelectItem value="Legal Assistant">Legal Assistant</SelectItem>
-                              <SelectItem value="Legal Manager">Legal Manager</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
                       </div>
                       <DialogFooter>
                         <Button variant="outline" onClick={() => setIsLegalDialogOpen(false)}>
@@ -886,15 +986,117 @@ const Admin = () => {
                 {loading ? (
                   <Skeleton className="w-full h-64" />
                 ) : (
-                  <DataTable 
-                    columns={legalColumns} 
-                    data={legalTeam} 
+                  <DataTable
+                    columns={legalColumns}
+                    data={legalTeam}
                   />
                 )}
               </CardContent>
               <CardFooter className="border-t pt-6 flex justify-between">
                 <div className="text-sm text-muted-foreground">
                   Legal team members can review contracts and provide feedback.
+                </div>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="managementTeam">
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>Management Team</CardTitle>
+                    <CardDescription>
+                      Manage management team members who approve contracts
+                    </CardDescription>
+                  </div>
+                  <Dialog open={isManagementDialogOpen} onOpenChange={(open) => {
+                    setIsManagementDialogOpen(open);
+                    if (!open) {
+                      setManagementUserSearch('');
+                      setFilteredManagementUsers([]);
+                    }
+                  }}>
+                    <DialogTrigger asChild>
+                      <Button size="sm">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Member
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add Management Team Member</DialogTitle>
+                        <DialogDescription>
+                          Search for an existing user to add to the management team.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="managementUserSearch">Search Existing Users</Label>
+                          <div className="relative">
+                            <Input
+                              id="managementUserSearch"
+                              placeholder="Search by name or email"
+                              value={managementUserSearch}
+                              onChange={(e) => setManagementUserSearch(e.target.value)}
+                            />
+                            {filteredManagementUsers.length > 0 && (
+                              <div className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-popover border rounded-md shadow-md">
+                                {filteredManagementUsers.map(user => (
+                                  <div
+                                    key={user.id}
+                                    className="p-2 hover:bg-accent cursor-pointer flex justify-between items-center"
+                                    onClick={() => handleAddManagementMember(user)}
+                                  >
+                                    <div>
+                                      <div className="font-medium">
+                                        {user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'No name'}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">{user.email}</div>
+                                    </div>
+                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                      <Check className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {filteredManagementUsers.length === 0 && managementUserSearch.trim() !== '' && (
+                          <div className="text-sm flex items-center gap-2 text-muted-foreground">
+                            <AlertCircle className="h-4 w-4" />
+                            No matching users found
+                          </div>
+                        )}
+                        {managementUserSearch.trim() === '' && (
+                          <div className="text-sm text-muted-foreground">
+                            Type to search for users to add to the management team
+                          </div>
+                        )}
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsManagementDialogOpen(false)}>
+                          Cancel
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <Skeleton className="w-full h-64" />
+                ) : (
+                  <DataTable
+                    columns={managementColumns}
+                    data={managementTeam}
+                  />
+                )}
+              </CardContent>
+              <CardFooter className="border-t pt-6 flex justify-between">
+                <div className="text-sm text-muted-foreground">
+                  Management team members can approve contracts and make business decisions.
                 </div>
               </CardFooter>
             </Card>
@@ -919,7 +1121,7 @@ const Admin = () => {
                     Are you sure you want to remove <span className="font-semibold">{userToRemove?.email}</span>?
                     This will permanently delete the user's data from the database, including any pending invitations.
                     <p className="mt-3 text-amber-600 text-sm">
-                      <strong>Note:</strong> This will remove user data from Firestore, but their Firebase Authentication account will remain. 
+                      <strong>Note:</strong> This will remove user data from Firestore, but their Firebase Authentication account will remain.
                       Users removed this way can still sign in until they are deleted from Firebase Authentication directly.
                     </p>
                     <p className="mt-1 text-muted-foreground text-xs">
@@ -936,10 +1138,10 @@ const Admin = () => {
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 disabled={isRemovingUser}
               >
-                {isRemovingUser 
-                  ? 'Processing...' 
-                  : userToRemove?.isPendingInvite 
-                    ? 'Cancel Invitation' 
+                {isRemovingUser
+                  ? 'Processing...'
+                  : userToRemove?.isPendingInvite
+                    ? 'Cancel Invitation'
                     : 'Remove User'
                 }
               </AlertDialogAction>
@@ -951,4 +1153,4 @@ const Admin = () => {
   );
 };
 
-export default Admin; 
+export default Admin;

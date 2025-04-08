@@ -4,23 +4,55 @@ import { useAuth } from "@/contexts/AuthContext";
 import { LogOut, Menu, X, Shield } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { isUserAdmin } from "@/lib/data";
+import { isUserAdmin, isUserLegalTeam, getLegalTeamMemberRole, isUserManagementTeam, getManagementTeamMemberRole } from "@/lib/data";
+import UserRoleBadge from "@/components/ui/UserRoleBadge";
 
 const AuthNavbar = () => {
   const { currentUser, signOut } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isLegalTeam, setIsLegalTeam] = useState(false);
+  const [isManagementTeam, setIsManagementTeam] = useState(false);
+  const [userRole, setUserRole] = useState("user");
 
   useEffect(() => {
-    const checkAdminStatus = async () => {
+    const checkUserRoles = async () => {
       if (currentUser?.email) {
         const admin = await isUserAdmin(currentUser.email);
+        const legal = await isUserLegalTeam(currentUser.email);
+        const management = await isUserManagementTeam(currentUser.email);
+
         setIsAdmin(admin);
+        setIsLegalTeam(legal);
+        setIsManagementTeam(management);
+
+        // Set the user role for the badge
+        if (admin) {
+          setUserRole("admin");
+        } else if (legal) {
+          // Get the specific role for legal team members
+          const legalRole = await getLegalTeamMemberRole(currentUser.email);
+          if (legalRole) {
+            setUserRole(legalRole);
+          } else {
+            setUserRole("legal");
+          }
+        } else if (management) {
+          // Get the specific role for management team members
+          const managementRole = await getManagementTeamMemberRole(currentUser.email);
+          if (managementRole) {
+            setUserRole(managementRole);
+          } else {
+            setUserRole("management");
+          }
+        } else {
+          setUserRole("user");
+        }
       }
     };
 
     if (currentUser) {
-      checkAdminStatus();
+      checkUserRoles();
     }
   }, [currentUser]);
 
@@ -44,7 +76,7 @@ const AuthNavbar = () => {
             <Link to="/" className="flex items-center font-semibold">
               Contract Management
             </Link>
-            
+
             {/* Desktop navigation */}
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               <Link
@@ -70,15 +102,18 @@ const AuthNavbar = () => {
               )}
             </div>
           </div>
-          
+
           <div className="flex items-center">
             <div className="hidden sm:flex sm:items-center sm:ml-6">
               <div className="flex items-center space-x-4">
                 {currentUser && (
                   <div className="flex items-center">
-                    <span className="text-sm text-muted-foreground mr-4">
-                      {userDisplayName}
-                    </span>
+                    <div className="flex items-center gap-2 mr-4">
+                      <span className="text-sm text-muted-foreground">
+                        {userDisplayName}
+                      </span>
+                      <UserRoleBadge role={userRole} />
+                    </div>
                     <Button variant="outline" size="sm" onClick={handleSignOut}>
                       <LogOut className="h-4 w-4 mr-2" />
                       Sign out
@@ -87,7 +122,7 @@ const AuthNavbar = () => {
                 )}
               </div>
             </div>
-            
+
             {/* Mobile menu button */}
             <div className="flex items-center sm:hidden">
               <button
@@ -104,7 +139,7 @@ const AuthNavbar = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Mobile menu */}
       {isOpen && (
         <div className="sm:hidden">
@@ -138,12 +173,15 @@ const AuthNavbar = () => {
             {currentUser && (
               <div className="border-t pt-4 pb-2">
                 <div className="px-4 py-2">
-                  <p className="text-sm text-muted-foreground">
-                    {userDisplayName}
-                  </p>
-                  <Button 
-                    variant="ghost" 
-                    className="mt-2 w-full justify-start" 
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-muted-foreground">
+                      {userDisplayName}
+                    </p>
+                    <UserRoleBadge role={userRole} />
+                  </div>
+                  <Button
+                    variant="ghost"
+                    className="mt-2 w-full justify-start"
                     size="sm"
                     onClick={() => {
                       handleSignOut();

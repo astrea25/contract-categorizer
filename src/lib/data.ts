@@ -1,15 +1,15 @@
 import { db } from './firebase';
-import { 
-  collection, 
-  doc, 
-  addDoc, 
-  getDoc, 
-  getDocs, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  orderBy, 
+import {
+  collection,
+  doc,
+  addDoc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
   Timestamp,
   setDoc
 } from 'firebase/firestore';
@@ -87,35 +87,35 @@ export interface ShareInvite {
 }
 
 export const statusColors: Record<ContractStatus, { bg: string; text: string; border: string }> = {
-  requested: { 
-    bg: 'bg-blue-50', 
-    text: 'text-blue-800', 
-    border: 'border-blue-200' 
+  requested: {
+    bg: 'bg-blue-50',
+    text: 'text-blue-800',
+    border: 'border-blue-200'
   },
-  draft: { 
-    bg: 'bg-gray-100', 
-    text: 'text-gray-800', 
-    border: 'border-gray-200' 
+  draft: {
+    bg: 'bg-gray-100',
+    text: 'text-gray-800',
+    border: 'border-gray-200'
   },
-  legal_review: { 
-    bg: 'bg-purple-50', 
-    text: 'text-purple-800', 
-    border: 'border-purple-200' 
+  legal_review: {
+    bg: 'bg-purple-50',
+    text: 'text-purple-800',
+    border: 'border-purple-200'
   },
-  management_review: { 
-    bg: 'bg-orange-50', 
-    text: 'text-orange-800', 
-    border: 'border-orange-200' 
+  management_review: {
+    bg: 'bg-orange-50',
+    text: 'text-orange-800',
+    border: 'border-orange-200'
   },
-  approval: { 
-    bg: 'bg-yellow-50', 
-    text: 'text-yellow-800', 
-    border: 'border-yellow-200' 
+  approval: {
+    bg: 'bg-yellow-50',
+    text: 'text-yellow-800',
+    border: 'border-yellow-200'
   },
-  finished: { 
-    bg: 'bg-green-50', 
-    text: 'text-green-800', 
-    border: 'border-green-200' 
+  finished: {
+    bg: 'bg-green-50',
+    text: 'text-green-800',
+    border: 'border-green-200'
   }
 };
 
@@ -147,11 +147,11 @@ export const getContracts = async (): Promise<Contract[]> => {
 export const getContract = async (id: string): Promise<Contract | null> => {
   const contractDoc = doc(db, 'contracts', id);
   const contractSnapshot = await getDoc(contractDoc);
-  
+
   if (!contractSnapshot.exists()) {
     return null;
   }
-  
+
   const data = contractSnapshot.data();
   return {
     id: contractSnapshot.id,
@@ -193,16 +193,16 @@ export const createContract = async (
 export const updateContract = async (id: string, contract: Partial<Omit<Contract, 'id' | 'createdAt'>>, editorEmail: string): Promise<void> => {
   const contractRef = doc(db, 'contracts', id);
   const currentContract = await getContract(id);
-  
+
   if (!currentContract) {
     throw new Error('Contract not found');
   }
-  
+
   // Determine what changed
   const changes: string[] = [];
   let statusChanged = false;
   let newStatus = '';
-  
+
   if (contract.title && contract.title !== currentContract.title) {
     changes.push('title');
   }
@@ -229,7 +229,7 @@ export const updateContract = async (id: string, contract: Partial<Omit<Contract
   if (contract.documentLink !== undefined && contract.documentLink !== currentContract.documentLink) {
     changes.push('document link');
   }
-  
+
   // More robust comparison for parties
   if (contract.parties) {
     const partiesChanged = arePartiesDifferent(contract.parties, currentContract.parties);
@@ -237,21 +237,21 @@ export const updateContract = async (id: string, contract: Partial<Omit<Contract
       changes.push('parties');
     }
   }
-  
+
   // Create a timeline entry if changes were made
   const now = Timestamp.now();
   const existingTimeline = currentContract.timeline || [];
   let timeline = [...existingTimeline];
-  
+
   if (changes.length > 0) {
     // If status changed, use that as the primary action
-    const action = statusChanged 
+    const action = statusChanged
       ? `Status Changed to ${newStatus
           .split('_')
           .map(word => word.charAt(0).toUpperCase() + word.slice(1))
           .join(' ')}`
       : 'Contract Edited';
-      
+
     timeline.push({
       timestamp: now.toDate().toISOString(),
       action,
@@ -259,7 +259,7 @@ export const updateContract = async (id: string, contract: Partial<Omit<Contract
       details: `Changed: ${changes.join(', ')}`
     });
   }
-  
+
   await updateDoc(contractRef, {
     ...contract,
     updatedAt: now,
@@ -272,20 +272,20 @@ const arePartiesDifferent = (newParties: any[], oldParties: any[]): boolean => {
   if (newParties.length !== oldParties.length) {
     return true;
   }
-  
+
   // Sort both arrays to ensure consistent comparison
-  const sortParties = (p: any[]) => [...p].sort((a, b) => 
+  const sortParties = (p: any[]) => [...p].sort((a, b) =>
     (a.name + a.email + a.role).localeCompare(b.name + b.email + b.role)
   );
-  
+
   const sortedNewParties = sortParties(newParties);
   const sortedOldParties = sortParties(oldParties);
-  
+
   // Compare each party's properties
   for (let i = 0; i < sortedNewParties.length; i++) {
     const newParty = sortedNewParties[i];
     const oldParty = sortedOldParties[i];
-    
+
     if (
       newParty.name !== oldParty.name ||
       newParty.email !== oldParty.email ||
@@ -294,7 +294,7 @@ const arePartiesDifferent = (newParties: any[], oldParties: any[]): boolean => {
       return true;
     }
   }
-  
+
   return false;
 };
 
@@ -313,7 +313,7 @@ export const createShareInvite = async (contractId: string, email: string): Prom
   // Update contract's sharedWith array
   const contractRef = doc(db, 'contracts', contractId);
   const contract = await getContract(contractId);
-  
+
   if (contract) {
     const updatedSharedWith = [...(contract.sharedWith || []), {
       email: email.toLowerCase(),
@@ -350,7 +350,7 @@ export const isUserAllowed = async (email: string): Promise<boolean> => {
   const shareInvitesRef = collection(db, 'shareInvites');
   const shareQuery = query(shareInvitesRef, where('email', '==', email.toLowerCase()));
   const shareSnapshot = await getDocs(shareQuery);
-  
+
   return !shareSnapshot.empty; // User is either invited or not
 };
 
@@ -388,7 +388,7 @@ export const removeAdminUser = async (id: string): Promise<void> => {
 export const updateInviteStatus = async (inviteId: string, status: 'accepted'): Promise<void> => {
   const contractRef = doc(db, 'contracts', inviteId);
   const contract = await getContract(inviteId);
-  
+
   if (contract) {
     const updatedSharedWith = contract.sharedWith.map(share =>
       share.inviteStatus === 'pending' ? { ...share, inviteStatus: status } : share
@@ -418,7 +418,7 @@ export const filterByType = (contracts: Contract[], type?: ContractType | 'all')
 
 export const filterByProject = (contracts: Contract[], project?: string): Contract[] => {
   if (!project) return contracts;
-  return contracts.filter(contract => 
+  return contracts.filter(contract =>
     contract.projectName.toLowerCase().includes(project.toLowerCase())
   );
 };
@@ -436,8 +436,8 @@ export const filterByOwner = (contracts: Contract[], owner?: string): Contract[]
 
 export const filterByParty = (contracts: Contract[], party?: string): Contract[] => {
   if (!party) return contracts;
-  return contracts.filter(contract => 
-    contract.parties.some(p => 
+  return contracts.filter(contract =>
+    contract.parties.some(p =>
       p.name.toLowerCase().includes(party.toLowerCase()) ||
       p.email.toLowerCase().includes(party.toLowerCase())
     )
@@ -445,25 +445,25 @@ export const filterByParty = (contracts: Contract[], party?: string): Contract[]
 };
 
 export const filterByDateRange = (
-  contracts: Contract[], 
-  startDate?: string | null, 
+  contracts: Contract[],
+  startDate?: string | null,
   endDate?: string | null
 ): Contract[] => {
   if (!startDate && !endDate) return contracts;
-  
+
   return contracts.filter(contract => {
     if (startDate && contract.startDate) {
       if (new Date(contract.startDate) < new Date(startDate)) {
         return false;
       }
     }
-    
+
     if (endDate && contract.endDate) {
       if (new Date(contract.endDate) > new Date(endDate)) {
         return false;
       }
     }
-    
+
     return true;
   });
 };
@@ -478,10 +478,10 @@ export const getContractStats = async (): Promise<ContractStats> => {
 
     const totalContracts = contracts.length;
     const finishedContracts = contracts.filter(c => c.status === 'finished').length;
-    const pendingApprovalContracts = contracts.filter(c => 
+    const pendingApprovalContracts = contracts.filter(c =>
       c.status === 'approval'
     ).length;
-    
+
     const expiringContracts = contracts.filter(c => {
       if (!c.endDate) {
         return false;
@@ -489,13 +489,13 @@ export const getContractStats = async (): Promise<ContractStats> => {
 
       try {
         const endDate = new Date(c.endDate);
-        
+
         if (isNaN(endDate.getTime())) {
           return false;
         }
 
         const isExpiringSoon = endDate <= thirtyDaysFromNow && endDate >= now;
-        
+
         return isExpiringSoon;
       } catch (error) {
         return false;
@@ -513,13 +513,13 @@ export const getContractStats = async (): Promise<ContractStats> => {
 
       try {
         const endDate = new Date(c.endDate);
-        
+
         if (isNaN(endDate.getTime())) {
           return false;
         }
 
         const isExpiringThisYear = endDate.getFullYear() === currentYear;
-        
+
         return isExpiringThisYear;
       } catch (error) {
         return false;
@@ -543,21 +543,21 @@ export const getContractStats = async (): Promise<ContractStats> => {
 
 // Add a function to register users in the database
 export const registerUser = async (
-  userId: string, 
-  email: string, 
+  userId: string,
+  email: string,
   firstName: string = '',
   lastName: string = '',
   displayName: string = ''
 ): Promise<void> => {
   const usersRef = collection(db, 'users');
-  
+
   // Check if user already exists
   const userQuery = query(usersRef, where('email', '==', email.toLowerCase()));
   const userSnapshot = await getDocs(userQuery);
-  
+
   // Ensure displayName is set properly
   const finalDisplayName = displayName || `${firstName} ${lastName}`.trim();
-  
+
   if (userSnapshot.empty) {
     // Create a new user document
     console.log('Creating new user with display name:', finalDisplayName);
@@ -570,17 +570,17 @@ export const registerUser = async (
       role: 'user', // Default role
       createdAt: new Date().toISOString(),
     });
-    
+
     // If the user was invited, remove their entry from shareInvites collection
     // since they are now registered and in the users collection
     try {
       const shareInvitesRef = collection(db, 'shareInvites');
       const inviteQuery = query(shareInvitesRef, where('email', '==', email.toLowerCase()));
       const inviteSnapshot = await getDocs(inviteQuery);
-      
+
       if (!inviteSnapshot.empty) {
         // Delete ALL invites for this user (not just the first one)
-        const deletePromises = inviteSnapshot.docs.map(inviteDoc => 
+        const deletePromises = inviteSnapshot.docs.map(inviteDoc =>
           deleteDoc(doc(db, 'shareInvites', inviteDoc.id))
         );
         await Promise.all(deletePromises);
@@ -594,12 +594,12 @@ export const registerUser = async (
     // Update existing user document with the display name
     const userDoc = userSnapshot.docs[0];
     const userData = userDoc.data();
-    
+
     console.log('Updating existing user:', {
       current: userData.displayName,
       new: finalDisplayName
     });
-    
+
     // Always update with the latest display name
     await updateDoc(doc(db, 'users', userDoc.id), {
       displayName: finalDisplayName || userData.displayName,
@@ -614,7 +614,7 @@ export const registerUser = async (
 export const getFolders = async (): Promise<Folder[]> => {
   const foldersCollection = collection(db, 'folders');
   const foldersSnapshot = await getDocs(foldersCollection);
-  
+
   const folders = foldersSnapshot.docs.map(doc => {
     const data = doc.data();
     return {
@@ -624,7 +624,7 @@ export const getFolders = async (): Promise<Folder[]> => {
       updatedAt: data.updatedAt ? (data.updatedAt.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt) : null,
     } as Folder;
   });
-  
+
   // For each folder, count how many contracts are assigned to it
   const contracts = await getContracts();
   return folders.map(folder => ({
@@ -650,11 +650,11 @@ export const deleteFolder = async (id: string): Promise<void> => {
   // First, update all contracts in this folder to remove the folder reference
   const contracts = await getContracts();
   const contractsInFolder = contracts.filter(contract => contract.folderId === id);
-  
+
   for (const contract of contractsInFolder) {
     await updateContract(contract.id, { folderId: null }, 'System');
   }
-  
+
   // Then delete the folder
   const folderRef = doc(db, 'folders', id);
   await deleteDoc(folderRef);
@@ -663,25 +663,25 @@ export const deleteFolder = async (id: string): Promise<void> => {
 export const assignContractToFolder = async (contractId: string, folderId: string | null, userEmail: string): Promise<void> => {
   const contractRef = doc(db, 'contracts', contractId);
   const currentContract = await getContract(contractId);
-  
+
   if (!currentContract) {
     throw new Error('Contract not found');
   }
-  
+
   const now = Timestamp.now();
   const existingTimeline = currentContract.timeline || [];
   let timeline = [...existingTimeline];
-  
+
   // Create a timeline entry for the folder change
   timeline.push({
     timestamp: now.toDate().toISOString(),
     action: folderId ? 'Contract Moved to Folder' : 'Contract Removed from Folder',
     userEmail: userEmail,
-    details: folderId 
+    details: folderId
       ? `Contract was moved to a folder`
       : `Contract was removed from its folder`
   });
-  
+
   await updateDoc(contractRef, {
     folderId,
     updatedAt: now,
@@ -692,7 +692,7 @@ export const assignContractToFolder = async (contractId: string, folderId: strin
 // Filter contracts by folder
 export const filterByFolder = (contracts: Contract[], folderId?: string | 'all'): Contract[] => {
   if (!folderId || folderId === 'all') return contracts;
-  
+
   return contracts.filter(contract => contract.folderId === folderId);
 };
 
@@ -702,7 +702,7 @@ export const renameFolder = async (
 ): Promise<void> => {
   const folderRef = doc(db, 'folders', id);
   const now = Timestamp.now();
-  
+
   await updateDoc(folderRef, {
     ...updates,
     updatedAt: now
@@ -718,14 +718,14 @@ export const addComment = async (
 ): Promise<string> => {
   const contractRef = doc(db, 'contracts', contractId);
   const contract = await getContract(contractId);
-  
+
   if (!contract) {
     throw new Error('Contract not found');
   }
-  
+
   const now = Timestamp.now();
   const commentId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-  
+
   const newComment: Comment = {
     id: commentId,
     text,
@@ -734,15 +734,15 @@ export const addComment = async (
     timestamp: now.toDate().toISOString(),
     replies: []
   };
-  
+
   const existingComments = contract.comments || [];
   const updatedComments = [...existingComments, newComment];
-  
+
   await updateDoc(contractRef, {
     comments: updatedComments,
     updatedAt: now
   });
-  
+
   // Also add an entry to the timeline for the comment
   const existingTimeline = contract.timeline || [];
   const updatedTimeline = [...existingTimeline, {
@@ -751,11 +751,11 @@ export const addComment = async (
     userEmail,
     details: text.length > 50 ? `${text.substring(0, 50)}...` : text
   }];
-  
+
   await updateDoc(contractRef, {
     timeline: updatedTimeline
   });
-  
+
   return commentId;
 };
 
@@ -769,14 +769,14 @@ export const addReply = async (
 ): Promise<string> => {
   const contractRef = doc(db, 'contracts', contractId);
   const contract = await getContract(contractId);
-  
+
   if (!contract) {
     throw new Error('Contract not found');
   }
-  
+
   const now = Timestamp.now();
   const replyId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-  
+
   const newReply: Comment = {
     id: replyId,
     text,
@@ -784,9 +784,9 @@ export const addReply = async (
     userName,
     timestamp: now.toDate().toISOString()
   };
-  
+
   const existingComments = contract.comments || [];
-  
+
   // Find the parent comment and add the reply
   const updatedComments = existingComments.map(comment => {
     if (comment.id === parentCommentId) {
@@ -797,12 +797,12 @@ export const addReply = async (
     }
     return comment;
   });
-  
+
   await updateDoc(contractRef, {
     comments: updatedComments,
     updatedAt: now
   });
-  
+
   return replyId;
 };
 
@@ -814,14 +814,14 @@ export const deleteComment = async (
 ): Promise<void> => {
   const contractRef = doc(db, 'contracts', contractId);
   const contract = await getContract(contractId);
-  
+
   if (!contract) {
     throw new Error('Contract not found');
   }
-  
+
   const existingComments = contract.comments || [];
   let updatedComments;
-  
+
   if (parentCommentId) {
     // It's a reply - find the parent and remove the reply
     updatedComments = existingComments.map(comment => {
@@ -837,7 +837,7 @@ export const deleteComment = async (
     // It's a top-level comment - remove it completely
     updatedComments = existingComments.filter(comment => comment.id !== commentId);
   }
-  
+
   await updateDoc(contractRef, {
     comments: updatedComments,
     updatedAt: Timestamp.now()
@@ -846,9 +846,8 @@ export const deleteComment = async (
 
 // Add a user to the legal team
 export const addLegalTeamMember = async (
-  email: string, 
-  displayName: string = '',
-  role: string = 'Legal Reviewer'
+  email: string,
+  displayName: string = ''
 ): Promise<void> => {
   const legalTeamRef = collection(db, 'legalTeam');
   const legalTeamQuery = query(legalTeamRef, where('email', '==', email.toLowerCase()));
@@ -858,7 +857,6 @@ export const addLegalTeamMember = async (
     await addDoc(legalTeamRef, {
       email: email.toLowerCase(),
       displayName,
-      role,
       createdAt: new Date().toISOString()
     });
   }
@@ -868,7 +866,7 @@ export const addLegalTeamMember = async (
 export const getLegalTeamMembers = async (): Promise<any[]> => {
   const legalTeamRef = collection(db, 'legalTeam');
   const legalTeamSnapshot = await getDocs(legalTeamRef);
-  
+
   return legalTeamSnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data()
@@ -881,19 +879,54 @@ export const removeLegalTeamMember = async (id: string): Promise<void> => {
   await deleteDoc(legalTeamRef);
 };
 
+// Add a user to the management team
+export const addManagementTeamMember = async (
+  email: string,
+  displayName: string = ''
+): Promise<void> => {
+  const managementTeamRef = collection(db, 'managementTeam');
+  const managementTeamQuery = query(managementTeamRef, where('email', '==', email.toLowerCase()));
+  const managementTeamSnapshot = await getDocs(managementTeamQuery);
+
+  if (managementTeamSnapshot.empty) {
+    await addDoc(managementTeamRef, {
+      email: email.toLowerCase(),
+      displayName,
+      createdAt: new Date().toISOString()
+    });
+  }
+};
+
+// Get all management team members
+export const getManagementTeamMembers = async (): Promise<any[]> => {
+  const managementTeamRef = collection(db, 'managementTeam');
+  const managementTeamSnapshot = await getDocs(managementTeamRef);
+
+  return managementTeamSnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+};
+
+// Remove a management team member
+export const removeManagementTeamMember = async (id: string): Promise<void> => {
+  const managementTeamRef = doc(db, 'managementTeam', id);
+  await deleteDoc(managementTeamRef);
+};
+
 // Create a general invite for a user
 export const inviteUser = async (
-  email: string, 
+  email: string,
   role: string = 'user',
   invitedBy: string
 ): Promise<void> => {
   // Add to shareInvites collection so they can access the app
   const invitesRef = collection(db, 'shareInvites');
-  
+
   // Check if invite already exists
   const inviteQuery = query(invitesRef, where('email', '==', email.toLowerCase()));
   const inviteSnapshot = await getDocs(inviteQuery);
-  
+
   if (inviteSnapshot.empty) {
     await addDoc(invitesRef, {
       email: email.toLowerCase(),
@@ -915,30 +948,73 @@ export const isUserLegalTeam = async (email: string): Promise<boolean> => {
   return !legalTeamSnapshot.empty;
 };
 
+// Get the legal team role
+export const getLegalTeamMemberRole = async (email: string): Promise<string | null> => {
+  if (!email) return null;
+
+  const legalTeamRef = collection(db, 'legalTeam');
+  const legalTeamQuery = query(legalTeamRef, where('email', '==', email.toLowerCase()));
+  const legalTeamSnapshot = await getDocs(legalTeamQuery);
+
+  if (legalTeamSnapshot.empty) {
+    return null;
+  }
+
+  // Return a fixed role
+  return 'Legal Team';
+};
+
+// Check if a user is a management team member
+export const isUserManagementTeam = async (email: string): Promise<boolean> => {
+  if (!email) return false;
+
+  const managementTeamRef = collection(db, 'managementTeam');
+  const managementTeamQuery = query(managementTeamRef, where('email', '==', email.toLowerCase()));
+  const managementTeamSnapshot = await getDocs(managementTeamQuery);
+
+  return !managementTeamSnapshot.empty;
+};
+
+// Get the management team role
+export const getManagementTeamMemberRole = async (email: string): Promise<string | null> => {
+  if (!email) return null;
+
+  const managementTeamRef = collection(db, 'managementTeam');
+  const managementTeamQuery = query(managementTeamRef, where('email', '==', email.toLowerCase()));
+  const managementTeamSnapshot = await getDocs(managementTeamQuery);
+
+  if (managementTeamSnapshot.empty) {
+    return null;
+  }
+
+  // Return a fixed role
+  return 'Management Team';
+};
+
 // Remove a user from the system
 export const removeUser = async (id: string): Promise<void> => {
   // First get the user details to know their email and userId
   const userRef = doc(db, 'users', id);
   const userSnapshot = await getDoc(userRef);
-  
+
   if (userSnapshot.exists()) {
     const userData = userSnapshot.data();
     const email = userData.email?.toLowerCase();
     const userId = userData.userId; // Firebase Auth UID
-    
+
     // Delete the user from users collection
     await deleteDoc(userRef);
-    
+
     // Also remove from shareInvites collection if they have any pending invites
     if (email) {
       try {
         const shareInvitesRef = collection(db, 'shareInvites');
         const inviteQuery = query(shareInvitesRef, where('email', '==', email));
         const inviteSnapshot = await getDocs(inviteQuery);
-        
+
         if (!inviteSnapshot.empty) {
           // Delete any invites for this user
-          const deletePromises = inviteSnapshot.docs.map(inviteDoc => 
+          const deletePromises = inviteSnapshot.docs.map(inviteDoc =>
             deleteDoc(doc(db, 'shareInvites', inviteDoc.id))
           );
           await Promise.all(deletePromises);
@@ -948,14 +1024,14 @@ export const removeUser = async (id: string): Promise<void> => {
         console.error('Error cleaning up share invites for removed user:', error);
         // Continue even if this fails, as the main user has been removed successfully
       }
-      
+
       // Additionally, try to remove the user from Firebase Authentication
       if (userId) {
         try {
           // This will only work for admin-level operations or if the user is the current user
           // For security reasons, regular clients can only delete their own user account
           const currentUser = firebaseAuth.currentUser;
-          
+
           if (currentUser && currentUser.uid === userId) {
             // If removing the current user, we can delete them directly
             await deleteUser(currentUser);
@@ -981,30 +1057,30 @@ export const removeUser = async (id: string): Promise<void> => {
 // is either the owner or mentioned in the parties list or shared with list
 export const getUserContracts = async (userEmail: string): Promise<Contract[]> => {
   if (!userEmail) return [];
-  
+
   const lowercaseEmail = userEmail.toLowerCase();
-  
+
   // Get all contracts
   const contracts = await getContracts();
-  
+
   // Filter contracts to only include those where the user is involved
   return contracts.filter(contract => {
     // Check if user is the owner
     if (contract.owner.toLowerCase() === lowercaseEmail) return true;
-    
+
     // Check if user is in the parties list
-    const isParty = contract.parties.some(party => 
+    const isParty = contract.parties.some(party =>
       party.email.toLowerCase() === lowercaseEmail
     );
     if (isParty) return true;
-    
+
     // Check if user is in the sharedWith list with accepted status
-    const isShared = contract.sharedWith?.some(share => 
-      share.email.toLowerCase() === lowercaseEmail && 
+    const isShared = contract.sharedWith?.some(share =>
+      share.email.toLowerCase() === lowercaseEmail &&
       share.inviteStatus === 'accepted'
     );
     if (isShared) return true;
-    
+
     // User is not involved with this contract
     return false;
   });
@@ -1022,10 +1098,10 @@ export const getUserContractStats = async (userEmail: string): Promise<ContractS
 
     const totalContracts = contracts.length;
     const finishedContracts = contracts.filter(c => c.status === 'finished').length;
-    const pendingApprovalContracts = contracts.filter(c => 
+    const pendingApprovalContracts = contracts.filter(c =>
       c.status === 'approval'
     ).length;
-    
+
     const expiringContracts = contracts.filter(c => {
       if (!c.endDate) {
         return false;
@@ -1033,13 +1109,13 @@ export const getUserContractStats = async (userEmail: string): Promise<ContractS
 
       try {
         const endDate = new Date(c.endDate);
-        
+
         if (isNaN(endDate.getTime())) {
           return false;
         }
 
         const isExpiringSoon = endDate <= thirtyDaysFromNow && endDate >= now;
-        
+
         return isExpiringSoon;
       } catch (error) {
         return false;
@@ -1057,13 +1133,13 @@ export const getUserContractStats = async (userEmail: string): Promise<ContractS
 
       try {
         const endDate = new Date(c.endDate);
-        
+
         if (isNaN(endDate.getTime())) {
           return false;
         }
 
         const isExpiringThisYear = endDate.getFullYear() === currentYear;
-        
+
         return isExpiringThisYear;
       } catch (error) {
         return false;
