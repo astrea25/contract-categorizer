@@ -73,8 +73,9 @@ const AuthNavbar = () => {
       <div className="container mx-auto px-4 sm:px-6">
         <div className="flex h-16 justify-between">
           <div className="flex">
-            <Link to="/" className="flex items-center font-semibold">
-              Contract Management
+            <Link to="/" className="flex items-center gap-2">
+              <img src="/wwf-4.svg" alt="WWF Logo" className="h-8 w-8" />
+              <span className="font-semibold">Contract Management</span>
             </Link>
 
             {/* Desktop navigation */}

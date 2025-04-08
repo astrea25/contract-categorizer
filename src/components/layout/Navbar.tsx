@@ -23,7 +23,8 @@ const Navbar = () => {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           <div className="flex items-center">
-            <Link to="/" className="flex items-center">
+            <Link to="/" className="flex items-center gap-2">
+              <img src="/wwf-4.svg" alt="WWF Logo" className="h-8 w-8" />
               <span className="text-primary font-bold text-xl">Contracts</span>
             </Link>
           </div>
@@ -38,8 +39,8 @@ const Navbar = () => {
                   to={route.path}
                   className={cn(
                     'px-3 py-2 rounded-md text-sm font-medium transition-colors duration-150 ease-in-out flex items-center gap-2',
-                    isActive 
-                      ? 'bg-primary/10 text-primary' 
+                    isActive
+                      ? 'bg-primary/10 text-primary'
                       : 'text-foreground/70 hover:text-foreground hover:bg-accent'
                   )}
                 >
@@ -76,8 +77,8 @@ const Navbar = () => {
                   to={route.path}
                   className={cn(
                     'block px-3 py-2 rounded-md text-base font-medium transition-colors duration-150 ease-in-out flex items-center gap-2',
-                    isActive 
-                      ? 'bg-primary/10 text-primary' 
+                    isActive
+                      ? 'bg-primary/10 text-primary'
                       : 'text-foreground/70 hover:text-foreground hover:bg-accent'
                   )}
                   onClick={() => setMobileMenuOpen(false)}

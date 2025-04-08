@@ -43,6 +43,9 @@ const Login = () => {
       <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-1">
+            <div className="flex justify-center mb-4">
+              <img src="/wwf-4.svg" alt="WWF Logo" className="h-16 w-16" />
+            </div>
             <CardTitle className="text-2xl font-bold">Contract Management</CardTitle>
             <p className="text-sm text-muted-foreground">
               Sign in to access your account
