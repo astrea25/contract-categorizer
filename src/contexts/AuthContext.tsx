@@ -173,45 +173,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      try {
-        if (user) {
-          // Check if user is allowed to access the application
-          const isAllowed = await isUserAllowed(user.email || '');
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      // Set the user immediately to improve initial load time
+      if (user) {
+        // Set basic user state immediately
+        setUserState({
+          currentUser: user,
+          isAdmin: false,
+          isLegalTeam: false,
+          isManagementTeam: false,
+          userRole: "user"
+        });
+        setLoading(false);
 
-          if (!isAllowed) {
-            await firebaseSignOut(auth);
-            setError('You are not authorized to access this application. Please request an invitation from an administrator.');
-            setUserState(initialUserState); // Reset to initial state
-          } else {
-            // Check user roles and update state in one go
-            const newUserState = await checkUserRoles(user);
-            setUserState(newUserState);
-            setError(null);
+        // Then check permissions and roles asynchronously
+        (async () => {
+          try {
+            // Check if user is allowed to access the application
+            const isAllowed = await isUserAllowed(user.email || '');
 
-            // Only register user data if they are already allowed to access the system
-            // This means they must be in admin, users, legalTeam, or managementTeam collections
-            // Extract name from display name if available
-            const displayName = user.displayName || '';
-            const nameArray = displayName.split(' ');
-            const firstName = nameArray[0] || '';
-            const lastName = nameArray.slice(1).join(' ') || '';
+            if (!isAllowed) {
+              await firebaseSignOut(auth);
+              setError('You are not authorized to access this application. Please request an invitation from an administrator.');
+              setUserState(initialUserState); // Reset to initial state
+            } else {
+              // Check user roles and update state
+              const newUserState = await checkUserRoles(user);
+              setUserState(newUserState);
+              setError(null);
 
-            // Register or update user data
-            await registerUser(
-              user.uid,
-              user.email || '',
-              firstName,
-              lastName,
-              displayName
-            );
+              // Only register user data if they are already allowed to access the system
+              // Extract name from display name if available
+              const displayName = user.displayName || '';
+              const nameArray = displayName.split(' ');
+              const firstName = nameArray[0] || '';
+              const lastName = nameArray.slice(1).join(' ') || '';
+
+              // Register or update user data
+              await registerUser(
+                user.uid,
+                user.email || '',
+                firstName,
+                lastName,
+                displayName
+              );
+            }
+          } catch (error) {
+            console.error("Error in auth state change:", error);
           }
-        } else {
-          setUserState(initialUserState); // Reset to initial state
-        }
-      } catch (error) {
-        console.error("Error in auth state change:", error);
-      } finally {
+        })();
+      } else {
+        setUserState(initialUserState); // Reset to initial state
         setLoading(false);
       }
     });
