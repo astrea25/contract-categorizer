@@ -61,11 +61,7 @@ export interface Contract {
   archived?: boolean; // Flag to indicate if contract is archived
   archivedAt?: string; // When the contract was archived
   archivedBy?: string; // Who archived the contract
-  sharedWith: {
-    email: string;
-    role: 'viewer' | 'editor';
-    inviteStatus: 'pending' | 'accepted';
-  }[];
+  // sharedWith property removed
   timeline?: {
     timestamp: string;
     action: string;
@@ -84,10 +80,7 @@ export interface Comment {
   replies?: Comment[];
 }
 
-export interface ShareInvite {
-  contractId: string;
-  email: string;
-}
+// ShareInvite interface removed
 
 export const statusColors: Record<ContractStatus, { bg: string; text: string; border: string }> = {
   requested: {
@@ -411,34 +404,9 @@ export const unarchiveContract = async (id: string, userEmail: string): Promise<
   });
 };
 
-import { sendShareInviteEmail, sendNotificationEmail } from './brevoService';
+import { sendNotificationEmail } from './brevoService';
 
-export const createShareInvite = async (contractId: string, email: string): Promise<void> => {
-  // Update contract's sharedWith array first
-  const contractRef = doc(db, 'contracts', contractId);
-  const contract = await getContract(contractId);
-
-  if (!contract) {
-    throw new Error('Contract not found');
-  }
-
-  // Update the contract's sharedWith array
-  const updatedSharedWith = [...(contract.sharedWith || []), {
-    email: email.toLowerCase(),
-    role: 'viewer',
-    inviteStatus: 'pending'
-  }];
-  await updateDoc(contractRef, { sharedWith: updatedSharedWith });
-
-  // Send the email directly using Brevo
-  try {
-    await sendShareInviteEmail(email.toLowerCase(), contract.title, contractId);
-  } catch (error) {
-    console.error('Error sending share invite email:', error);
-    // If email fails, we still keep the share record in the database
-    // but you might want to add error handling here
-  }
-};
+// createShareInvite function removed
 
 // Check if a user is allowed to access the application
 export const isUserAllowed = async (email: string): Promise<boolean> => {
@@ -497,26 +465,7 @@ export const removeAdminUser = async (id: string): Promise<void> => {
   await deleteDoc(adminRef);
 };
 
-export const updateInviteStatus = async (inviteId: string, status: 'accepted'): Promise<void> => {
-  const contractRef = doc(db, 'contracts', inviteId);
-  const contract = await getContract(inviteId);
-
-  if (contract) {
-    const updatedSharedWith = contract.sharedWith.map(share =>
-      share.inviteStatus === 'pending' ? { ...share, inviteStatus: status } : share
-    );
-    await updateDoc(contractRef, { sharedWith: updatedSharedWith });
-  }
-};
-
-export const getSharedContracts = async (userEmail: string): Promise<Contract[]> => {
-  const contracts = await getContracts();
-  return contracts.filter(contract =>
-    contract.sharedWith?.some(share =>
-      share.email === userEmail && share.inviteStatus === 'accepted'
-    )
-  );
-};
+// updateInviteStatus and getSharedContracts functions removed
 
 export const filterByStatus = (contracts: Contract[], status?: ContractStatus | 'all'): Contract[] => {
   if (!status || status === 'all') return contracts;
@@ -1268,12 +1217,7 @@ export const getUserContracts = async (userEmail: string, includeArchived: boole
     );
     if (isParty) return true;
 
-    // Check if user is in the sharedWith list with accepted status
-    const isShared = contract.sharedWith?.some(share =>
-      share.email.toLowerCase() === lowercaseEmail &&
-      share.inviteStatus === 'accepted'
-    );
-    if (isShared) return true;
+    // sharedWith check removed
 
     // User is not involved with this contract
     return false;
@@ -1300,12 +1244,7 @@ export const getUserArchivedContracts = async (userEmail: string): Promise<Contr
     );
     if (isParty) return true;
 
-    // Check if user is in the sharedWith list with accepted status
-    const isShared = contract.sharedWith?.some(share =>
-      share.email.toLowerCase() === lowercaseEmail &&
-      share.inviteStatus === 'accepted'
-    );
-    if (isShared) return true;
+    // sharedWith check removed
 
     // User is not involved with this contract
     return false;

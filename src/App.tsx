@@ -9,7 +9,7 @@ import { AdminRoute } from "@/components/auth/AdminRoute";
 import Index from "./pages/Index";
 import Contracts from "./pages/Contracts";
 import ContractDetail from "./pages/ContractDetail";
-import AcceptInvite from "./pages/AcceptInvite";
+// AcceptInvite import removed
 import Login from "./pages/Login";
 // SignUp page removed
 import NotFound from "./pages/NotFound";
@@ -28,7 +28,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/accept-invite/:inviteId" element={<AcceptInvite />} />
+            {/* AcceptInvite route removed */}
             <Route path="/make-admin" element={<MakeAdmin />} />
 
             <Route element={<PrivateRoute />}>

@@ -1,8 +1,8 @@
 import { Contract, contractTypeLabels } from '@/lib/data';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import ContractStatusBadge from './ContractStatusBadge';
-import { ShareDialog } from './ShareDialog';
-import { Calendar, DollarSign, FileText, Users, Share2 } from 'lucide-react';
+// ShareDialog removed
+import { Calendar, DollarSign, FileText, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
@@ -14,22 +14,22 @@ interface ContractCardProps {
 }
 
 const ContractCard = ({ contract, className }: ContractCardProps) => {
-  const { 
-    id, 
-    title, 
-    projectName, 
-    type, 
-    status, 
-    startDate, 
-    endDate, 
-    value, 
-    updatedAt 
+  const {
+    id,
+    title,
+    projectName,
+    type,
+    status,
+    startDate,
+    endDate,
+    value,
+    updatedAt
   } = contract;
 
   const formattedDate = new Date(startDate).toLocaleDateString();
   const formattedEndDate = endDate ? new Date(endDate).toLocaleDateString() : 'Ongoing';
   const updatedTimeAgo = formatDistanceToNow(new Date(updatedAt), { addSuffix: true });
-  
+
   return (
     <Card className={cn("overflow-hidden transition-all duration-300 hover:shadow-md", className)}>
       <CardContent className="p-6 space-y-4">
@@ -39,12 +39,12 @@ const ContractCard = ({ contract, className }: ContractCardProps) => {
           </span>
           <ContractStatusBadge status={status} />
         </div>
-        
+
         <div className="space-y-1">
           <h3 className="font-medium text-lg line-clamp-1">{title}</h3>
           <p className="text-sm text-muted-foreground">{projectName}</p>
         </div>
-        
+
         <div className="space-y-2">
           <div className="flex items-center text-sm">
             <Calendar size={16} className="mr-2 text-muted-foreground" />
@@ -52,7 +52,7 @@ const ContractCard = ({ contract, className }: ContractCardProps) => {
               {formattedDate} - {formattedEndDate}
             </span>
           </div>
-          
+
           {value !== null && (
             <div className="flex items-center text-sm">
               <DollarSign size={16} className="mr-2 text-muted-foreground" />
@@ -61,7 +61,7 @@ const ContractCard = ({ contract, className }: ContractCardProps) => {
               </span>
             </div>
           )}
-          
+
           <div className="flex items-center text-sm">
             <Users size={16} className="mr-2 text-muted-foreground" />
             <span className="text-muted-foreground">
@@ -79,13 +79,12 @@ const ContractCard = ({ contract, className }: ContractCardProps) => {
           </div>
         )}
       </CardContent>
-      
+
       <CardFooter className="bg-secondary/30 px-6 py-3 flex justify-between items-center">
         <span className="text-xs text-muted-foreground">
           Updated {updatedTimeAgo}
         </span>
         <div className="flex items-center gap-2">
-          <ShareDialog contractId={id} />
           <Button asChild size="sm" variant="ghost" className="gap-1">
             <Link to={`/contract/${id}`}>
               <span>View</span>
