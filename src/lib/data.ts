@@ -13,7 +13,7 @@ import {
   Timestamp,
   setDoc
 } from 'firebase/firestore';
-import { getAuth, deleteUser } from "firebase/auth";
+import { getAuth, deleteUser, updateProfile } from "firebase/auth";
 import { auth as firebaseAuth } from "./firebase";
 
 export interface ContractStats {
@@ -1051,6 +1051,53 @@ export const removeUser = async (id: string): Promise<void> => {
     // If user doesn't exist, just exit
     return;
   }
+};
+
+// Update user profile
+export const updateUserProfile = async (
+  userId: string,
+  firstName: string = '',
+  lastName: string = '',
+  displayName: string = ''
+): Promise<void> => {
+  try {
+    // Update Firebase Auth profile
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (user && user.uid === userId) {
+      await updateProfile(user, {
+        displayName: displayName
+      });
+    }
+
+    // Update Firestore user document
+    const usersRef = collection(db, 'users');
+    const userQuery = query(usersRef, where('userId', '==', userId));
+    const userSnapshot = await getDocs(userQuery);
+
+    if (!userSnapshot.empty) {
+      const userDoc = userSnapshot.docs[0];
+      await updateDoc(doc(db, 'users', userDoc.id), {
+        firstName,
+        lastName,
+        displayName
+      });
+    }
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    throw error;
+  }
+};
+
+// Update user password
+export const updateUserPassword = async (
+  newPassword: string
+): Promise<void> => {
+  // Note: Password update is handled directly in the Profile component
+  // using Firebase Auth methods. This function is a placeholder for any
+  // additional logic that might be needed in the future.
+  return Promise.resolve();
 };
 
 // Function to get contracts for a regular user - only returns contracts where the user

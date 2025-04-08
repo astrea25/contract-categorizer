@@ -91,6 +91,12 @@ const AuthNavbar = () => {
               >
                 Contracts
               </Link>
+              <Link
+                to="/profile"
+                className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium hover:border-primary hover:text-foreground"
+              >
+                Profile
+              </Link>
               {isAdmin && (
                 <Link
                   to="/admin"
@@ -157,6 +163,13 @@ const AuthNavbar = () => {
               onClick={() => setIsOpen(false)}
             >
               Contracts
+            </Link>
+            <Link
+              to="/profile"
+              className="block border-l-4 border-transparent py-2 pl-3 pr-4 text-base font-medium hover:border-primary hover:bg-muted hover:text-foreground"
+              onClick={() => setIsOpen(false)}
+            >
+              Profile
             </Link>
             {isAdmin && (
               <Link

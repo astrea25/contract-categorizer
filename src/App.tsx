@@ -15,6 +15,7 @@ import SignUp from "./pages/SignUp";
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import MakeAdmin from "./pages/MakeAdmin";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -30,17 +31,18 @@ const App = () => (
             <Route path="/signup" element={<SignUp />} />
             <Route path="/accept-invite/:inviteId" element={<AcceptInvite />} />
             <Route path="/make-admin" element={<MakeAdmin />} />
-            
+
             <Route element={<PrivateRoute />}>
               <Route path="/" element={<Index />} />
               <Route path="/contracts" element={<Contracts />} />
               <Route path="/contract/:id" element={<ContractDetail />} />
+              <Route path="/profile" element={<Profile />} />
             </Route>
-            
+
             <Route element={<AdminRoute />}>
               <Route path="/admin" element={<Admin />} />
             </Route>
-            
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
