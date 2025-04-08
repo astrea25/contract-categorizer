@@ -2,59 +2,16 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { LogOut, Menu, X, Shield } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { isUserAdmin, isUserLegalTeam, getLegalTeamMemberRole, isUserManagementTeam, getManagementTeamMemberRole } from "@/lib/data";
+// Role checking functions are no longer needed here
 import UserRoleBadge from "@/components/ui/UserRoleBadge";
 
 const AuthNavbar = () => {
-  const { currentUser, signOut } = useAuth();
+  const { currentUser, signOut, isAdmin, isLegalTeam, isManagementTeam, userRole } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLegalTeam, setIsLegalTeam] = useState(false);
-  const [isManagementTeam, setIsManagementTeam] = useState(false);
-  const [userRole, setUserRole] = useState("user");
 
-  useEffect(() => {
-    const checkUserRoles = async () => {
-      if (currentUser?.email) {
-        const admin = await isUserAdmin(currentUser.email);
-        const legal = await isUserLegalTeam(currentUser.email);
-        const management = await isUserManagementTeam(currentUser.email);
-
-        setIsAdmin(admin);
-        setIsLegalTeam(legal);
-        setIsManagementTeam(management);
-
-        // Set the user role for the badge
-        if (admin) {
-          setUserRole("admin");
-        } else if (legal) {
-          // Get the specific role for legal team members
-          const legalRole = await getLegalTeamMemberRole(currentUser.email);
-          if (legalRole) {
-            setUserRole(legalRole);
-          } else {
-            setUserRole("legal");
-          }
-        } else if (management) {
-          // Get the specific role for management team members
-          const managementRole = await getManagementTeamMemberRole(currentUser.email);
-          if (managementRole) {
-            setUserRole(managementRole);
-          } else {
-            setUserRole("management");
-          }
-        } else {
-          setUserRole("user");
-        }
-      }
-    };
-
-    if (currentUser) {
-      checkUserRoles();
-    }
-  }, [currentUser]);
+  // User role information is now provided by AuthContext
 
   const handleSignOut = async () => {
     try {

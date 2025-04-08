@@ -69,23 +69,7 @@ const Contracts = () => {
   const status = searchParams.get('status');
   const filter = searchParams.get('filter');
 
-  const { currentUser } = useAuth();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLegalTeam, setIsLegalTeam] = useState(false);
-
-  // Check if user is admin or legal team
-  useEffect(() => {
-    const checkUserRole = async () => {
-      if (currentUser?.email) {
-        const admin = await isUserAdmin(currentUser.email);
-        const legal = await isUserLegalTeam(currentUser.email);
-        setIsAdmin(admin);
-        setIsLegalTeam(legal);
-      }
-    };
-
-    checkUserRole();
-  }, [currentUser]);
+  const { currentUser, isAdmin, isLegalTeam } = useAuth();
 
   // Load folders when component mounts
   useEffect(() => {
@@ -219,27 +203,33 @@ const Contracts = () => {
         projectName: newContract.projectName || 'Unassigned',
         type: newContract.type || 'service',
         status: newContract.status || 'draft',
-        owner: newContract.owner || 'Unassigned',
+        owner: newContract.owner || currentUser?.email || 'Unassigned',
         parties: newContract.parties || [],
         startDate: newContract.startDate || new Date().toISOString().split('T')[0],
         endDate: newContract.endDate || null,
         value: newContract.value || null,
         description: newContract.description || '',
         documentLink: newContract.documentLink || '',
-        folderId: newContract.folderId || (selectedFolder !== 'all' ? selectedFolder : undefined)
+        folderId: newContract.folderId === null || newContract.folderId === "none" ? null : (newContract.folderId || (selectedFolder !== 'all' && selectedFolder !== 'archive' ? selectedFolder : null))
       } as Omit<Contract, 'id' | 'createdAt' | 'updatedAt'>;
 
-      await createContract(contractToAdd, currentUser.email);
+      try {
+        await createContract(contractToAdd, currentUser.email);
 
-      const updatedContracts = await getContracts();
-      setContracts(updatedContracts);
+        const updatedContracts = await getContracts();
+        setContracts(updatedContracts);
 
-      uiToast({
-        title: 'Contract created',
-        description: 'Your new contract has been created successfully.',
-      });
+        uiToast({
+          title: 'Contract created',
+          description: 'Your new contract has been created successfully.',
+        });
+      } catch (createError) {
+        console.error('Error in createContract function:', createError);
+        toast.error(`Failed to create contract: ${createError.message}`);
+      }
     } catch (error) {
-      toast.error("Failed to create contract");
+      console.error('Error preparing contract data:', error);
+      toast.error(`Failed to create contract: ${error.message}`);
     }
   };
 

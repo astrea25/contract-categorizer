@@ -28,6 +28,7 @@ import { CalendarIcon, FolderIcon, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { Contract, ContractStatus, ContractType, contractTypeLabels, Folder } from '@/lib/data';
 import { toast } from 'sonner';
 
@@ -45,20 +46,23 @@ interface ContractFormProps {
   trigger?: React.ReactNode;
 }
 
-const ContractForm = ({ 
-  initialData, 
-  initialFolder, 
-  foldersList = [], 
-  onSave, 
-  trigger 
+const ContractForm = ({
+  initialData,
+  initialFolder,
+  foldersList = [],
+  onSave,
+  trigger
 }: ContractFormProps) => {
   const [open, setOpen] = useState(false);
+  const { currentUser } = useAuth();
+
   const [formData, setFormData] = useState<Partial<Contract>>(
     initialData || {
       title: '',
       projectName: '',
       type: 'service',
       status: 'draft',
+      owner: currentUser?.email || '',
       parties: [
         { name: '', email: '', role: '' },
         { name: '', email: '', role: '' }
@@ -99,10 +103,18 @@ const ContractForm = ({
   };
 
   const handleSelectChange = (name: string, value: string) => {
-    setFormData((prev) => ({ 
-      ...prev, 
-      [name]: value === "none" ? undefined : value
-    }));
+    if (name === 'folderId' && value === 'none') {
+      // For folder selection, explicitly set to null when 'none' is selected
+      setFormData((prev) => ({
+        ...prev,
+        [name]: null
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value === "none" ? undefined : value
+      }));
+    }
   };
 
   const handleStartDateChange = (date: Date | undefined) => {
@@ -140,7 +152,7 @@ const ContractForm = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    
+
     if (!formData.title || !formData.projectName || !formData.startDate) {
       toast.error('Please fill in all required fields');
       return;
@@ -171,7 +183,7 @@ const ContractForm = ({
               Fill in the details for this contract. Required fields are marked with an asterisk (*).
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -184,7 +196,7 @@ const ContractForm = ({
                   required
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="projectName" className="after:content-['*'] after:ml-0.5 after:text-red-500">Project Name</Label>
                 <Input
@@ -196,7 +208,7 @@ const ContractForm = ({
                 />
               </div>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="type">Contract Type</Label>
@@ -216,7 +228,7 @@ const ContractForm = ({
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
                 <Select
@@ -280,7 +292,7 @@ const ContractForm = ({
                 />
               </div>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="startDate" className="after:content-['*'] after:ml-0.5 after:text-red-500">Start Date</Label>
@@ -311,7 +323,7 @@ const ContractForm = ({
                   </PopoverContent>
                 </Popover>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="endDate">End Date</Label>
                 <Popover>
@@ -342,7 +354,7 @@ const ContractForm = ({
                 </Popover>
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Parties</Label>
@@ -357,7 +369,7 @@ const ContractForm = ({
                   Add Party
                 </Button>
               </div>
-              
+
               {parties.map((party, index) => (
                 <div key={index} className="space-y-3 border p-3 rounded-md">
                   <div className="flex justify-between items-center">
@@ -408,7 +420,7 @@ const ContractForm = ({
                 </div>
               ))}
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
               <Textarea
@@ -420,7 +432,7 @@ const ContractForm = ({
                 className="min-h-[100px]"
               />
             </div>
-          
+
             <div className="space-y-2">
               <Label htmlFor="documentLink">Document Link</Label>
               <Input
@@ -433,7 +445,7 @@ const ContractForm = ({
               />
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" type="button" onClick={() => setOpen(false)}>
               Cancel

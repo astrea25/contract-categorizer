@@ -13,7 +13,6 @@ interface Contract {
 }
 
 export const sendShareInviteHandler = async (snap: QueryDocumentSnapshot) => {
-    console.log('========= Starting Share Invite Email Function =========');
 
     // Verify environment variables first
     if (!process.env.EMAIL_USER || !process.env.EMAIL_API_KEY) {
@@ -38,19 +37,11 @@ export const sendShareInviteHandler = async (snap: QueryDocumentSnapshot) => {
     });
 
     const invite = snap.data() as ShareInvite;
-    console.log('Share invite data:', {
-        inviteId: snap.id,
-        contractId: invite.contractId,
-        recipientEmail: invite.email
-    });
 
     try {
         // Test SMTP connection first
-        console.log('Verifying SMTP connection...');
         await transporter.verify();
-        console.log('SMTP connection verified successfully');
 
-        console.log('Fetching contract details');
         const contractSnapshot = await admin.firestore()
             .collection('contracts')
             .doc(invite.contractId)
@@ -62,9 +53,7 @@ export const sendShareInviteHandler = async (snap: QueryDocumentSnapshot) => {
             console.error('Contract not found for ID:', invite.contractId);
             return;
         }
-        console.log('Contract found:', { title: contract.title, id: invite.contractId });
 
-        console.log('APP_URL environment variable:', process.env.APP_URL);
         const appUrl = process.env.APP_URL;
 
         const mailOptions = {
@@ -88,20 +77,7 @@ export const sendShareInviteHandler = async (snap: QueryDocumentSnapshot) => {
             `
         };
 
-        console.log('Attempting to send email with options:', {
-            from: mailOptions.from,
-            to: mailOptions.to,
-            subject: mailOptions.subject
-        });
-
         const info = await transporter.sendMail(mailOptions);
-        console.log('Email sent successfully:', {
-            messageId: info.messageId,
-            response: info.response,
-            accepted: info.accepted,
-            rejected: info.rejected,
-            envelope: info.envelope
-        });
 
         return { success: true, messageId: info.messageId };
     } catch (error) {

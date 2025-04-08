@@ -18,8 +18,6 @@ import {
   getContract,
   updateContract,
   contractTypeLabels,
-  isUserAdmin,
-  isUserLegalTeam,
   archiveContract,
   unarchiveContract,
   deleteContract
@@ -33,14 +31,12 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const ContractDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { currentUser } = useAuth();
+  const { currentUser, isAdmin, isLegalTeam } = useAuth();
   const navigate = useNavigate();
   const [contract, setContract] = useState<Contract | null>(null);
   const [loading, setLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLegalTeam, setIsLegalTeam] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -51,18 +47,14 @@ const ContractDetail = () => {
     const checkUserAndFetchContract = async () => {
       if (!id || !currentUser?.email) {
         setLoading(false);
+        setError('Missing contract ID or user not logged in');
         return;
       }
 
       setLoading(true);
+      setError(null);
 
       try {
-        // Check admin status first
-        const admin = await isUserAdmin(currentUser.email);
-        const legal = await isUserLegalTeam(currentUser.email);
-        setIsAdmin(admin);
-        setIsLegalTeam(legal);
-
         // Fetch the contract data
         const contractData = await getContract(id);
 
@@ -71,7 +63,7 @@ const ContractDetail = () => {
           setError(null);
 
           // If admin or legal team, authorize immediately
-          if (admin || legal) {
+          if (isAdmin || isLegalTeam) {
             setIsAuthorized(true);
           } else {
             // Check other authorization criteria
@@ -87,13 +79,7 @@ const ContractDetail = () => {
             )) {
               setIsAuthorized(true);
             }
-            // Check if user is in the sharedWith list with accepted status
-            else if (contractData.sharedWith?.some(share =>
-              share.email.toLowerCase() === userEmail &&
-              share.inviteStatus === 'accepted'
-            )) {
-              setIsAuthorized(true);
-            }
+            // sharedWith check removed
             // Otherwise, user is not authorized
             else {
               setIsAuthorized(false);

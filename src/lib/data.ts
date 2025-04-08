@@ -124,34 +124,39 @@ export const contractTypeLabels: Record<ContractType, string> = {
 };
 
 export const getContracts = async (includeArchived: boolean = false): Promise<Contract[]> => {
+  // The where('archived', '!=', true) query doesn't work as expected
+  // because it only returns documents where the field exists and is not true
+  // It doesn't return documents where the field doesn't exist
+
+  // Instead, we'll get all contracts and filter them in memory
   const contractsCollection = collection(db, 'contracts');
-  let contractsQuery;
 
-  if (!includeArchived) {
-    // Only get non-archived contracts or contracts where archived field doesn't exist
-    contractsQuery = query(
-      contractsCollection,
-      where('archived', '!=', true)
-    );
-  } else {
-    // Get all contracts
-    contractsQuery = contractsCollection;
+  try {
+    const contractsSnapshot = await getDocs(contractsCollection);
+
+    let contracts = contractsSnapshot.docs.map(doc => {
+      const data = doc.data() as Record<string, any>;
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate().toISOString() : data.createdAt) : null,
+        updatedAt: data.updatedAt ? (data.updatedAt.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt) : null,
+        archivedAt: data.archivedAt ? (data.archivedAt.toDate ? data.archivedAt.toDate().toISOString() : data.archivedAt) : null,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        documentLink: data.documentLink,
+      } as Contract;
+    });
+
+    // Filter out archived contracts if needed
+    if (!includeArchived) {
+      contracts = contracts.filter(contract => !contract.archived);
+    }
+
+    return contracts;
+  } catch (error) {
+    throw error;
   }
-
-  const contractsSnapshot = await getDocs(contractsQuery);
-  return contractsSnapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      ...data,
-      createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate().toISOString() : data.createdAt) : null,
-      updatedAt: data.updatedAt ? (data.updatedAt.toDate ? data.updatedAt.toDate().toISOString() : data.createdAt) : null,
-      archivedAt: data.archivedAt ? (data.archivedAt.toDate ? data.archivedAt.toDate().toISOString() : data.archivedAt) : null,
-      startDate: data.startDate,
-      endDate: data.endDate,
-      documentLink: data.documentLink,
-    } as Contract;
-  });
 };
 
 export const getArchivedContracts = async (): Promise<Contract[]> => {
@@ -178,23 +183,40 @@ export const getArchivedContracts = async (): Promise<Contract[]> => {
 };
 
 export const getContract = async (id: string): Promise<Contract | null> => {
-  const contractDoc = doc(db, 'contracts', id);
-  const contractSnapshot = await getDoc(contractDoc);
+  try {
+    const contractDoc = doc(db, 'contracts', id);
+    const contractSnapshot = await getDoc(contractDoc);
 
-  if (!contractSnapshot.exists()) {
-    return null;
+    if (!contractSnapshot.exists()) {
+      return null;
+    }
+
+    const data = contractSnapshot.data();
+
+    // Convert Firestore timestamps to ISO strings
+    const formattedContract = {
+      id: contractSnapshot.id,
+      ...data,
+      createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate().toISOString() : data.createdAt) : null,
+      updatedAt: data.updatedAt ? (data.updatedAt.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt) : null,
+      archivedAt: data.archivedAt ? (data.archivedAt.toDate ? data.archivedAt.toDate().toISOString() : data.archivedAt) : null,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      documentLink: data.documentLink,
+      // Ensure timeline is properly formatted
+      timeline: data.timeline ? data.timeline.map((item: any) => ({
+        ...item,
+        timestamp: item.timestamp && item.timestamp.toDate ? item.timestamp.toDate().toISOString() : item.timestamp
+      })) : [],
+      // Ensure comments are properly formatted
+      comments: data.comments || []
+    } as Contract;
+
+    return formattedContract;
+  } catch (error) {
+    console.error('Error fetching contract:', error);
+    throw error;
   }
-
-  const data = contractSnapshot.data();
-  return {
-    id: contractSnapshot.id,
-    ...data,
-    createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate().toISOString() : data.createdAt) : null,
-    updatedAt: data.updatedAt ? (data.updatedAt.toDate ? data.updatedAt.toDate().toISOString() : data.createdAt) : null,
-    startDate: data.startDate,
-    endDate: data.endDate,
-    documentLink: data.documentLink,
-  } as Contract;
 };
 
 export const createContract = async (
@@ -208,8 +230,16 @@ export const createContract = async (
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 
+  // Create a clean contract object with no undefined values
+  const cleanContract = { ...contract };
+
+  // Ensure folderId is null and not undefined if it doesn't exist
+  if (cleanContract.folderId === undefined) {
+    cleanContract.folderId = null;
+  }
+
   const contractToCreate = {
-    ...contract,
+    ...cleanContract,
     createdAt: now,
     updatedAt: now,
     timeline: [{
@@ -219,6 +249,7 @@ export const createContract = async (
       details: 'Contract was initially created'
     }]
   };
+
   const docRef = await addDoc(collection(db, 'contracts'), contractToCreate);
   return docRef.id;
 };
@@ -537,14 +568,19 @@ export const getContractStats = async (): Promise<ContractStats> => {
     const currentYear = now.getFullYear();
     const thirtyDaysFromNow = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
 
+    // Calculate total contracts (excluding archived ones)
     const totalContracts = contracts.length;
-    const finishedContracts = contracts.filter(c => c.status === 'finished').length;
-    const pendingApprovalContracts = contracts.filter(c =>
-      c.status === 'approval'
-    ).length;
 
+    // Calculate finished contracts
+    const finishedContracts = contracts.filter(c => c.status === 'finished').length;
+
+    // Calculate contracts pending approval
+    const pendingApprovalContracts = contracts.filter(c => c.status === 'approval').length;
+
+    // Calculate contracts expiring in the next 30 days (only active contracts)
     const expiringContracts = contracts.filter(c => {
-      if (!c.endDate) {
+      // Skip contracts without end date or finished contracts
+      if (!c.endDate || c.status === 'finished') {
         return false;
       }
 
@@ -555,8 +591,8 @@ export const getContractStats = async (): Promise<ContractStats> => {
           return false;
         }
 
+        // Check if contract expires within the next 30 days
         const isExpiringSoon = endDate <= thirtyDaysFromNow && endDate >= now;
-
         return isExpiringSoon;
       } catch (error) {
         return false;
@@ -567,8 +603,10 @@ export const getContractStats = async (): Promise<ContractStats> => {
       return sum + (contract.value || 0);
     }, 0);
 
+    // Calculate contracts expiring this year (only active contracts)
     const expiringThisYear = contracts.filter(c => {
-      if (!c.endDate) {
+      // Skip contracts without end date or finished contracts
+      if (!c.endDate || c.status === 'finished') {
         return false;
       }
 
@@ -579,8 +617,8 @@ export const getContractStats = async (): Promise<ContractStats> => {
           return false;
         }
 
+        // Check if contract expires this year
         const isExpiringThisYear = endDate.getFullYear() === currentYear;
-
         return isExpiringThisYear;
       } catch (error) {
         return false;
@@ -621,7 +659,6 @@ export const registerUser = async (
 
   if (userSnapshot.empty) {
     // Create a new user document
-    console.log('Creating new user with display name:', finalDisplayName);
     await addDoc(usersRef, {
       userId,
       email: email.toLowerCase(),
@@ -638,11 +675,6 @@ export const registerUser = async (
     // Update existing user document with the display name
     const userDoc = userSnapshot.docs[0];
     const userData = userDoc.data();
-
-    console.log('Updating existing user:', {
-      current: userData.displayName,
-      new: finalDisplayName
-    });
 
     // Always update with the latest display name
     await updateDoc(doc(db, 'users', userDoc.id), {
@@ -967,12 +999,10 @@ export const createDefaultAccount = async (email: string): Promise<string> => {
     // Create the user account in Firebase Authentication
     await createUserWithEmailAndPassword(firebaseAuth, email, defaultPassword);
 
-    console.log(`Created default account for ${email} with password: ${defaultPassword}`);
     return defaultPassword;
   } catch (error: any) {
     // If the account already exists, just return the default password
     if (error.code === 'auth/email-already-in-use') {
-      console.log(`Account for ${email} already exists`);
       return '12345678'; // Return the default password anyway for the email
     }
 
@@ -992,7 +1022,6 @@ export const inviteUser = async (
   const userSnapshot = await getDocs(userQuery);
 
   if (!userSnapshot.empty) {
-    console.log('User already exists:', email.toLowerCase());
     return; // User already exists, no need to invite
   }
 
@@ -1132,11 +1161,9 @@ export const removeUser = async (id: string): Promise<void> => {
         if (currentUser && currentUser.uid === userId) {
           // If removing the current user, we can delete them directly
           await deleteUser(currentUser);
-          console.log('Removed user from Firebase Auth:', userId);
         } else {
           // For other users, we can't delete them directly from client-side code
           // We would need a Firebase Admin SDK on a server/cloud function
-          console.log('Cannot directly delete other users from Firebase Auth - would need Admin SDK');
         }
       } catch (error) {
         console.error('Error removing user from Firebase Auth:', error);
@@ -1261,14 +1288,19 @@ export const getUserContractStats = async (userEmail: string): Promise<ContractS
     const currentYear = now.getFullYear();
     const thirtyDaysFromNow = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
 
+    // Calculate total contracts (excluding archived ones)
     const totalContracts = contracts.length;
-    const finishedContracts = contracts.filter(c => c.status === 'finished').length;
-    const pendingApprovalContracts = contracts.filter(c =>
-      c.status === 'approval'
-    ).length;
 
+    // Calculate finished contracts
+    const finishedContracts = contracts.filter(c => c.status === 'finished').length;
+
+    // Calculate contracts pending approval
+    const pendingApprovalContracts = contracts.filter(c => c.status === 'approval').length;
+
+    // Calculate contracts expiring in the next 30 days (only active contracts)
     const expiringContracts = contracts.filter(c => {
-      if (!c.endDate) {
+      // Skip contracts without end date or finished contracts
+      if (!c.endDate || c.status === 'finished') {
         return false;
       }
 
@@ -1279,6 +1311,7 @@ export const getUserContractStats = async (userEmail: string): Promise<ContractS
           return false;
         }
 
+        // Check if contract expires within the next 30 days
         const isExpiringSoon = endDate <= thirtyDaysFromNow && endDate >= now;
 
         return isExpiringSoon;
@@ -1291,8 +1324,10 @@ export const getUserContractStats = async (userEmail: string): Promise<ContractS
       return sum + (contract.value || 0);
     }, 0);
 
+    // Calculate contracts expiring this year (only active contracts)
     const expiringThisYear = contracts.filter(c => {
-      if (!c.endDate) {
+      // Skip contracts without end date or finished contracts
+      if (!c.endDate || c.status === 'finished') {
         return false;
       }
 
@@ -1303,6 +1338,7 @@ export const getUserContractStats = async (userEmail: string): Promise<ContractS
           return false;
         }
 
+        // Check if contract expires this year
         const isExpiringThisYear = endDate.getFullYear() === currentYear;
 
         return isExpiringThisYear;

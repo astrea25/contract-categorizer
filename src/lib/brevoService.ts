@@ -43,7 +43,6 @@ export const sendNotificationEmail = async (
     }
 
     const result = await response.json();
-    console.log('Notification email sent successfully:', result);
     return result;
   } catch (error) {
     console.error('Error sending notification email via Brevo:', error);

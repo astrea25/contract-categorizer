@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  getContractStats, 
-  getContracts, 
-  Contract, 
+import {
+  getContractStats,
+  getContracts,
+  Contract,
   getUserContractStats,
   getUserContracts,
   isUserAdmin,
@@ -29,39 +29,27 @@ const Index = () => {
     expiringThisYear: 0
   });
   const [contracts, setContracts] = useState<Contract[]>([]);
+  const [allContracts, setAllContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLegalTeam, setIsLegalTeam] = useState(false);
-  const { currentUser } = useAuth();
-
-  useEffect(() => {
-    const checkUserRole = async () => {
-      if (currentUser?.email) {
-        const admin = await isUserAdmin(currentUser.email);
-        const legal = await isUserLegalTeam(currentUser.email);
-        setIsAdmin(admin);
-        setIsLegalTeam(legal);
-      }
-    };
-    
-    checkUserRole();
-  }, [currentUser]);
+  const { currentUser, isAdmin, isLegalTeam } = useAuth();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        
+
         // Use different statistics fetching based on user role
         if (isAdmin || isLegalTeam) {
           // Admins and legal team can see all contract stats
           const contractStats = await getContractStats();
           setStats(contractStats);
-          
-          // Get recent contracts for the dashboard
-          const allContracts = await getContracts();
-          // Sort by last updated and take the 5 most recent
-          const recentContracts = [...allContracts]
+
+          // Get all contracts for the dashboard and chart data
+          const fetchedContracts = await getContracts();
+          setAllContracts(fetchedContracts);
+
+          // Sort by last updated and take the 5 most recent for display
+          const recentContracts = [...fetchedContracts]
             .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
             .slice(0, 5);
           setContracts(recentContracts);
@@ -69,9 +57,11 @@ const Index = () => {
           // Regular users can only see their own contract stats
           const contractStats = await getUserContractStats(currentUser.email);
           setStats(contractStats);
-          
+
           // Get user's contracts for the dashboard
           const userContracts = await getUserContracts(currentUser.email);
+          setAllContracts(userContracts);
+
           // Sort by last updated and take the 5 most recent
           const recentContracts = [...userContracts]
             .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
@@ -87,25 +77,25 @@ const Index = () => {
 
     fetchData();
   }, [currentUser, isAdmin, isLegalTeam]);
-  
+
   const chartData = [
-    { name: 'Requested', value: contracts.filter(c => c.status === 'requested').length },
-    { name: 'Draft', value: contracts.filter(c => c.status === 'draft').length },
-    { name: 'Legal Review', value: contracts.filter(c => c.status === 'legal_review').length },
-    { name: 'Management Review', value: contracts.filter(c => c.status === 'management_review').length },
-    { name: 'Approval', value: contracts.filter(c => c.status === 'approval').length },
-    { name: 'Finished', value: contracts.filter(c => c.status === 'finished').length },
+    { name: 'Requested', value: allContracts.filter(c => c.status === 'requested').length },
+    { name: 'Draft', value: allContracts.filter(c => c.status === 'draft').length },
+    { name: 'Legal Review', value: allContracts.filter(c => c.status === 'legal_review').length },
+    { name: 'Management Review', value: allContracts.filter(c => c.status === 'management_review').length },
+    { name: 'Approval', value: allContracts.filter(c => c.status === 'approval').length },
+    { name: 'Finished', value: allContracts.filter(c => c.status === 'finished').length },
   ];
-  
-  const activeContracts = contracts
-    .filter(c => c.status === 'finished')
+
+  // Get contracts that are active (not finished) and have an end date
+  const expiringContracts = allContracts
+    .filter(c => c.status !== 'finished' && c.endDate)
     .sort((a, b) => {
-      if (!a.endDate) return 1;
-      if (!b.endDate) return -1;
-      return new Date(a.endDate).getTime() - new Date(b.endDate).getTime();
+      // Sort by end date (ascending)
+      return new Date(a.endDate!).getTime() - new Date(b.endDate!).getTime();
     })
     .slice(0, 3);
-    
+
   return (
     <PageTransition>
       <AuthNavbar />
@@ -116,7 +106,7 @@ const Index = () => {
             Overview of your contract portfolio and key metrics
           </p>
         </header>
-        
+
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
           <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -134,7 +124,7 @@ const Index = () => {
                   <p className="text-xs text-muted-foreground mt-1">
                     Across all projects and types
                   </p>
-                  <Link 
+                  <Link
                     to="/contracts"
                     className="text-xs text-primary hover:underline inline-flex items-center mt-2"
                   >
@@ -145,11 +135,11 @@ const Index = () => {
               )}
             </CardContent>
           </Card>
-          
+
           <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">
-                Active Contracts
+                Finished Contracts
               </CardTitle>
               <FileText className="h-4 w-4 text-primary" />
             </CardHeader>
@@ -160,9 +150,9 @@ const Index = () => {
                 <>
                   <div className="text-2xl font-bold">{stats.finishedContracts}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Currently finished
+                    Completed contracts
                   </p>
-                  <Link 
+                  <Link
                     to="/contracts?status=finished"
                     className="text-xs text-primary hover:underline inline-flex items-center mt-2"
                   >
@@ -173,7 +163,7 @@ const Index = () => {
               )}
             </CardContent>
           </Card>
-          
+
           <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">
@@ -190,7 +180,7 @@ const Index = () => {
                   <p className="text-xs text-muted-foreground mt-1">
                     Within the next 30 days
                   </p>
-                  <Link 
+                  <Link
                     to="/contracts?filter=expiringSoon"
                     className="text-xs text-primary hover:underline inline-flex items-center mt-2"
                   >
@@ -201,7 +191,7 @@ const Index = () => {
               )}
             </CardContent>
           </Card>
-          
+
           <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">
@@ -218,7 +208,7 @@ const Index = () => {
                   <p className="text-xs text-muted-foreground mt-1">
                     Contracts expiring in {new Date().getFullYear()}
                   </p>
-                  <Link 
+                  <Link
                     to="/contracts?filter=expiringThisYear"
                     className="text-xs text-primary hover:underline inline-flex items-center mt-2"
                   >
@@ -230,7 +220,7 @@ const Index = () => {
             </CardContent>
           </Card>
         </div>
-        
+
         <div className="grid gap-6 md:grid-cols-2 mb-8">
           <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
             <CardHeader>
@@ -249,8 +239,8 @@ const Index = () => {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartData}>
                       <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                      <Tooltip 
-                        cursor={{fill: 'rgba(0, 0, 0, 0.05)'}} 
+                      <Tooltip
+                        cursor={{fill: 'rgba(0, 0, 0, 0.05)'}}
                         contentStyle={{
                           background: 'rgba(255, 255, 255, 0.8)',
                           border: '1px solid #e2e8f0',
@@ -258,9 +248,9 @@ const Index = () => {
                           boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
                         }}
                       />
-                      <Bar 
-                        dataKey="value" 
-                        fill="hsl(var(--primary))" 
+                      <Bar
+                        dataKey="value"
+                        fill="hsl(var(--primary))"
                         radius={[4, 4, 0, 0]}
                         className="animate-slide-in"
                       />
@@ -270,7 +260,7 @@ const Index = () => {
               )}
             </CardContent>
           </Card>
-          
+
           <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -297,8 +287,8 @@ const Index = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {activeContracts.length > 0 ? (
-                    activeContracts.map(contract => (
+                  {expiringContracts.length > 0 ? (
+                    expiringContracts.map(contract => (
                       <div key={contract.id} className="flex justify-between items-center border-b pb-3 last:border-0">
                         <div>
                           <h4 className="font-medium">{contract.title}</h4>
@@ -325,7 +315,7 @@ const Index = () => {
             </CardContent>
           </Card>
         </div>
-        
+
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold tracking-tight">Recent Contracts</h2>
@@ -333,7 +323,7 @@ const Index = () => {
               <Link to="/contracts">View All Contracts</Link>
             </Button>
           </div>
-          
+
           {loading ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {[...Array(3)].map((_, i) => (

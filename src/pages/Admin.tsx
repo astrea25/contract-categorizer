@@ -444,11 +444,6 @@ const Admin = () => {
 
   // Debug function to log user data
   const debugUserData = () => {
-    console.log("Current Firebase Auth User:", currentUser);
-    console.log("Users from Firestore:", users);
-    console.log("Admin users:", admins);
-    console.log("Legal team:", legalTeam);
-
     if (users.length > 0) {
       // Show details of the first user
       const firstUser = users[0];
