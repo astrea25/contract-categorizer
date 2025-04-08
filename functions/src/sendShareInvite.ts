@@ -14,24 +14,24 @@ interface Contract {
 
 export const sendShareInviteHandler = async (snap: QueryDocumentSnapshot) => {
     console.log('========= Starting Share Invite Email Function =========');
-    
+
     // Verify environment variables first
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_API_KEY) {
         console.error('Missing email configuration:', {
             hasEmailUser: !!process.env.EMAIL_USER,
-            hasEmailPass: !!process.env.EMAIL_PASS
+            hasEmailApiKey: !!process.env.EMAIL_API_KEY
         });
         throw new Error('Email configuration missing');
     }
 
     // Create reusable transporter with detailed logging
     const transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true, // use SSL
+        host: 'smtp-relay.brevo.com',
+        port: 587,
+        secure: false, // TLS
         auth: {
             user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS
+            pass: process.env.EMAIL_API_KEY // Using API key for Brevo
         },
         debug: true, // show debug output
         logger: true // log information in console
@@ -55,9 +55,9 @@ export const sendShareInviteHandler = async (snap: QueryDocumentSnapshot) => {
             .collection('contracts')
             .doc(invite.contractId)
             .get();
-        
+
         const contract = contractSnapshot.data() as Contract | undefined;
-        
+
         if (!contract) {
             console.error('Contract not found for ID:', invite.contractId);
             return;

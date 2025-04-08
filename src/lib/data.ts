@@ -13,7 +13,7 @@ import {
   Timestamp,
   setDoc
 } from 'firebase/firestore';
-import { getAuth, deleteUser, updateProfile } from "firebase/auth";
+import { getAuth, deleteUser, updateProfile, createUserWithEmailAndPassword } from "firebase/auth";
 import { auth as firebaseAuth } from "./firebase";
 
 export interface ContractStats {
@@ -411,24 +411,32 @@ export const unarchiveContract = async (id: string, userEmail: string): Promise<
   });
 };
 
-export const createShareInvite = async (contractId: string, email: string): Promise<void> => {
-  const invitesRef = collection(db, 'shareInvites');
-  await addDoc(invitesRef, {
-    contractId,
-    email: email.toLowerCase()
-  });
+import { sendShareInviteEmail, sendNotificationEmail } from './brevoService';
 
-  // Update contract's sharedWith array
+export const createShareInvite = async (contractId: string, email: string): Promise<void> => {
+  // Update contract's sharedWith array first
   const contractRef = doc(db, 'contracts', contractId);
   const contract = await getContract(contractId);
 
-  if (contract) {
-    const updatedSharedWith = [...(contract.sharedWith || []), {
-      email: email.toLowerCase(),
-      role: 'viewer',
-      inviteStatus: 'pending'
-    }];
-    await updateDoc(contractRef, { sharedWith: updatedSharedWith });
+  if (!contract) {
+    throw new Error('Contract not found');
+  }
+
+  // Update the contract's sharedWith array
+  const updatedSharedWith = [...(contract.sharedWith || []), {
+    email: email.toLowerCase(),
+    role: 'viewer',
+    inviteStatus: 'pending'
+  }];
+  await updateDoc(contractRef, { sharedWith: updatedSharedWith });
+
+  // Send the email directly using Brevo
+  try {
+    await sendShareInviteEmail(email.toLowerCase(), contract.title, contractId);
+  } catch (error) {
+    console.error('Error sending share invite email:', error);
+    // If email fails, we still keep the share record in the database
+    // but you might want to add error handling here
   }
 };
 
@@ -454,12 +462,8 @@ export const isUserAllowed = async (email: string): Promise<boolean> => {
     return true; // User exists in users collection
   }
 
-  // If not an admin or registered user, check shareInvites collection
-  const shareInvitesRef = collection(db, 'shareInvites');
-  const shareQuery = query(shareInvitesRef, where('email', '==', email.toLowerCase()));
-  const shareSnapshot = await getDocs(shareQuery);
-
-  return !shareSnapshot.empty; // User is either invited or not
+  // No need to check shareInvites collection anymore as we're using users collection with pending status
+  return false; // User is not allowed
 };
 
 // Check if a user is an admin
@@ -679,25 +683,8 @@ export const registerUser = async (
       createdAt: new Date().toISOString(),
     });
 
-    // If the user was invited, remove their entry from shareInvites collection
-    // since they are now registered and in the users collection
-    try {
-      const shareInvitesRef = collection(db, 'shareInvites');
-      const inviteQuery = query(shareInvitesRef, where('email', '==', email.toLowerCase()));
-      const inviteSnapshot = await getDocs(inviteQuery);
-
-      if (!inviteSnapshot.empty) {
-        // Delete ALL invites for this user (not just the first one)
-        const deletePromises = inviteSnapshot.docs.map(inviteDoc =>
-          deleteDoc(doc(db, 'shareInvites', inviteDoc.id))
-        );
-        await Promise.all(deletePromises);
-        console.log(`Removed ${inviteSnapshot.docs.length} share invites for registered user:`, email.toLowerCase());
-      }
-    } catch (error) {
-      console.error('Error cleaning up share invite:', error);
-      // Continue even if this fails, as the user has been registered successfully
-    }
+    // If the user was invited (has a pending status), update their status
+    // No need to remove from shareInvites collection anymore
   } else {
     // Update existing user document with the display name
     const userDoc = userSnapshot.docs[0];
@@ -1022,26 +1009,99 @@ export const removeManagementTeamMember = async (id: string): Promise<void> => {
   await deleteDoc(managementTeamRef);
 };
 
+// Auto-create a Firebase Authentication account with default password
+export const createDefaultAccount = async (email: string): Promise<string> => {
+  try {
+    // Default password for new accounts
+    const defaultPassword = '12345678';
+
+    // Create the user account in Firebase Authentication
+    await createUserWithEmailAndPassword(firebaseAuth, email, defaultPassword);
+
+    console.log(`Created default account for ${email} with password: ${defaultPassword}`);
+    return defaultPassword;
+  } catch (error: any) {
+    // If the account already exists, just return the default password
+    if (error.code === 'auth/email-already-in-use') {
+      console.log(`Account for ${email} already exists`);
+      return '12345678'; // Return the default password anyway for the email
+    }
+
+    console.error('Error creating default account:', error);
+    throw error;
+  }
+};
+
 // Create a general invite for a user
 export const inviteUser = async (
   email: string,
   role: string = 'user',
   invitedBy: string
 ): Promise<void> => {
-  // Add to shareInvites collection so they can access the app
-  const invitesRef = collection(db, 'shareInvites');
+  // Check if user already exists
+  const userQuery = query(collection(db, 'users'), where('email', '==', email.toLowerCase()));
+  const userSnapshot = await getDocs(userQuery);
 
-  // Check if invite already exists
-  const inviteQuery = query(invitesRef, where('email', '==', email.toLowerCase()));
-  const inviteSnapshot = await getDocs(inviteQuery);
+  if (!userSnapshot.empty) {
+    console.log('User already exists:', email.toLowerCase());
+    return; // User already exists, no need to invite
+  }
 
-  if (inviteSnapshot.empty) {
-    await addDoc(invitesRef, {
-      email: email.toLowerCase(),
-      role,
-      invitedBy,
-      createdAt: new Date().toISOString()
-    });
+  // Create user invite record in database
+  const inviteData = {
+    email: email.toLowerCase(),
+    role,
+    invitedBy,
+    createdAt: new Date().toISOString()
+  };
+
+  // Add to users collection with pending status
+  await addDoc(collection(db, 'users'), {
+    ...inviteData,
+    status: 'pending',
+    displayName: email.split('@')[0] // Default display name from email
+  });
+
+  // Auto-create a Firebase Authentication account with default password
+  let defaultPassword;
+  try {
+    defaultPassword = await createDefaultAccount(email.toLowerCase());
+  } catch (error) {
+    console.error('Error creating default account:', error);
+    // Continue even if account creation fails
+  }
+
+  // Send invitation email with account details
+  try {
+    const appUrl = import.meta.env.VITE_APP_URL || 'https://contract-management-phi.vercel.app';
+    const htmlContent = `
+      <h2>Welcome to the Contract Management System</h2>
+      <p>You have been invited to join the Contract Management System with the role of <strong>${role}</strong>.</p>
+      <p>An account has been created for you with the following credentials:</p>
+      <p><strong>Email:</strong> ${email.toLowerCase()}</p>
+      <p><strong>Password:</strong> ${defaultPassword || '12345678'}</p>
+      <p>Please change your password after logging in for the first time.</p>
+      <p>Click the link below to access the system:</p>
+      <a href="${appUrl}/login" style="
+          display: inline-block;
+          padding: 10px 20px;
+          background-color: #0066cc;
+          color: white;
+          text-decoration: none;
+          border-radius: 5px;
+      ">Access System</a>
+      <p>If you can't click the button, copy and paste this link into your browser:</p>
+      <p>${appUrl}/login</p>
+    `;
+
+    await sendNotificationEmail(
+      email.toLowerCase(),
+      'Your Contract Management System Account',
+      htmlContent
+    );
+  } catch (error) {
+    console.error('Error sending invitation email:', error);
+    // Continue even if email fails - the user is still added to the database
   }
 };
 
@@ -1113,46 +1173,25 @@ export const removeUser = async (id: string): Promise<void> => {
     // Delete the user from users collection
     await deleteDoc(userRef);
 
-    // Also remove from shareInvites collection if they have any pending invites
-    if (email) {
+    // Additionally, try to remove the user from Firebase Authentication
+    if (userId) {
       try {
-        const shareInvitesRef = collection(db, 'shareInvites');
-        const inviteQuery = query(shareInvitesRef, where('email', '==', email));
-        const inviteSnapshot = await getDocs(inviteQuery);
+        // This will only work for admin-level operations or if the user is the current user
+        // For security reasons, regular clients can only delete their own user account
+        const currentUser = firebaseAuth.currentUser;
 
-        if (!inviteSnapshot.empty) {
-          // Delete any invites for this user
-          const deletePromises = inviteSnapshot.docs.map(inviteDoc =>
-            deleteDoc(doc(db, 'shareInvites', inviteDoc.id))
-          );
-          await Promise.all(deletePromises);
-          console.log('Removed share invites for user:', email);
+        if (currentUser && currentUser.uid === userId) {
+          // If removing the current user, we can delete them directly
+          await deleteUser(currentUser);
+          console.log('Removed user from Firebase Auth:', userId);
+        } else {
+          // For other users, we can't delete them directly from client-side code
+          // We would need a Firebase Admin SDK on a server/cloud function
+          console.log('Cannot directly delete other users from Firebase Auth - would need Admin SDK');
         }
       } catch (error) {
-        console.error('Error cleaning up share invites for removed user:', error);
-        // Continue even if this fails, as the main user has been removed successfully
-      }
-
-      // Additionally, try to remove the user from Firebase Authentication
-      if (userId) {
-        try {
-          // This will only work for admin-level operations or if the user is the current user
-          // For security reasons, regular clients can only delete their own user account
-          const currentUser = firebaseAuth.currentUser;
-
-          if (currentUser && currentUser.uid === userId) {
-            // If removing the current user, we can delete them directly
-            await deleteUser(currentUser);
-            console.log('Removed user from Firebase Auth:', userId);
-          } else {
-            // For other users, we can't delete them directly from client-side code
-            // We would need a Firebase Admin SDK on a server/cloud function
-            console.log('Cannot directly delete other users from Firebase Auth - would need Admin SDK');
-          }
-        } catch (error) {
-          console.error('Error removing user from Firebase Auth:', error);
-          // Continue even if this fails, as the user data has been removed
-        }
+        console.error('Error removing user from Firebase Auth:', error);
+        // Continue even if this fails, as the user data has been removed
       }
     }
   } else {

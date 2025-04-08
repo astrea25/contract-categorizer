@@ -136,13 +136,8 @@ const Admin = () => {
       // Fetch management team members
       const managementTeamData = await getManagementTeamMembers() as ManagementTeamMember[];
 
-      // Fetch share invites to check for duplicates
-      const shareInvitesRef = collection(db, 'shareInvites');
-      const shareInvitesSnapshot = await getDocs(shareInvitesRef);
-      const shareInvitesData = shareInvitesSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      // Get users with pending status (invites)
+      const pendingUsers = usersData.filter(user => user.status === 'pending');
 
       // Filter out admin users, legal team, and management team members from the users list
       const adminEmails = adminsData.map(admin => admin.email.toLowerCase());
@@ -157,33 +152,11 @@ const Admin = () => {
         ...managementEmails
       ]);
 
-      // Clean up any duplicate invites (same user with multiple invites)
-      const processedEmails = new Set<string>();
-      const pendingInvites: User[] = [];
-
-      // Process shareInvites to add as pending users
-      for (const invite of shareInvitesData) {
-        const email = invite.email.toLowerCase();
-
-        // Skip if this email is already a registered user
-        if (registeredEmails.has(email)) {
-          continue;
-        }
-
-        // Skip if we already added this email from another invite
-        if (processedEmails.has(email)) {
-          continue;
-        }
-
-        processedEmails.add(email);
-        pendingInvites.push({
-          id: invite.id,
-          email: email,
-          role: invite.role || 'Invited',
-          createdAt: invite.createdAt,
-          isPendingInvite: true // Flag to identify pending invites in the UI
-        });
-      }
+      // Mark pending users as invites for the UI
+      const pendingInvites: User[] = pendingUsers.map(user => ({
+        ...user,
+        isPendingInvite: true // Flag to identify pending invites in the UI
+      }));
 
       const filteredUsers = usersData.filter(user =>
         !adminEmails.includes(user.email.toLowerCase()) &&
@@ -315,7 +288,7 @@ const Admin = () => {
 
       await addLegalTeamMember(user.email, displayName);
 
-      // Also add to shareInvites so they can access the app
+      // Also invite the user with the legal role
       await inviteUser(
         user.email,
         'legal',
@@ -376,7 +349,7 @@ const Admin = () => {
 
       await addManagementTeamMember(user.email, displayName);
 
-      // Also add to shareInvites so they can access the app
+      // Also invite the user with the management role
       await inviteUser(
         user.email,
         'management',
@@ -496,9 +469,8 @@ const Admin = () => {
       setIsRemovingUser(true);
 
       if (userToRemove.isPendingInvite) {
-        // This is a pending invitation - just delete from shareInvites collection
-        const inviteRef = doc(db, 'shareInvites', userToRemove.id);
-        await deleteDoc(inviteRef);
+        // This is a pending invitation - delete from users collection with pending status
+        await removeUser(userToRemove.id);
         toast.success(`Invitation for ${userToRemove.email} has been canceled`);
       } else {
         // This is a registered user - use the removeUser function

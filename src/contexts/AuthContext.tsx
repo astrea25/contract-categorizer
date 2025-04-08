@@ -1,22 +1,20 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { 
-  User, 
-  signInWithPopup,
-  signOut as firebaseSignOut, 
+import {
+  User,
+  signOut as firebaseSignOut,
   onAuthStateChanged,
-  createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   updateProfile
 } from "firebase/auth";
-import { auth, googleProvider } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 import { isUserAllowed, registerUser } from "@/lib/data";
 
 interface AuthContextType {
   currentUser: User | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
-  signUpWithEmail: (email: string, password: string, firstName?: string, lastName?: string) => Promise<void>;
+  // signUpWithEmail removed
+  // signInWithGoogle removed
   signOut: () => Promise<void>;
   error: string | null;
 }
@@ -36,103 +34,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const signInWithGoogle = async () => {
+  // signInWithGoogle function removed
+
+  const signInWithEmail = async (email: string, password: string) => {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      // Check if user is allowed BEFORE registering them
+      // Try with the provided password first
+      let result;
+      let usedDefaultPassword = false;
+
+      try {
+        result = await signInWithEmailAndPassword(auth, email, password);
+      } catch (error: any) {
+        // If wrong password, try with the default password (12345678)
+        if (error.code === 'auth/wrong-password') {
+          try {
+            // Try with default password as a fallback
+            result = await signInWithEmailAndPassword(auth, email, '12345678');
+            usedDefaultPassword = true;
+          } catch (defaultPasswordError) {
+            // If default password also fails, show the original error
+            setError('Invalid email or password.');
+            return;
+          }
+        } else if (error.code === 'auth/user-not-found') {
+          setError('Invalid email or password.');
+          return;
+        } else if (error.code === 'auth/too-many-requests') {
+          setError('Too many unsuccessful login attempts. Please try again later.');
+          return;
+        } else {
+          throw error; // Re-throw other errors
+        }
+      }
+
+      if (!result) {
+        setError('Failed to sign in.');
+        return;
+      }
+
       const isAllowed = await isUserAllowed(result.user.email || '');
-      
+
       if (!isAllowed) {
         await firebaseSignOut(auth);
         setError('You are not authorized to access this application. Please request an invitation from an administrator.');
         return;
       }
-      
-      // Only register if the user is already allowed to access the system
-      // Extract first and last name from Google displayName
-      const displayName = result.user.displayName || '';
-      const nameArray = displayName.split(' ');
-      const firstName = nameArray[0] || '';
-      const lastName = nameArray.slice(1).join(' ') || '';
-      
-      // Register the user with first and last name from Google
-      await registerUser(
-        result.user.uid, 
-        result.user.email || '', 
-        firstName,
-        lastName,
-        displayName
-      );
-      
-      setError(null);
-    } catch (error) {
+
+      // If we used the default password, show a message to change it
+      if (usedDefaultPassword) {
+        setError('You have signed in with the default password. Please change your password for security reasons.');
+      } else {
+        setError(null);
+      }
+    } catch (error: any) {
       setError('Failed to sign in. Please try again.');
     }
   };
 
-  const signInWithEmail = async (email: string, password: string) => {
-    try {
-      const result = await signInWithEmailAndPassword(auth, email, password);
-      const isAllowed = await isUserAllowed(result.user.email || '');
-      
-      if (!isAllowed) {
-        await firebaseSignOut(auth);
-        setError('You are not authorized to access this application. Please request an invitation from an administrator.');
-        return;
-      }
-      
-      setError(null);
-    } catch (error: any) {
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        setError('Invalid email or password.');
-      } else if (error.code === 'auth/too-many-requests') {
-        setError('Too many unsuccessful login attempts. Please try again later.');
-      } else {
-        setError('Failed to sign in. Please try again.');
-      }
-    }
-  };
-
-  const signUpWithEmail = async (email: string, password: string, firstName = '', lastName = '') => {
-    try {
-      // Check if the user is allowed to sign up BEFORE creating their account
-      const isAllowed = await isUserAllowed(email);
-      
-      if (!isAllowed) {
-        setError('You are not authorized to access this application. Please request an invitation from an administrator.');
-        return;
-      }
-      
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      
-      // Update the user profile with the display name
-      const displayName = `${firstName} ${lastName}`.trim();
-      if (displayName) {
-        await updateProfile(result.user, { displayName });
-      }
-      
-      // Register the user in Firestore with first and last name
-      await registerUser(
-        result.user.uid, 
-        result.user.email || '', 
-        firstName,
-        lastName,
-        displayName
-      );
-      
-      setError(null);
-    } catch (error: any) {
-      if (error.code === 'auth/email-already-in-use') {
-        setError('Email is already in use.');
-      } else if (error.code === 'auth/weak-password') {
-        setError('Password is too weak.');
-      } else if (error.code === 'auth/invalid-email') {
-        setError('Email address is invalid.');
-      } else {
-        setError('Failed to sign up. Please try again.');
-      }
-    }
-  };
+  // signUpWithEmail function removed
 
   const signOut = async () => {
     try {
@@ -157,7 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setError(null);
 
           // Only register user data if they are already allowed to access the system
-          // This means they must be in admin, users, or shareInvites collections
+          // This means they must be in admin, users, legalTeam, or managementTeam collections
           if (user.email) {
             import('@/lib/data').then(({ registerUser }) => {
               // Extract name from display name if available
@@ -165,7 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const nameArray = displayName.split(' ');
               const firstName = nameArray[0] || '';
               const lastName = nameArray.slice(1).join(' ') || '';
-              
+
               // Register or update user data
               registerUser(
                 user.uid,
@@ -189,9 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value = {
     currentUser,
     loading,
-    signInWithGoogle,
     signInWithEmail,
-    signUpWithEmail,
     signOut,
     error
   };

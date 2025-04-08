@@ -11,7 +11,7 @@ import Contracts from "./pages/Contracts";
 import ContractDetail from "./pages/ContractDetail";
 import AcceptInvite from "./pages/AcceptInvite";
 import Login from "./pages/Login";
-import SignUp from "./pages/SignUp";
+// SignUp page removed
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import MakeAdmin from "./pages/MakeAdmin";
@@ -28,7 +28,6 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<SignUp />} />
             <Route path="/accept-invite/:inviteId" element={<AcceptInvite />} />
             <Route path="/make-admin" element={<MakeAdmin />} />
 
