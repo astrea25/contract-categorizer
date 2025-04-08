@@ -7,11 +7,13 @@ import DraggableContractCard from '@/components/contracts/DraggableContractCard'
 import FolderList from '@/components/contracts/FolderList';
 import ContractForm from '@/components/contracts/ContractForm';
 import SortDropdown, { SortOption, SortField } from '@/components/contracts/SortDropdown';
-import { 
+import {
   Contract,
   ContractStatus,
   ContractType,
   getContracts,
+  getArchivedContracts,
+  getUserArchivedContracts,
   createContract,
   filterByProject,
   filterByStatus,
@@ -44,7 +46,7 @@ const Contracts = () => {
   const { toast: uiToast } = useToast();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedFolder, setSelectedFolder] = useState<string | 'all'>('all');
+  const [selectedFolder, setSelectedFolder] = useState<string | 'all' | 'archive'>('all');
   const [folders, setFolders] = useState<Folder[]>([]);
   const [sort, setSort] = useState<SortOption>({
     field: 'updatedAt',
@@ -81,7 +83,7 @@ const Contracts = () => {
         setIsLegalTeam(legal);
       }
     };
-    
+
     checkUserRole();
   }, [currentUser]);
 
@@ -95,7 +97,7 @@ const Contracts = () => {
         console.error('Failed to load folders', error);
       }
     };
-    
+
     loadFolders();
   }, []);
 
@@ -125,18 +127,36 @@ const Contracts = () => {
 
   useEffect(() => {
     const fetchAndFilterContracts = async () => {
-      // Use different contract fetching functions based on user role
+      // Use different contract fetching functions based on user role and selected folder
       let allContracts;
-      if (isAdmin || isLegalTeam) {
-        // Admins and legal team can see all contracts
-        allContracts = await getContracts();
-      } else if (currentUser?.email) {
-        // Regular users can only see contracts they are involved with
-        allContracts = await getUserContracts(currentUser.email);
+
+      if (selectedFolder === 'archive') {
+        // Get archived contracts
+        if (isAdmin || isLegalTeam) {
+          allContracts = await getArchivedContracts();
+        } else if (currentUser?.email) {
+          allContracts = await getUserArchivedContracts(currentUser.email);
+        } else {
+          allContracts = [];
+        }
       } else {
-        allContracts = [];
+        // Get regular contracts
+        if (isAdmin) {
+          // Admins can see all contracts, including archived ones
+          allContracts = await getContracts(true);
+          // Filter out archived contracts for the main view
+          allContracts = allContracts.filter(contract => !contract.archived);
+        } else if (isLegalTeam) {
+          // Legal team can see all non-archived contracts
+          allContracts = await getContracts();
+        } else if (currentUser?.email) {
+          // Regular users can only see contracts they are involved with
+          allContracts = await getUserContracts(currentUser.email);
+        } else {
+          allContracts = [];
+        }
       }
-      
+
       let filteredContracts = [...allContracts];
 
       if (status) {
@@ -169,7 +189,7 @@ const Contracts = () => {
     };
 
     fetchAndFilterContracts();
-  }, [status, filter, currentUser, isAdmin, isLegalTeam]);
+  }, [status, filter, currentUser, isAdmin, isLegalTeam, selectedFolder]);
 
   const handleFilterChange = (newFilters: typeof filters) => {
     setFilters(newFilters);
@@ -192,7 +212,7 @@ const Contracts = () => {
 
   const handleSaveContract = async (newContract: Partial<Contract>) => {
     if (!currentUser?.email) return;
-    
+
     try {
       const contractToAdd = {
         title: newContract.title || 'Untitled Contract',
@@ -210,7 +230,7 @@ const Contracts = () => {
       } as Omit<Contract, 'id' | 'createdAt' | 'updatedAt'>;
 
       await createContract(contractToAdd, currentUser.email);
-      
+
       const updatedContracts = await getContracts();
       setContracts(updatedContracts);
 
@@ -226,16 +246,16 @@ const Contracts = () => {
   const handleDeleteFolder = async (folderId: string) => {
     try {
       await deleteFolder(folderId);
-      
+
       // If the deleted folder was selected, reset to 'all'
       if (selectedFolder === folderId) {
         setSelectedFolder('all');
       }
-      
+
       // Refresh contracts to update folder assignments
       const updatedContracts = await getContracts();
       setContracts(updatedContracts);
-      
+
       toast.success('Folder deleted successfully');
     } catch (error) {
       toast.error('Failed to delete folder');
@@ -244,17 +264,17 @@ const Contracts = () => {
 
   const handleDropContract = async (contractId: string, folderId: string | null) => {
     if (!currentUser?.email) return;
-    
+
     try {
       await assignContractToFolder(contractId, folderId, currentUser.email);
-      
+
       // Refresh contracts to update folder assignments
       const updatedContracts = await getContracts();
       setContracts(updatedContracts);
-      
+
       toast.success(
-        folderId 
-          ? 'Contract moved to folder' 
+        folderId
+          ? 'Contract moved to folder'
           : 'Contract removed from folder'
       );
     } catch (error) {
@@ -271,66 +291,66 @@ const Contracts = () => {
       switch (field) {
         case 'title':
           return multiplier * a.title.localeCompare(b.title);
-        
+
         case 'updatedAt':
           // Handle potentially missing updatedAt values
           if (!a.updatedAt && !b.updatedAt) return 0;
           if (!a.updatedAt) return multiplier * 1;
           if (!b.updatedAt) return multiplier * -1;
-          
+
           try {
             return multiplier * (new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime());
           } catch (error) {
             console.error('Error sorting by updatedAt:', error);
             return 0;
           }
-        
+
         case 'createdAt':
           // Handle potentially missing createdAt values
           if (!a.createdAt && !b.createdAt) return 0;
           if (!a.createdAt) return multiplier * 1;
           if (!b.createdAt) return multiplier * -1;
-          
+
           try {
             return multiplier * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
           } catch (error) {
             console.error('Error sorting by createdAt:', error);
             return 0;
           }
-        
+
         case 'startDate':
           // Handle potentially missing startDate values
           if (!a.startDate && !b.startDate) return 0;
           if (!a.startDate) return multiplier * 1;
           if (!b.startDate) return multiplier * -1;
-          
+
           try {
             return multiplier * (new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
           } catch (error) {
             console.error('Error sorting by startDate:', error);
             return 0;
           }
-        
+
         case 'endDate':
           // Handle null endDates (ongoing contracts)
           if (!a.endDate && !b.endDate) return 0;
           if (!a.endDate) return multiplier * 1;
           if (!b.endDate) return multiplier * -1;
-          
+
           try {
             return multiplier * (new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
           } catch (error) {
             console.error('Error sorting by endDate:', error);
             return 0;
           }
-        
+
         case 'value':
           // Handle null values
           if (a.value === null && b.value === null) return 0;
           if (a.value === null) return multiplier * 1;
           if (b.value === null) return multiplier * -1;
           return multiplier * (a.value - b.value);
-        
+
         default:
           return 0;
       }
@@ -342,7 +362,9 @@ const Contracts = () => {
     let result = [...contracts];
 
     // Filter by folder first
-    if (selectedFolder !== 'all') {
+    if (selectedFolder !== 'all' && selectedFolder !== 'archive') {
+      // When viewing a specific folder, admins should see all contracts in that folder
+      // including archived ones
       result = filterByFolder(result, selectedFolder);
     }
 
@@ -358,7 +380,7 @@ const Contracts = () => {
       const toStr = filters.dateRange.to ? filters.dateRange.to.toISOString().split('T')[0] : null;
       result = filterByDateRange(result, fromStr, toStr);
     }
-    
+
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
       result = result.filter(
@@ -375,14 +397,15 @@ const Contracts = () => {
   // Get name of selected folder for display
   const selectedFolderName = useMemo(() => {
     if (selectedFolder === 'all') return 'All Contracts';
+    if (selectedFolder === 'archive') return 'Archive';
     const folder = folders.find(f => f.id === selectedFolder);
     return folder ? folder.name : '';
   }, [selectedFolder, folders]);
 
-  const hasActiveFilters = 
-    filters.search !== '' || 
-    filters.status !== 'all' || 
-    filters.type !== 'all' || 
+  const hasActiveFilters =
+    filters.search !== '' ||
+    filters.status !== 'all' ||
+    filters.type !== 'all' ||
     filters.project !== '' ||
     filters.owner !== '' ||
     filters.party !== '' ||
@@ -408,7 +431,7 @@ const Contracts = () => {
                 {selectedFolder === 'all' && 'All Contracts'}
               </h1>
               <p className="text-muted-foreground">
-                {selectedFolder !== 'all' 
+                {selectedFolder !== 'all'
                   ? `Viewing contracts in the "${selectedFolderName}" folder`
                   : 'Manage and track all your contracts in one place'}
               </p>
@@ -431,7 +454,7 @@ const Contracts = () => {
             onSortChange={setSort}
             className="glass p-4 rounded-lg"
           />
-          
+
           {hasActiveFilters && (
             <div className="mt-4 flex flex-wrap gap-2 items-center">
               <span className="text-sm text-muted-foreground">Active filters:</span>
@@ -485,7 +508,7 @@ const Contracts = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="md:col-span-1">
-            <FolderList 
+            <FolderList
               selectedFolder={selectedFolder}
               onFolderSelect={setSelectedFolder}
               onDeleteFolder={handleDeleteFolder}

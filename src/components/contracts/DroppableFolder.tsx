@@ -8,6 +8,7 @@ interface DroppableFolderProps {
   isSelected: boolean;
   onSelect: () => void;
   onDrop: (contractId: string) => void;
+  icon?: React.ReactNode;
 }
 
 const DroppableFolder = ({
@@ -16,7 +17,8 @@ const DroppableFolder = ({
   count,
   isSelected,
   onSelect,
-  onDrop
+  onDrop,
+  icon
 }: DroppableFolderProps) => {
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -36,7 +38,7 @@ const DroppableFolder = ({
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
-    
+
     const contractId = e.dataTransfer.getData('text/plain');
     if (contractId) {
       onDrop(contractId);
@@ -46,10 +48,10 @@ const DroppableFolder = ({
   return (
     <div
       className={`p-3 flex items-center cursor-pointer transition-colors relative ${
-        isSelected 
-          ? 'bg-primary/10 text-primary border-l-4 border-primary pl-2' 
-          : isDragOver 
-            ? 'bg-secondary/20' 
+        isSelected
+          ? 'bg-primary/10 text-primary border-l-4 border-primary pl-2'
+          : isDragOver
+            ? 'bg-secondary/20'
             : ''
       } ${isDragOver ? 'ring-2 ring-primary/50' : ''} hover:bg-secondary/30`}
       onClick={onSelect}
@@ -57,7 +59,7 @@ const DroppableFolder = ({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <Folder className={`h-4 w-4 mr-2 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+      {icon || <Folder className={`h-4 w-4 mr-2 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />}
       <div className="flex-1">
         <span className={`font-medium ${isSelected ? 'text-primary' : ''}`}>{name}</span>
         {count > 0 && <span className="text-xs text-muted-foreground ml-2">({count})</span>}
@@ -67,4 +69,4 @@ const DroppableFolder = ({
   );
 };
 
-export default DroppableFolder; 
+export default DroppableFolder;

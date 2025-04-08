@@ -58,6 +58,9 @@ export interface Contract {
   documentLink?: string;
   createdAt: string;
   updatedAt: string;
+  archived?: boolean; // Flag to indicate if contract is archived
+  archivedAt?: string; // When the contract was archived
+  archivedBy?: string; // Who archived the contract
   sharedWith: {
     email: string;
     role: 'viewer' | 'editor';
@@ -127,9 +130,22 @@ export const contractTypeLabels: Record<ContractType, string> = {
   partnership: 'Partnership Agreement'
 };
 
-export const getContracts = async (): Promise<Contract[]> => {
+export const getContracts = async (includeArchived: boolean = false): Promise<Contract[]> => {
   const contractsCollection = collection(db, 'contracts');
-  const contractsSnapshot = await getDocs(contractsCollection);
+  let contractsQuery;
+
+  if (!includeArchived) {
+    // Only get non-archived contracts or contracts where archived field doesn't exist
+    contractsQuery = query(
+      contractsCollection,
+      where('archived', '!=', true)
+    );
+  } else {
+    // Get all contracts
+    contractsQuery = contractsCollection;
+  }
+
+  const contractsSnapshot = await getDocs(contractsQuery);
   return contractsSnapshot.docs.map(doc => {
     const data = doc.data();
     return {
@@ -137,6 +153,30 @@ export const getContracts = async (): Promise<Contract[]> => {
       ...data,
       createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate().toISOString() : data.createdAt) : null,
       updatedAt: data.updatedAt ? (data.updatedAt.toDate ? data.updatedAt.toDate().toISOString() : data.createdAt) : null,
+      archivedAt: data.archivedAt ? (data.archivedAt.toDate ? data.archivedAt.toDate().toISOString() : data.archivedAt) : null,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      documentLink: data.documentLink,
+    } as Contract;
+  });
+};
+
+export const getArchivedContracts = async (): Promise<Contract[]> => {
+  const contractsCollection = collection(db, 'contracts');
+  const contractsQuery = query(
+    contractsCollection,
+    where('archived', '==', true)
+  );
+
+  const contractsSnapshot = await getDocs(contractsQuery);
+  return contractsSnapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate().toISOString() : data.createdAt) : null,
+      updatedAt: data.updatedAt ? (data.updatedAt.toDate ? data.updatedAt.toDate().toISOString() : data.createdAt) : null,
+      archivedAt: data.archivedAt ? (data.archivedAt.toDate ? data.archivedAt.toDate().toISOString() : data.archivedAt) : null,
       startDate: data.startDate,
       endDate: data.endDate,
       documentLink: data.documentLink,
@@ -301,6 +341,74 @@ const arePartiesDifferent = (newParties: any[], oldParties: any[]): boolean => {
 export const deleteContract = async (id: string): Promise<void> => {
   const contractRef = doc(db, 'contracts', id);
   await deleteDoc(contractRef);
+};
+
+export const archiveContract = async (id: string, userEmail: string): Promise<void> => {
+  const contractRef = doc(db, 'contracts', id);
+  const contractSnapshot = await getDoc(contractRef);
+
+  if (!contractSnapshot.exists()) {
+    throw new Error('Contract not found');
+  }
+
+  const now = Timestamp.now();
+  const currentContract = await getContract(id);
+
+  if (!currentContract) {
+    throw new Error('Contract not found');
+  }
+
+  // Add a timeline entry for archiving
+  const existingTimeline = currentContract.timeline || [];
+  const timeline = [...existingTimeline, {
+    timestamp: now.toDate().toISOString(),
+    action: 'Contract Archived',
+    userEmail: userEmail,
+    details: 'Contract was archived'
+  }];
+
+  // Update the contract with archived flag and timeline
+  await updateDoc(contractRef, {
+    archived: true,
+    archivedAt: now,
+    archivedBy: userEmail,
+    updatedAt: now,
+    timeline: timeline
+  });
+};
+
+export const unarchiveContract = async (id: string, userEmail: string): Promise<void> => {
+  const contractRef = doc(db, 'contracts', id);
+  const contractSnapshot = await getDoc(contractRef);
+
+  if (!contractSnapshot.exists()) {
+    throw new Error('Contract not found');
+  }
+
+  const now = Timestamp.now();
+  const currentContract = await getContract(id);
+
+  if (!currentContract) {
+    throw new Error('Contract not found');
+  }
+
+  // Add a timeline entry for unarchiving
+  const existingTimeline = currentContract.timeline || [];
+  const timeline = [...existingTimeline, {
+    timestamp: now.toDate().toISOString(),
+    action: 'Contract Unarchived',
+    userEmail: userEmail,
+    details: 'Contract was restored from archive'
+  }];
+
+  // Update the contract to remove archived flag and update timeline
+  await updateDoc(contractRef, {
+    archived: false,
+    archivedAt: null,
+    archivedBy: null,
+    updatedAt: now,
+    timeline: timeline
+  });
 };
 
 export const createShareInvite = async (contractId: string, email: string): Promise<void> => {
@@ -1102,16 +1210,48 @@ export const updateUserPassword = async (
 
 // Function to get contracts for a regular user - only returns contracts where the user
 // is either the owner or mentioned in the parties list or shared with list
-export const getUserContracts = async (userEmail: string): Promise<Contract[]> => {
+export const getUserContracts = async (userEmail: string, includeArchived: boolean = false): Promise<Contract[]> => {
   if (!userEmail) return [];
 
   const lowercaseEmail = userEmail.toLowerCase();
 
-  // Get all contracts
-  const contracts = await getContracts();
+  // Get all contracts (with or without archived based on parameter)
+  const contracts = await getContracts(includeArchived);
 
   // Filter contracts to only include those where the user is involved
   return contracts.filter(contract => {
+    // Check if user is the owner
+    if (contract.owner.toLowerCase() === lowercaseEmail) return true;
+
+    // Check if user is in the parties list
+    const isParty = contract.parties.some(party =>
+      party.email.toLowerCase() === lowercaseEmail
+    );
+    if (isParty) return true;
+
+    // Check if user is in the sharedWith list with accepted status
+    const isShared = contract.sharedWith?.some(share =>
+      share.email.toLowerCase() === lowercaseEmail &&
+      share.inviteStatus === 'accepted'
+    );
+    if (isShared) return true;
+
+    // User is not involved with this contract
+    return false;
+  });
+};
+
+// Function to get archived contracts for a user
+export const getUserArchivedContracts = async (userEmail: string): Promise<Contract[]> => {
+  if (!userEmail) return [];
+
+  const lowercaseEmail = userEmail.toLowerCase();
+
+  // Get all archived contracts
+  const archivedContracts = await getArchivedContracts();
+
+  // Filter contracts to only include those where the user is involved
+  return archivedContracts.filter(contract => {
     // Check if user is the owner
     if (contract.owner.toLowerCase() === lowercaseEmail) return true;
 

@@ -1,24 +1,25 @@
 import { useState, useEffect } from 'react';
-import { Folder, getFolders, createFolder, renameFolder } from '@/lib/data';
+import { Folder, getFolders, createFolder, renameFolder, getArchivedContracts, getUserArchivedContracts } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   DialogFooter,
-  DialogTrigger 
+  DialogTrigger
 } from '@/components/ui/dialog';
-import { 
+import {
   FolderPlus,
-  Pencil, 
-  MoreVertical, 
+  Pencil,
+  MoreVertical,
   Trash2,
   Search,
   X,
   ChevronsRight,
-  ChevronsLeft
+  ChevronsLeft,
+  Archive
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -32,15 +33,15 @@ import DroppableFolder from './DroppableFolder';
 import { cn } from '@/lib/utils';
 
 interface FolderListProps {
-  selectedFolder: string | 'all';
-  onFolderSelect: (folderId: string | 'all') => void;
+  selectedFolder: string | 'all' | 'archive';
+  onFolderSelect: (folderId: string | 'all' | 'archive') => void;
   onDeleteFolder: (folderId: string) => void;
   onDropContract: (contractId: string, folderId: string | null) => void;
 }
 
-const FolderList = ({ 
-  selectedFolder, 
-  onFolderSelect, 
+const FolderList = ({
+  selectedFolder,
+  onFolderSelect,
   onDeleteFolder,
   onDropContract
 }: FolderListProps) => {
@@ -48,6 +49,7 @@ const FolderList = ({
   const [loading, setLoading] = useState(true);
   const [openNewFolder, setOpenNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [archivedCount, setArchivedCount] = useState(0);
   const [newFolderDesc, setNewFolderDesc] = useState('');
   const [folderToRename, setFolderToRename] = useState<Folder | null>(null);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -63,6 +65,12 @@ const FolderList = ({
         setLoading(true);
         const folderList = await getFolders();
         setFolders(folderList);
+
+        // Get count of archived contracts
+        const archivedContracts = currentUser?.email
+          ? await getUserArchivedContracts(currentUser.email)
+          : await getArchivedContracts();
+        setArchivedCount(archivedContracts.length);
       } catch (error) {
         toast.error('Failed to load folders');
       } finally {
@@ -71,7 +79,7 @@ const FolderList = ({
     };
 
     loadFolders();
-  }, []);
+  }, [currentUser]);
 
   const handleCreateFolder = async () => {
     if (!newFolderName.trim() || !currentUser?.email) {
@@ -84,18 +92,18 @@ const FolderList = ({
         description: newFolderDesc.trim(),
         createdBy: currentUser.email,
       };
-      
+
       await createFolder(newFolder);
-      
+
       // Refresh folder list
       const updatedFolders = await getFolders();
       setFolders(updatedFolders);
-      
+
       // Reset form & close dialog
       setNewFolderName('');
       setNewFolderDesc('');
       setOpenNewFolder(false);
-      
+
       toast.success('Folder created successfully');
     } catch (error) {
       toast.error('Failed to create folder');
@@ -116,13 +124,13 @@ const FolderList = ({
       // Refresh folder list
       const updatedFolders = await getFolders();
       setFolders(updatedFolders);
-      
+
       // Reset form & close dialog
       setFolderToRename(null);
       setRenameFolderName('');
       setRenameFolderDesc('');
       setRenameDialogOpen(false);
-      
+
       toast.success('Folder renamed successfully');
     } catch (error) {
       toast.error('Failed to rename folder');
@@ -164,7 +172,7 @@ const FolderList = ({
   };
 
   // Filter folders based on search query
-  const filteredFolders = folders.filter(folder => 
+  const filteredFolders = folders.filter(folder =>
     folder.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (folder.description && folder.description.toLowerCase().includes(searchQuery.toLowerCase()))
   );
@@ -177,17 +185,17 @@ const FolderList = ({
       <div className="bg-secondary/50 p-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h3 className="font-medium">Folders</h3>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-8 w-8 p-0" 
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
             onClick={toggleExpanded}
             title={isExpanded ? "Collapse folders" : "Expand folders"}
           >
             {isExpanded ? <ChevronsLeft className="h-4 w-4" /> : <ChevronsRight className="h-4 w-4" />}
           </Button>
         </div>
-        
+
         <div className="flex items-center gap-2">
           {isExpanded && (
             <div className="relative flex-1 mr-2">
@@ -200,14 +208,14 @@ const FolderList = ({
                 className="w-full h-8 pl-8 pr-8 min-w-[200px]"
               />
               {searchQuery && (
-                <X 
+                <X
                   className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground cursor-pointer hover:text-foreground"
                   onClick={clearSearch}
                 />
               )}
             </div>
           )}
-          
+
           <Dialog open={openNewFolder} onOpenChange={setOpenNewFolder}>
             <DialogTrigger asChild>
               <Button variant="ghost" size="sm">
@@ -294,7 +302,7 @@ const FolderList = ({
       </div>
       <div className={cn(
         "divide-y",
-        isExpanded && "max-h-[calc(100vh-12rem)] overflow-y-auto" 
+        isExpanded && "max-h-[calc(100vh-12rem)] overflow-y-auto"
       )}>
         <DroppableFolder
           id="all"
@@ -303,6 +311,15 @@ const FolderList = ({
           isSelected={selectedFolder === 'all'}
           onSelect={() => onFolderSelect('all')}
           onDrop={(contractId) => {}} // No-op for All view
+        />
+        <DroppableFolder
+          id="archive"
+          name="Archive"
+          count={archivedCount}
+          icon={<Archive className="h-4 w-4 mr-2" />}
+          isSelected={selectedFolder === 'archive'}
+          onSelect={() => onFolderSelect('archive')}
+          onDrop={(contractId) => {}} // No-op for Archive view
         />
         {loading ? (
           <div className="p-3 text-center text-muted-foreground">Loading folders...</div>
@@ -348,4 +365,4 @@ const FolderList = ({
   );
 };
 
-export default FolderList; 
+export default FolderList;

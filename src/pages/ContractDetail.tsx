@@ -10,17 +10,21 @@ import ContractForm from '@/components/contracts/ContractForm';
 import ContractProgressBar from '@/components/contracts/ContractProgressBar';
 import StatusSelectCard from '@/components/contracts/StatusSelectCard';
 import CommentSection from '@/components/contracts/CommentSection';
-import { 
-  Contract, 
-  ContractStatus, 
-  ContractType, 
-  getContract, 
-  updateContract, 
+import ConfirmationDialog from '@/components/contracts/ConfirmationDialog';
+import {
+  Contract,
+  ContractStatus,
+  ContractType,
+  getContract,
+  updateContract,
   contractTypeLabels,
   isUserAdmin,
-  isUserLegalTeam
+  isUserLegalTeam,
+  archiveContract,
+  unarchiveContract,
+  deleteContract
 } from '@/lib/data';
-import { ArrowLeft, CalendarClock, Edit, FileText, Users, Wallet, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, CalendarClock, Edit, FileText, Users, Wallet, ShieldAlert, Archive, Trash2, ArchiveRestore } from 'lucide-react';
 import { formatDistance } from 'date-fns';
 import { toast } from 'sonner';
 import PageTransition from '@/components/layout/PageTransition';
@@ -38,6 +42,10 @@ const ContractDetail = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLegalTeam, setIsLegalTeam] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   useEffect(() => {
     const checkUserAndFetchContract = async () => {
@@ -45,43 +53,43 @@ const ContractDetail = () => {
         setLoading(false);
         return;
       }
-      
+
       setLoading(true);
-      
+
       try {
         // Check admin status first
         const admin = await isUserAdmin(currentUser.email);
         const legal = await isUserLegalTeam(currentUser.email);
         setIsAdmin(admin);
         setIsLegalTeam(legal);
-        
+
         // Fetch the contract data
         const contractData = await getContract(id);
-        
+
         if (contractData) {
           setContract(contractData);
           setError(null);
-          
+
           // If admin or legal team, authorize immediately
           if (admin || legal) {
             setIsAuthorized(true);
           } else {
             // Check other authorization criteria
             const userEmail = currentUser.email.toLowerCase();
-            
+
             // Check if user is the owner of the contract
             if (contractData.owner.toLowerCase() === userEmail) {
               setIsAuthorized(true);
-            } 
+            }
             // Check if user is in the parties list
-            else if (contractData.parties.some(party => 
+            else if (contractData.parties.some(party =>
               party.email.toLowerCase() === userEmail
             )) {
               setIsAuthorized(true);
             }
             // Check if user is in the sharedWith list with accepted status
-            else if (contractData.sharedWith?.some(share => 
-              share.email.toLowerCase() === userEmail && 
+            else if (contractData.sharedWith?.some(share =>
+              share.email.toLowerCase() === userEmail &&
               share.inviteStatus === 'accepted'
             )) {
               setIsAuthorized(true);
@@ -101,16 +109,16 @@ const ContractDetail = () => {
         setLoading(false);
       }
     };
-    
+
     checkUserAndFetchContract();
   }, [id, currentUser]);
 
   const handleSaveContract = async (updatedData: Partial<Contract>) => {
     if (!contract || !id || !currentUser?.email || !isAuthorized) return;
-    
+
     try {
       await updateContract(id, updatedData, currentUser.email);
-      
+
       const updatedContract = await getContract(id);
       if (updatedContract) {
         setContract(updatedContract);
@@ -121,13 +129,72 @@ const ContractDetail = () => {
     }
   };
 
+  const handleArchiveContract = async () => {
+    if (!contract || !id || !currentUser?.email || !isAuthorized) return;
+
+    try {
+      setIsArchiving(true);
+
+      if (contract.archived) {
+        // Unarchive the contract
+        await unarchiveContract(id, currentUser.email);
+        toast.success('Contract restored from archive');
+      } else {
+        // Archive the contract
+        await archiveContract(id, currentUser.email);
+        toast.success('Contract archived successfully');
+      }
+
+      // Refresh the contract data
+      const updatedContract = await getContract(id);
+      if (updatedContract) {
+        setContract(updatedContract);
+      }
+
+      // Close the dialog
+      setShowArchiveDialog(false);
+    } catch (error) {
+      toast.error(contract.archived ? 'Failed to restore contract' : 'Failed to archive contract');
+    } finally {
+      setIsArchiving(false);
+    }
+  };
+
+  const handleDeleteContract = async () => {
+    if (!contract || !id || !currentUser?.email || !isAuthorized) return;
+
+    try {
+      setIsDeleting(true);
+
+      // Delete the contract
+      await deleteContract(id);
+
+      toast.success('Contract deleted successfully');
+
+      // Navigate back to contracts page
+      navigate('/contracts');
+    } catch (error) {
+      toast.error('Failed to delete contract');
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
+  const openArchiveDialog = () => {
+    setShowArchiveDialog(true);
+  };
+
+  const openDeleteDialog = () => {
+    setShowDeleteDialog(true);
+  };
+
   const handleStatusChange = async (newStatus: ContractStatus) => {
     if (!contract || !id || !currentUser?.email || !isAuthorized) return;
-    
+
     try {
       setUpdatingStatus(true);
       await updateContract(id, { status: newStatus }, currentUser.email);
-      
+
       const updatedContract = await getContract(id);
       if (updatedContract) {
         setContract(updatedContract);
@@ -199,39 +266,85 @@ const ContractDetail = () => {
                 Back to contracts
               </Link>
             </Button>
-            
-            <ContractForm
-              initialData={contract}
-              onSave={handleSaveContract}
-              trigger={
-                <Button variant="outline" className="gap-1 self-end">
-                  <Edit size={16} />
-                  Edit Contract
-                </Button>
-              }
-            />
+
+            <div className="flex gap-2 self-end">
+              {contract.archived ? (
+                // Show restore and permanent delete options for archived contracts
+                <>
+                  <Button
+                    variant="outline"
+                    className="gap-1"
+                    onClick={openArchiveDialog}
+                    disabled={isArchiving}
+                  >
+                    <ArchiveRestore size={16} />
+                    Restore
+                  </Button>
+
+                  <Button
+                    variant="destructive"
+                    className="gap-1"
+                    onClick={openDeleteDialog}
+                    disabled={isDeleting}
+                  >
+                    <Trash2 size={16} />
+                    Permanently Delete
+                  </Button>
+                </>
+              ) : (
+                // Show archive and edit options for non-archived contracts
+                <>
+                  <Button
+                    variant="outline"
+                    className="gap-1"
+                    onClick={openArchiveDialog}
+                    disabled={isArchiving}
+                  >
+                    <Archive size={16} />
+                    Archive
+                  </Button>
+
+                  <ContractForm
+                    initialData={contract}
+                    onSave={handleSaveContract}
+                    trigger={
+                      <Button variant="outline" className="gap-1">
+                        <Edit size={16} />
+                        Edit Contract
+                      </Button>
+                    }
+                  />
+                </>
+              )}
+            </div>
           </div>
-          
+
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-3 mb-2">
               <span className="px-2 py-1 bg-secondary text-xs rounded-md font-medium text-secondary-foreground">
                 {contractTypeLabels[contract.type as ContractType]}
               </span>
               <ContractStatusBadge status={contract.status} />
+              {contract.archived && (
+                <span className="px-2 py-1 bg-amber-100 text-amber-800 text-xs rounded-md font-medium flex items-center gap-1">
+                  <Archive className="h-3 w-3" />
+                  Archived
+                </span>
+              )}
             </div>
-            
+
             <h1 className="text-3xl font-bold tracking-tight">{contract.title}</h1>
             <p className="text-lg text-muted-foreground">
               {contract.projectName}
             </p>
           </div>
         </div>
-        
+
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-          <StatusSelectCard 
-            status={contract.status} 
-            onStatusChange={handleStatusChange} 
-            isUpdating={updatingStatus} 
+          <StatusSelectCard
+            status={contract.status}
+            onStatusChange={handleStatusChange}
+            isUpdating={updatingStatus}
           />
 
           {contract.value !== null && (
@@ -252,7 +365,7 @@ const ContractDetail = () => {
             </CardContent>
           </Card>
           )}
-          
+
           <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Duration</CardTitle>
@@ -269,7 +382,7 @@ const ContractDetail = () => {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Type</CardTitle>
@@ -287,7 +400,7 @@ const ContractDetail = () => {
             </CardContent>
           </Card>
         </div>
-        
+
         <div className="grid gap-6 md:grid-cols-3 mb-8">
           <Card className="md:col-span-2 overflow-hidden transition-all duration-300 hover:shadow-md">
             <CardHeader>
@@ -299,7 +412,7 @@ const ContractDetail = () => {
               </p>
             </CardContent>
           </Card>
-          
+
           <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
             <CardHeader>
               <CardTitle>Parties</CardTitle>
@@ -340,7 +453,7 @@ const ContractDetail = () => {
             </CardContent>
           </Card>
         )}
-        
+
         <Card className="mb-8 overflow-hidden transition-all duration-300 hover:shadow-md">
           <CardHeader>
             <CardTitle>Timeline</CardTitle>
@@ -352,7 +465,7 @@ const ContractDetail = () => {
                 contract.timeline.map((event, index) => {
                   // Check if this is a status change event
                   const isStatusChange = event.action.startsWith('Status Changed to');
-                  
+
                   return (
                     <div key={index} className="flex items-start">
                       <div className="flex flex-col items-center mr-4">
@@ -395,7 +508,7 @@ const ContractDetail = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-start">
                     <div className="flex flex-col items-center mr-4">
                       <div className="w-3 h-3 rounded-full bg-primary"></div>
@@ -408,7 +521,7 @@ const ContractDetail = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-start">
                     <div className="flex flex-col items-center mr-4">
                       <div className="w-3 h-3 rounded-full bg-primary"></div>
@@ -421,7 +534,7 @@ const ContractDetail = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   {contract.endDate && (
                     <div className="flex items-start">
                       <div className="flex flex-col items-center mr-4">
@@ -438,9 +551,9 @@ const ContractDetail = () => {
                 </>
               )}
             </div>
-            
+
             <Separator className="my-6" />
-            
+
             {/* Add the progress bar component */}
             <ContractProgressBar currentStatus={contract.status} />
           </CardContent>
@@ -448,7 +561,7 @@ const ContractDetail = () => {
 
         {/* Add the comment section */}
         {currentUser && contract && (
-          <CommentSection 
+          <CommentSection
             contractId={id!}
             comments={contract.comments || []}
             userEmail={currentUser.email!}
@@ -456,7 +569,7 @@ const ContractDetail = () => {
               // Fetch the latest contract data
               const fetchLatestContract = async () => {
                 if (!id) return;
-                
+
                 try {
                   const contractData = await getContract(id);
                   if (contractData) {
@@ -466,12 +579,40 @@ const ContractDetail = () => {
                   console.error('Error fetching updated contract:', error);
                 }
               };
-              
+
               fetchLatestContract();
             }}
           />
         )}
       </div>
+
+      {/* Archive/Unarchive Confirmation Dialog */}
+      <ConfirmationDialog
+        open={showArchiveDialog}
+        onOpenChange={setShowArchiveDialog}
+        title={contract.archived ? "Restore Contract" : "Archive Contract"}
+        description={contract.archived
+          ? "Are you sure you want to restore this contract from the archive? It will be visible in the main contracts list again."
+          : "Are you sure you want to archive this contract? It will be moved to the archive and removed from the main contracts list."}
+        confirmText={contract.archived ? "Restore" : "Archive"}
+        onConfirm={handleArchiveContract}
+        isLoading={isArchiving}
+        confirmVariant="outline"
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title={contract.archived ? "Permanently Delete Contract" : "Delete Contract"}
+        description={contract.archived
+          ? "Are you sure you want to permanently delete this archived contract? This action cannot be undone and all contract data will be permanently lost."
+          : "Are you sure you want to delete this contract? This action cannot be undone and all contract data will be permanently lost."}
+        confirmText={contract.archived ? "Permanently Delete" : "Delete"}
+        onConfirm={handleDeleteContract}
+        isLoading={isDeleting}
+        confirmVariant="destructive"
+      />
     </PageTransition>
   );
 };
