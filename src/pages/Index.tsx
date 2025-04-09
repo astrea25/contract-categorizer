@@ -721,7 +721,7 @@ const Index = () => {
                               size="sm"
                               asChild
                             >
-                              <Link to={`/contracts/${contract.id}`}>View</Link>
+                              <Link to={`/contract/${contract.id}`}>View</Link>
                             </Button>
                           </TableCell>
                         </TableRow>
