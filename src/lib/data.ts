@@ -75,13 +75,17 @@ export interface Contract {
       email: string;
       name: string;
       approved: boolean;
+      declined?: boolean;
       approvedAt?: string;
+      declinedAt?: string;
     };
     management?: {
       email: string;
       name: string;
       approved: boolean;
+      declined?: boolean;
       approvedAt?: string;
+      declinedAt?: string;
     };
   };
 }
@@ -374,11 +378,55 @@ export const updateContract = async (id: string, contract: Partial<Omit<Contract
       });
     }
 
+    // Check for legal approval withdrawal
+    if (currentContract.approvers?.legal?.approved === true &&
+        contract.approvers.legal?.approved === false) {
+      timeline.push({
+        timestamp: now.toDate().toISOString(),
+        action: 'Legal Approval Withdrawn',
+        userEmail: editorEmail,
+        details: contract.approvers.legal.name
+      });
+    }
+
+    // Check for legal approval decline
+    if (contract.approvers.legal?.declined === true &&
+        (!currentContract.approvers?.legal?.declined || currentContract.approvers.legal.declined === false)) {
+      timeline.push({
+        timestamp: now.toDate().toISOString(),
+        action: 'Legal Approval Declined',
+        userEmail: editorEmail,
+        details: contract.approvers.legal.name
+      });
+    }
+
     if (contract.approvers.management?.approved &&
         (!currentContract.approvers?.management?.approved || currentContract.approvers.management.approved === false)) {
       timeline.push({
         timestamp: now.toDate().toISOString(),
         action: 'Management Approval Granted',
+        userEmail: editorEmail,
+        details: contract.approvers.management.name
+      });
+    }
+
+    // Check for management approval withdrawal
+    if (currentContract.approvers?.management?.approved === true &&
+        contract.approvers.management?.approved === false) {
+      timeline.push({
+        timestamp: now.toDate().toISOString(),
+        action: 'Management Approval Withdrawn',
+        userEmail: editorEmail,
+        details: contract.approvers.management.name
+      });
+    }
+
+    // Check for management approval decline
+    if (contract.approvers.management?.declined === true &&
+        (!currentContract.approvers?.management?.declined || currentContract.approvers.management.declined === false)) {
+      timeline.push({
+        timestamp: now.toDate().toISOString(),
+        action: 'Management Approval Declined',
         userEmail: editorEmail,
         details: contract.approvers.management.name
       });

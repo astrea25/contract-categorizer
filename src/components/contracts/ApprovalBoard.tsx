@@ -166,21 +166,43 @@ const ApprovalBoard = ({
     }
   };
 
-  // Handle disapproving as legal team member
-  const handleLegalDisapprove = () => {
+  // Handle declining as legal team member
+  const handleLegalDecline = async () => {
     if (!isLegalTeam || !currentUser?.email) return;
 
     // Only allow if the current user is the assigned legal approver
     if (contract.approvers?.legal?.email.toLowerCase() !== currentUser.email.toLowerCase()) return;
 
-    onUpdateApprovers({
+    // Update approvers to mark as declined
+    await onUpdateApprovers({
       ...contract.approvers,
       legal: {
         ...contract.approvers.legal!,
         approved: false,
-        approvedAt: undefined
+        declined: true,
+        approvedAt: null,
+        declinedAt: new Date().toISOString()
       }
     });
+
+    // If the contract is in approval or finished status, move it back to legal review
+    if (contract.status === 'approval' || contract.status === 'finished') {
+      // Import the updateContract function
+      const { updateContract } = await import('@/lib/data');
+
+      // Update the contract status to legal_review
+      await updateContract(contract.id, { status: 'legal_review' }, currentUser.email);
+
+      // Show success message
+      toast({
+        title: "Contract Status Updated",
+        description: "Legal approval withdrawn. Contract status has been moved back to Legal Review.",
+        variant: "default"
+      });
+
+      // Refresh the page to show the updated status
+      window.location.reload();
+    }
   };
 
   // Handle approving as management team member
@@ -223,21 +245,121 @@ const ApprovalBoard = ({
     }
   };
 
-  // Handle disapproving as management team member
-  const handleManagementDisapprove = () => {
+  // Handle declining as management team member
+  const handleManagementDecline = async () => {
     if (!isManagementTeam || !currentUser?.email) return;
 
     // Only allow if the current user is the assigned management approver
     if (contract.approvers?.management?.email.toLowerCase() !== currentUser.email.toLowerCase()) return;
 
-    onUpdateApprovers({
+    // Update approvers to mark as declined
+    await onUpdateApprovers({
       ...contract.approvers,
       management: {
         ...contract.approvers.management!,
         approved: false,
-        approvedAt: undefined
+        declined: true,
+        approvedAt: null,
+        declinedAt: new Date().toISOString()
       }
     });
+
+    // If the contract is in approval or finished status, move it back to management review
+    if (contract.status === 'approval' || contract.status === 'finished') {
+      // Import the updateContract function
+      const { updateContract } = await import('@/lib/data');
+
+      // Update the contract status to management_review
+      await updateContract(contract.id, { status: 'management_review' }, currentUser.email);
+
+      // Show success message
+      toast({
+        title: "Contract Status Updated",
+        description: "Management approval withdrawn. Contract status has been moved back to Management Review.",
+        variant: "default"
+      });
+
+      // Refresh the page to show the updated status
+      window.location.reload();
+    }
+  };
+
+  // Handle withdrawing legal approval
+  const handleLegalWithdraw = async () => {
+    if (!isLegalTeam || !currentUser?.email) return;
+
+    // Only allow if the current user is the assigned legal approver
+    if (contract.approvers?.legal?.email.toLowerCase() !== currentUser.email.toLowerCase()) return;
+
+    // Update approvers to remove approval
+    await onUpdateApprovers({
+      ...contract.approvers,
+      legal: {
+        ...contract.approvers.legal!,
+        approved: false,
+        declined: false,
+        approvedAt: null,
+        declinedAt: null
+      }
+    });
+
+    // If the contract is in approval or finished status, move it back to legal review
+    if (contract.status === 'approval' || contract.status === 'finished') {
+      // Import the updateContract function
+      const { updateContract } = await import('@/lib/data');
+
+      // Update the contract status to legal_review
+      await updateContract(contract.id, { status: 'legal_review' }, currentUser.email);
+
+      // Show success message
+      toast({
+        title: "Contract Status Updated",
+        description: "Legal approval withdrawn. Contract status has been moved back to Legal Review.",
+        variant: "default"
+      });
+
+      // Refresh the page to show the updated status
+      window.location.reload();
+    }
+  };
+
+  // Handle withdrawing management approval
+  const handleManagementWithdraw = async () => {
+    if (!isManagementTeam || !currentUser?.email) return;
+
+    // Only allow if the current user is the assigned management approver
+    if (contract.approvers?.management?.email.toLowerCase() !== currentUser.email.toLowerCase()) return;
+
+    // Update approvers to remove approval
+    await onUpdateApprovers({
+      ...contract.approvers,
+      management: {
+        ...contract.approvers.management!,
+        approved: false,
+        declined: false,
+        approvedAt: null,
+        declinedAt: null
+      }
+    });
+
+    // If the contract is in approval or finished status, move it back to management review
+    if (contract.status === 'approval' || contract.status === 'finished') {
+      // Import the updateContract function
+      const { updateContract } = await import('@/lib/data');
+
+      // Update the contract status to management_review
+      await updateContract(contract.id, { status: 'management_review' }, currentUser.email);
+
+      // Show success message
+      toast({
+        title: "Contract Status Updated",
+        description: "Management approval withdrawn. Contract status has been moved back to Management Review.",
+        variant: "default"
+      });
+
+      // Refresh the page to show the updated status
+      window.location.reload();
+    }
   };
 
   // Check if current user is the legal approver
@@ -353,9 +475,37 @@ const ApprovalBoard = ({
                     </div>
                     <div>
                       {contract.approvers.legal.approved ? (
-                        <Badge className="bg-green-50 text-green-800 border-green-200">
-                          Approved
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-green-50 text-green-800 border-green-200">
+                            Approved
+                          </Badge>
+                          {isCurrentUserLegalApprover && (
+                            <Button
+                              size="sm"
+                              onClick={handleLegalWithdraw}
+                              variant="outline"
+                              className="text-amber-600 border-amber-200 hover:bg-amber-50"
+                            >
+                              Withdraw Approval
+                            </Button>
+                          )}
+                        </div>
+                      ) : contract.approvers.legal.declined ? (
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-red-50 text-red-800 border-red-200">
+                            Declined
+                          </Badge>
+                          {isCurrentUserLegalApprover && (
+                            <Button
+                              size="sm"
+                              onClick={handleLegalApprove}
+                              className="bg-blue-500 hover:bg-blue-600"
+                            >
+                              <Check className="h-3.5 w-3.5 mr-1" />
+                              Approve Instead
+                            </Button>
+                          )}
+                        </div>
                       ) : isCurrentUserLegalApprover ? (
                         <div className="flex gap-2">
                           <Button
@@ -368,11 +518,11 @@ const ApprovalBoard = ({
                           </Button>
                           <Button
                             size="sm"
-                            onClick={handleLegalDisapprove}
+                            onClick={handleLegalDecline}
                             variant="destructive"
                           >
                             <ThumbsDown className="h-3.5 w-3.5 mr-1" />
-                            Reject
+                            Decline
                           </Button>
                         </div>
                       ) : (
@@ -471,9 +621,37 @@ const ApprovalBoard = ({
                     </div>
                     <div>
                       {contract.approvers.management.approved ? (
-                        <Badge className="bg-green-50 text-green-800 border-green-200">
-                          Approved
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-green-50 text-green-800 border-green-200">
+                            Approved
+                          </Badge>
+                          {isCurrentUserManagementApprover && (
+                            <Button
+                              size="sm"
+                              onClick={handleManagementWithdraw}
+                              variant="outline"
+                              className="text-amber-600 border-amber-200 hover:bg-amber-50"
+                            >
+                              Withdraw Approval
+                            </Button>
+                          )}
+                        </div>
+                      ) : contract.approvers.management.declined ? (
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-red-50 text-red-800 border-red-200">
+                            Declined
+                          </Badge>
+                          {isCurrentUserManagementApprover && (
+                            <Button
+                              size="sm"
+                              onClick={handleManagementApprove}
+                              className="bg-blue-500 hover:bg-blue-600"
+                            >
+                              <Check className="h-3.5 w-3.5 mr-1" />
+                              Approve Instead
+                            </Button>
+                          )}
+                        </div>
                       ) : isCurrentUserManagementApprover ? (
                         <div className="flex gap-2">
                           <Button
@@ -486,11 +664,11 @@ const ApprovalBoard = ({
                           </Button>
                           <Button
                             size="sm"
-                            onClick={handleManagementDisapprove}
+                            onClick={handleManagementDecline}
                             variant="destructive"
                           >
                             <ThumbsDown className="h-3.5 w-3.5 mr-1" />
-                            Reject
+                            Decline
                           </Button>
                         </div>
                       ) : (
