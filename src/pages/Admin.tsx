@@ -110,7 +110,6 @@ const Admin = () => {
   // State for user removal confirmation
   const [userToRemove, setUserToRemove] = useState<User | null>(null);
   const [isRemovingUser, setIsRemovingUser] = useState(false);
-  const [deleteAuthAccount, setDeleteAuthAccount] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -499,27 +498,12 @@ const Admin = () => {
         // Pass the admin's email for logging and potential server-side operations
         await removeUser(userToRemove.id, currentUser?.email || 'admin');
 
-        // Check if we should also delete the Firebase Auth account
-        if (deleteAuthAccount) {
-          // Import the removeAuthUser function
-          const { removeAuthUser } = await import('@/lib/data');
-
-          // Delete the Firebase Auth account
-          // This will log out the current user
-          await removeAuthUser(userToRemove.email);
-
-          toast.success(`User ${userToRemove.email} has been completely removed`, {
-            description: "The user has been removed from both the database and Firebase Authentication. You will be logged out."
-          });
-        } else {
-          toast.success(`User ${userToRemove.email} has been removed`, {
-            description: "The user has been removed from the database and can no longer access the application."
-          });
-        }
+        toast.success(`User ${userToRemove.email} has been completely removed`, {
+          description: "The user has been removed from both the database and Firebase Authentication. You will be logged out."
+        });
       }
 
       setUserToRemove(null);
-      setDeleteAuthAccount(false); // Reset the checkbox
       fetchData(); // Refresh data
     } catch (error) {
       console.error('Error removing user:', error);
@@ -1129,28 +1113,16 @@ const Admin = () => {
                     Are you sure you want to remove <span className="font-semibold">{userToRemove?.email}</span>?
                     This will permanently delete the user's data from the database and prevent them from accessing the application.
                     <p className="mt-3 text-green-600 text-sm">
-                      <strong>Note:</strong> This will remove the user from the database and prevent them from accessing the application.
+                      <strong>Note:</strong> This will remove the user from both the database and Firebase Authentication.
                       The user will no longer be able to sign in after this operation.
                     </p>
                     <div className="mt-3 p-3 border border-amber-200 bg-amber-50 rounded-md">
-                      <p className="text-amber-700 text-sm font-medium">Firebase Authentication Account</p>
+                      <p className="text-amber-700 text-sm font-medium">Warning</p>
                       <p className="text-amber-700 text-sm mt-1">
-                        Do you also want to delete the user's Firebase Authentication account?
+                        This operation will delete the user's Firebase Authentication account, which will log you out.
                       </p>
-                      <div className="flex items-center mt-2">
-                        <input
-                          type="checkbox"
-                          id="deleteAuthAccount"
-                          className="h-4 w-4 text-blue-600 rounded border-gray-300"
-                          checked={deleteAuthAccount}
-                          onChange={(e) => setDeleteAuthAccount(e.target.checked)}
-                        />
-                        <label htmlFor="deleteAuthAccount" className="ml-2 text-amber-700 text-sm">
-                          Yes, delete the Firebase Authentication account
-                        </label>
-                      </div>
-                      <p className="text-red-600 text-sm mt-2 font-medium">
-                        <strong>Warning:</strong> This will log you out. You will need to log back in after the operation.
+                      <p className="text-amber-700 text-sm mt-1">
+                        You will need to log back in after the operation is complete.
                       </p>
                     </div>
 

@@ -1274,37 +1274,19 @@ export const removeUser = async (id: string, adminEmail: string = ''): Promise<v
     // Delete the user from users collection
     await deleteDoc(userRef);
 
-    // Mark the user as deleted in a separate collection to prevent future access
+    // Delete the user from Firebase Authentication
+    // WARNING: This will log out the current user
     try {
-      // Add to deleted_users collection to prevent future access
-      const deletedUsersRef = doc(db, 'deleted_users', email);
-      await setDoc(deletedUsersRef, {
-        email: email,
-        deletedAt: new Date().toISOString(),
-        deletedBy: adminEmail
-      });
-
-      console.log(`User ${email} marked as deleted in Firestore`);
+      const { deleteAuthUser } = await import('./delete-auth-user');
+      await deleteAuthUser(email);
+      console.log(`User ${email} deleted from Firebase Authentication`);
     } catch (error) {
-      console.error('Error marking user as deleted:', error);
-      // Continue even if this fails, as the user data has been removed
+      console.error('Error deleting user from Firebase Authentication:', error);
+      // Continue even if this fails, as the user data has been removed from Firestore
     }
   } else {
     // If user doesn't exist, just exit
     return;
-  }
-};
-
-// Remove a user from Firebase Authentication
-// WARNING: This will log out the current user
-export const removeAuthUser = async (email: string): Promise<boolean> => {
-  try {
-    const { deleteAuthUser } = await import('./delete-auth-user');
-    await deleteAuthUser(email);
-    return true;
-  } catch (error) {
-    console.error('Error removing user from Firebase Authentication:', error);
-    return false;
   }
 };
 
