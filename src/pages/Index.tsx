@@ -5,14 +5,12 @@ import {
   getContracts,
   Contract,
   getUserContractStats,
-  getUserContracts,
-  isUserAdmin,
-  isUserLegalTeam
+  getUserContracts
 } from '@/lib/data';
-import { ResponsiveContainer, Tooltip, PieChart, Pie, Cell, Legend } from 'recharts';
-import { ArrowRight, Calendar, FileText, Wallet } from 'lucide-react';
+import { ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { ArrowRight, Calendar, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AuthNavbar from '@/components/layout/AuthNavbar';
 import ContractCard from '@/components/contracts/ContractCard';
 import PageTransition from '@/components/layout/PageTransition';
@@ -20,6 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 
 const Index = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalContracts: 0,
     finishedContracts: 0,
@@ -31,6 +30,7 @@ const Index = () => {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [allContracts, setAllContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const { currentUser, isAdmin, isLegalTeam } = useAuth();
 
   useEffect(() => {
@@ -100,6 +100,43 @@ const Index = () => {
 
   // Filter out statuses with zero contracts for a cleaner pie chart
   const filteredChartData = chartData.filter(item => item.value > 0);
+
+  // Map display names to status values for filtering
+  const statusMap: Record<string, string> = {
+    'Requested': 'requested',
+    'Draft': 'draft',
+    'Legal Review': 'legal_review',
+    'Management Review': 'management_review',
+    'Approval': 'approval',
+    'Finished': 'finished'
+  };
+
+  // Handle click on pie chart slice or legend item
+  const handlePieClick = (data: any) => {
+    // Navigate to contracts page with status filter
+    const status = statusMap[data.name];
+    if (status) {
+      navigate(`/contracts?status=${status}`);
+    }
+  };
+
+  // Handle click on legend item
+  const handleLegendClick = (data: any) => {
+    handlePieClick(data);
+  };
+
+  // Handle mouse enter on pie slice
+  const handlePieEnter = (data: any, index: number) => {
+    // Only set active index if we have valid data and it's a valid slice
+    if (data && typeof index === 'number' && filteredChartData[index]) {
+      setActiveIndex(index);
+    }
+  };
+
+  // Handle mouse leave on pie slice
+  const handlePieLeave = () => {
+    setActiveIndex(null);
+  };
 
   // Get contracts that are active (not finished) and have an end date
   const expiringContracts = allContracts
@@ -263,53 +300,26 @@ const Index = () => {
                         fill="#8884d8"
                         dataKey="value"
                         nameKey="name"
-                        label={({ name, value, percent, x, y, midAngle, cx, cy, innerRadius, outerRadius }) => {
-                          // Only show label for segments with enough space (more than 5%)
-                          if (percent < 0.05) return null;
-
-                          // Calculate the position for the label inside the slice
-                          // Use a position that's halfway between center and outer edge
-                          const radius = outerRadius * 0.6; // 60% of the way from center to edge
-                          const sin = Math.sin(-midAngle * Math.PI / 180);
-                          const cos = Math.cos(-midAngle * Math.PI / 180);
-                          const sx = cx + (radius * cos);
-                          const sy = cy + (radius * sin);
-
-                          return (
-                            <g>
-                              {/* Shadow for better readability */}
-                              <text
-                                x={sx}
-                                y={sy}
-                                fill="black"
-                                textAnchor="middle"
-                                dominantBaseline="central"
-                                fontWeight="bold"
-                                fontSize="18"
-                                opacity="0.6"
-                                transform="translate(1,1)"
-                              >
-                                {value}
-                              </text>
-
-                              {/* Count value */}
-                              <text
-                                x={sx}
-                                y={sy}
-                                fill="white"
-                                textAnchor="middle"
-                                dominantBaseline="central"
-                                fontWeight="bold"
-                                fontSize="18"
-                              >
-                                {value}
-                              </text>
-                            </g>
-                          );
-                        }}
+                        onClick={handlePieClick}
+                        onMouseEnter={handlePieEnter}
+                        onMouseLeave={handlePieLeave}
+                        style={{ cursor: 'pointer' }}
+                        // Remove the built-in label to implement our own custom labels
+                        label={null}
                       >
                         {filteredChartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={entry.color}
+                            // Apply animation and scaling effect when hovered
+                            style={{
+                              filter: activeIndex === index ? 'drop-shadow(0 0 8px rgba(0, 0, 0, 0.3))' : 'none',
+                              transform: activeIndex === index ? 'scale(1.05)' : 'scale(1)',
+                              transformOrigin: 'center',
+                              transition: 'transform 1s ease, filter 1s ease, opacity 1s ease',
+                              opacity: activeIndex === null || activeIndex === index ? 1 : 0.7,
+                            }}
+                          />
                         ))}
                       </Pie>
                       <Legend
@@ -318,22 +328,32 @@ const Index = () => {
                         align="right"
                         wrapperStyle={{ paddingLeft: 20 }}
                         iconSize={10}
-                        formatter={(value, entry, index) => {
+                        onClick={handleLegendClick}
+                        formatter={(value, _entry, index) => {
                           // Handle the case when there's no data
                           if (filteredChartData.length === 0 || value === 'No Data') {
                             return <span className="text-sm">No contracts</span>;
                           }
 
                           const item = filteredChartData[index];
+                          const isActive = activeIndex === index;
                           return (
-                            <div className="flex items-center gap-2">
+                            <div
+                              className={`flex items-center gap-2 cursor-pointer ${isActive ? 'scale-105' : 'hover:opacity-80'}`}
+                              style={{
+                                transition: 'all 1s ease',
+                                transform: isActive ? 'translateX(4px)' : 'none',
+                              }}
+                            >
                               <span className="text-sm">{value}</span>
                               <span
                                 className="font-bold text-xs px-2 py-0.5 rounded-full"
                                 style={{
-                                  backgroundColor: item.color + '20', // Add transparency
+                                  backgroundColor: item.color + (isActive ? '40' : '20'), // More opacity when active
                                   color: item.color,
-                                  border: `1px solid ${item.color}40`
+                                  border: `1px solid ${item.color}${isActive ? '80' : '40'}`,
+                                  boxShadow: isActive ? `0 0 8px ${item.color}40` : 'none',
+                                  transition: 'all 1s ease'
                                 }}
                               >
                                 {item.value}
@@ -342,15 +362,41 @@ const Index = () => {
                           );
                         }}
                       />
-                      <Tooltip
-                        formatter={(value) => [`${value} contracts`, 'Count']}
-                        contentStyle={{
-                          background: 'rgba(255, 255, 255, 0.8)',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: '8px',
-                          boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
-                        }}
-                      />
+                      {/* Tooltip removed as per user request */}
+
+                      {/* Custom tooltip for hover - positioned outside the pie to avoid interfering with hover animations */}
+                      {activeIndex !== null && filteredChartData[activeIndex] && (
+                        <foreignObject
+                          x="0"
+                          y="0"
+                          width="100%"
+                          height="100%"
+                          style={{ overflow: 'visible', pointerEvents: 'none' }}
+                        >
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: '50%',
+                              left: '50%',
+                              transform: 'translate(-50%, -50%)',
+                              backgroundColor: filteredChartData[activeIndex].color,
+                              color: 'white',
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.3)',
+                              fontWeight: 'bold',
+                              fontSize: '16px',
+                              zIndex: 10,
+                              transition: 'all 0.2s ease',
+                              opacity: 0.95,
+                              border: '2px solid white',
+                              pointerEvents: 'none' // Ensures the div doesn't interfere with mouse events
+                            }}
+                          >
+                            {filteredChartData[activeIndex].name}: {filteredChartData[activeIndex].value}
+                          </div>
+                        </foreignObject>
+                      )}
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
