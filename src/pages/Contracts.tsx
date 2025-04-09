@@ -47,7 +47,7 @@ const Contracts = () => {
   const { toast: uiToast } = useToast();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedFolder, setSelectedFolder] = useState<string | 'all' | 'archive' | 'approval'>('all');
+  const [selectedFolder, setSelectedFolder] = useState<string | 'all' | 'archive'>('all');
   const [folders, setFolders] = useState<Folder[]>([]);
   const [sort, setSort] = useState<SortOption>({
     field: 'updatedAt',
@@ -91,9 +91,13 @@ const Contracts = () => {
       try {
         setLoading(true);
         // Use different contract fetching functions based on user role
-        if (isAdmin || isLegalTeam) {
-          // Admins and legal team can see all contracts
+        if (isAdmin) {
+          // Admins can see all contracts
           const contractsList = await getContracts();
+          setContracts(contractsList);
+        } else if (isLegalTeam || isManagementTeam) {
+          // Legal and management team can only see contracts they are involved with
+          const contractsList = await getUserContracts(currentUser?.email || '');
           setContracts(contractsList);
         } else if (currentUser?.email) {
           // Regular users can only see contracts they are involved with
@@ -108,50 +112,47 @@ const Contracts = () => {
     };
 
     fetchContracts();
-  }, [currentUser, isAdmin, isLegalTeam]);
+  }, [currentUser, isAdmin, isLegalTeam, isManagementTeam]);
 
   useEffect(() => {
     const fetchAndFilterContracts = async () => {
-      // Use different contract fetching functions based on user role and selected folder
       let allContracts;
 
-      if (selectedFolder === 'archive') {
-        // Get archived contracts
-        if (isAdmin || isLegalTeam) {
-          allContracts = await getArchivedContracts();
-        } else if (currentUser?.email) {
-          allContracts = await getUserArchivedContracts(currentUser.email);
-        } else {
-          allContracts = [];
-        }
-      } else if (selectedFolder === 'approval' && currentUser?.email) {
-        // Get contracts that need approval from the current user
-        if ((isLegalTeam || isManagementTeam) && currentUser?.email) {
-          allContracts = await getContractsForApproval(currentUser.email, isLegalTeam, isManagementTeam);
-        } else {
-          allContracts = [];
-        }
+      // Get contracts based on user role
+      if (isAdmin) {
+        allContracts = await getContracts(true);
+        allContracts = allContracts.filter(contract => !contract.archived);
+      } else if ((isLegalTeam || isManagementTeam) && currentUser?.email) {
+        allContracts = await getUserContracts(currentUser.email);
+      } else if (currentUser?.email) {
+        allContracts = await getUserContracts(currentUser.email);
       } else {
-        // Get regular contracts
-        if (isAdmin) {
-          // Admins can see all contracts, including archived ones
-          allContracts = await getContracts(true);
-          // Filter out archived contracts for the main view
-          allContracts = allContracts.filter(contract => !contract.archived);
-        } else if (isLegalTeam || isManagementTeam) {
-          // Legal and management team can see all non-archived contracts
-          allContracts = await getContracts();
-        } else if (currentUser?.email) {
-          // Regular users can only see contracts they are involved with
-          allContracts = await getUserContracts(currentUser.email);
-        } else {
-          allContracts = [];
-        }
+        allContracts = [];
       }
-
+      
       let filteredContracts = [...allContracts];
 
-      if (status) {
+      // Check if we need to filter by approval status
+      if (status === 'awaiting_response' && currentUser?.email) {
+        const lowercaseEmail = currentUser.email.toLowerCase();
+        
+        // Apply approval filtering logic directly
+        filteredContracts = filteredContracts.filter(contract => {
+          if (isLegalTeam && contract.approvers?.legal?.email?.toLowerCase() === lowercaseEmail) {
+            const isApproved = contract.approvers.legal.approved === true;
+            const isDeclined = contract.approvers.legal.declined === true;
+            return !isApproved && !isDeclined;
+          }
+          if (isManagementTeam && contract.approvers?.management?.email?.toLowerCase() === lowercaseEmail) {
+            const isApproved = contract.approvers.management.approved === true;
+            const isDeclined = contract.approvers.management.declined === true;
+            return !isApproved && !isDeclined;
+          }
+          return false;
+        });
+      }
+      // Apply regular status filter for other statuses
+      else if (status) {
         filteredContracts = filteredContracts.filter(contract => contract.status === status);
       }
 
@@ -177,6 +178,20 @@ const Contracts = () => {
             break;
         }
       }
+
+      // Log counts for debugging
+      console.log('Pre-filtered contracts view:', {
+        total: filteredContracts.length,
+        selectedFolder,
+        status,
+        contracts: filteredContracts.map(c => ({
+          id: c.id,
+          title: c.title,
+          status: c.status,
+          approvers: c.approvers
+        }))
+      });
+
       setContracts(filteredContracts);
     };
 
@@ -359,36 +374,39 @@ const Contracts = () => {
   const filteredAndSortedContracts = useMemo(() => {
     let result = [...contracts];
 
-    // Filter by folder first
-    if (selectedFolder !== 'all' && selectedFolder !== 'archive') {
-      // When viewing a specific folder, admins should see all contracts in that folder
-      // including archived ones
-      result = filterByFolder(result, selectedFolder);
+    // Skip filtering when in approval folder since contracts are pre-filtered
+    if (selectedFolder !== 'approval') {
+      // Filter by folder first
+      if (selectedFolder !== 'all' && selectedFolder !== 'archive' && selectedFolder) {
+        // When viewing a specific folder, admins should see all contracts in that folder
+        // including archived ones
+        result = filterByFolder(result, selectedFolder);
+      }
+
+      // Then apply other filters
+      result = filterByStatus(result, filters.status);
+      result = filterByType(result, filters.type);
+      result = filterByProject(result, filters.project);
+      result = filterByOwner(result, filters.owner);
+      result = filterByParty(result, filters.party);
+
+      if (filters.dateRange.from || filters.dateRange.to) {
+        const fromStr = filters.dateRange.from ? filters.dateRange.from.toISOString().split('T')[0] : null;
+        const toStr = filters.dateRange.to ? filters.dateRange.to.toISOString().split('T')[0] : null;
+        result = filterByDateRange(result, fromStr, toStr);
+      }
+
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        result = result.filter(
+          contract =>
+            contract.title.toLowerCase().includes(searchLower) ||
+            contract.description.toLowerCase().includes(searchLower)
+        );
+      }
     }
 
-    // Then apply other filters
-    result = filterByStatus(result, filters.status);
-    result = filterByType(result, filters.type);
-    result = filterByProject(result, filters.project);
-    result = filterByOwner(result, filters.owner);
-    result = filterByParty(result, filters.party);
-
-    if (filters.dateRange.from || filters.dateRange.to) {
-      const fromStr = filters.dateRange.from ? filters.dateRange.from.toISOString().split('T')[0] : null;
-      const toStr = filters.dateRange.to ? filters.dateRange.to.toISOString().split('T')[0] : null;
-      result = filterByDateRange(result, fromStr, toStr);
-    }
-
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      result = result.filter(
-        contract =>
-          contract.title.toLowerCase().includes(searchLower) ||
-          contract.description.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // Apply sorting
+    // Always apply sorting
     return sortContracts(result, sort);
   }, [contracts, filters, selectedFolder, sort]);
 

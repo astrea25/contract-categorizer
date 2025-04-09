@@ -7,9 +7,12 @@ import {
   getUserContractStats,
   getUserContracts
 } from '@/lib/data';
+import { getContractsForApproval, getRespondedContracts } from '@/lib/approval-utils';
+import { fixInconsistentApprovalStates } from '@/lib/fix-approvals';
 import { ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { ArrowRight, Calendar, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toast } from '@/components/ui/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthNavbar from '@/components/layout/AuthNavbar';
 import ContractCard from '@/components/contracts/ContractCard';
@@ -31,21 +34,98 @@ const Index = () => {
   const [allContracts, setAllContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const { currentUser, isAdmin, isLegalTeam } = useAuth();
+  const [isFixingApprovals, setIsFixingApprovals] = useState(false);
+  const { currentUser, isAdmin, isLegalTeam, isManagementTeam } = useAuth();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
 
+        // Fix any inconsistent approval states
+        try {
+          await fixInconsistentApprovalStates();
+          console.log('Fixed inconsistent approval states');
+        } catch (error) {
+          console.error('Error fixing inconsistent approval states:', error);
+        }
+
         // Use different statistics fetching based on user role
-        if (isAdmin || isLegalTeam) {
-          // Admins and legal team can see all contract stats
+        if (isAdmin) {
+          // Admins can see all contract stats
           const contractStats = await getContractStats();
           setStats(contractStats);
 
           // Get all contracts for the dashboard and chart data
           const fetchedContracts = await getContracts();
+          setAllContracts(fetchedContracts);
+
+          // Sort by last updated and take the 5 most recent for display
+          const recentContracts = [...fetchedContracts]
+            .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+            .slice(0, 5);
+          setContracts(recentContracts);
+        } else if (isLegalTeam || isManagementTeam) {
+          // Legal and management team members see only their assigned contracts
+          const contractStats = await getUserContractStats(currentUser?.email || '');
+
+          // Get all contracts assigned to this user
+          const userContracts = await getUserContracts(currentUser?.email || '');
+          console.log('All user contracts in Index.tsx:', userContracts.map(c => ({
+            id: c.id,
+            title: c.title,
+            status: c.status,
+            legal: c.approvers?.legal ? {
+              email: c.approvers.legal.email,
+              approved: c.approvers.legal.approved,
+              declined: c.approvers.legal.declined
+            } : null,
+            management: c.approvers?.management ? {
+              email: c.approvers.management.email,
+              approved: c.approvers.management.approved,
+              declined: c.approvers.management.declined
+            } : null
+          })));
+
+          // Get contracts requiring approval from this user
+          const contractsForApproval = await getContractsForApproval(
+            currentUser?.email || '',
+            isLegalTeam,
+            isManagementTeam
+          );
+
+          // Get contracts that the user has already responded to
+          const respondedContracts = await getRespondedContracts(
+            currentUser?.email || '',
+            isLegalTeam,
+            isManagementTeam
+          );
+
+          console.log('Dashboard stats:', {
+            userEmail: currentUser?.email,
+            isLegalTeam,
+            isManagementTeam,
+            contractsRequiringApproval: contractsForApproval.length,
+            contractsAlreadyResponded: respondedContracts.length,
+            contractsRequiringApprovalTitles: contractsForApproval.map(c => c.title),
+            contractsAlreadyRespondedTitles: respondedContracts.map(c => c.title)
+          });
+
+          // Update stats with contracts requiring approval
+          setStats({
+            ...contractStats,
+            pendingApprovalContracts: contractsForApproval.length,
+            // Log the stats for debugging
+            totalContracts: contractStats.totalContracts
+          });
+
+          console.log('Updated stats:', {
+            pendingApprovalContracts: contractsForApproval.length,
+            totalContracts: contractStats.totalContracts
+          });
+
+          // Get only contracts assigned to this user for the dashboard and chart data
+          const fetchedContracts = await getUserContracts(currentUser?.email || '');
           setAllContracts(fetchedContracts);
 
           // Sort by last updated and take the 5 most recent for display
@@ -76,7 +156,7 @@ const Index = () => {
     };
 
     fetchData();
-  }, [currentUser, isAdmin, isLegalTeam]);
+  }, [currentUser, isAdmin, isLegalTeam, isManagementTeam]);
 
   // Define colors for each status
   const COLORS = {
@@ -117,6 +197,30 @@ const Index = () => {
     const status = statusMap[data.name];
     if (status) {
       navigate(`/contracts?status=${status}`);
+    }
+  };
+
+  // Function to fix inconsistent approval states
+  const handleFixApprovals = async () => {
+    if (!isAdmin) return;
+
+    try {
+      setIsFixingApprovals(true);
+      await fixInconsistentApprovalStates();
+      toast({
+        title: "Approval States Fixed",
+        description: "Any inconsistent approval states have been fixed. Please refresh the page to see the changes.",
+        variant: "default"
+      });
+    } catch (error) {
+      console.error("Error fixing approval states:", error);
+      toast({
+        title: "Error",
+        description: "An error occurred while fixing approval states.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsFixingApprovals(false);
     }
   };
 
@@ -162,7 +266,7 @@ const Index = () => {
           <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">
-                Total Contracts
+                {isLegalTeam || isManagementTeam ? 'Awaiting Your Response' : 'Total Contracts'}
               </CardTitle>
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -171,15 +275,22 @@ const Index = () => {
                 <Skeleton className="h-8 w-16" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{stats.totalContracts}</div>
+                  <div className="text-2xl font-bold">
+                    {isLegalTeam || isManagementTeam ? (
+                      <>
+                        {stats.pendingApprovalContracts}
+                        {console.log('Displaying pendingApprovalContracts:', stats.pendingApprovalContracts)}
+                      </>
+                    ) : stats.totalContracts}
+                  </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Across all projects and types
+                    {isLegalTeam || isManagementTeam ? 'Contracts waiting for your approval/decline' : 'Across all projects and types'}
                   </p>
                   <Link
-                    to="/contracts"
+                    to={isLegalTeam || isManagementTeam ? "/contracts?status=awaiting_response" : "/contracts"}
                     className="text-xs text-primary hover:underline inline-flex items-center mt-2"
                   >
-                    View all contracts
+                    {isLegalTeam || isManagementTeam ? 'View contracts needing response' : 'View all contracts'}
                     <ArrowRight className="h-3 w-3 ml-1" />
                   </Link>
                 </>
@@ -190,7 +301,7 @@ const Index = () => {
           <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">
-                Finished Contracts
+                {isLegalTeam || isManagementTeam ? 'Total Contracts' : 'Finished Contracts'}
               </CardTitle>
               <FileText className="h-4 w-4 text-primary" />
             </CardHeader>
@@ -199,15 +310,22 @@ const Index = () => {
                 <Skeleton className="h-8 w-16" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{stats.finishedContracts}</div>
+                  <div className="text-2xl font-bold">
+                    {isLegalTeam || isManagementTeam ? (
+                      <>
+                        {stats.totalContracts}
+                        {console.log('Displaying totalContracts:', stats.totalContracts)}
+                      </>
+                    ) : stats.finishedContracts}
+                  </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Completed contracts
+                    {isLegalTeam || isManagementTeam ? 'All contracts assigned to you' : 'Completed contracts'}
                   </p>
                   <Link
-                    to="/contracts?status=finished"
+                    to={isLegalTeam || isManagementTeam ? "/contracts" : "/contracts?status=finished"}
                     className="text-xs text-primary hover:underline inline-flex items-center mt-2"
                   >
-                    View finished contracts
+                    {isLegalTeam || isManagementTeam ? 'View all your contracts' : 'View finished contracts'}
                     <ArrowRight className="h-3 w-3 ml-1" />
                   </Link>
                 </>
@@ -462,9 +580,20 @@ const Index = () => {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold tracking-tight">Recent Contracts</h2>
-            <Button asChild>
-              <Link to="/contracts">View All Contracts</Link>
-            </Button>
+            <div className="flex gap-2">
+              {isAdmin && (
+                <Button
+                  variant="outline"
+                  onClick={handleFixApprovals}
+                  disabled={isFixingApprovals}
+                >
+                  {isFixingApprovals ? 'Fixing...' : 'Fix Approval States'}
+                </Button>
+              )}
+              <Button asChild>
+                <Link to="/contracts">View All Contracts</Link>
+              </Button>
+            </div>
           </div>
 
           {loading ? (

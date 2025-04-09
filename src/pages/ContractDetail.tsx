@@ -32,7 +32,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const ContractDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { currentUser, isAdmin, isLegalTeam } = useAuth();
+  const { currentUser, isAdmin, isLegalTeam, isManagementTeam } = useAuth();
   const navigate = useNavigate();
   const [contract, setContract] = useState<Contract | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,8 +65,8 @@ const ContractDetail = () => {
           setContract(contractData);
           setError(null);
 
-          // If admin or legal team, authorize immediately
-          if (isAdmin || isLegalTeam) {
+          // If admin, legal team, or management team, authorize immediately
+          if (isAdmin || isLegalTeam || isManagementTeam) {
             setIsAuthorized(true);
           } else {
             // Check other authorization criteria
@@ -80,6 +80,13 @@ const ContractDetail = () => {
             else if (contractData.parties.some(party =>
               party.email.toLowerCase() === userEmail
             )) {
+              setIsAuthorized(true);
+            }
+            // Check if user is an approver (legal or management)
+            else if (
+              (contractData.approvers?.legal?.email?.toLowerCase() === userEmail) ||
+              (contractData.approvers?.management?.email?.toLowerCase() === userEmail)
+            ) {
               setIsAuthorized(true);
             }
             // sharedWith check removed

@@ -1436,6 +1436,11 @@ export const getUserContracts = async (userEmail: string, includeArchived: boole
     );
     if (isParty) return true;
 
+    // Check if user is an approver (legal or management)
+    const isLegalApprover = contract.approvers?.legal?.email?.toLowerCase() === lowercaseEmail;
+    const isManagementApprover = contract.approvers?.management?.email?.toLowerCase() === lowercaseEmail;
+    if (isLegalApprover || isManagementApprover) return true;
+
     // sharedWith check removed
 
     // User is not involved with this contract
@@ -1463,6 +1468,11 @@ export const getUserArchivedContracts = async (userEmail: string): Promise<Contr
     );
     if (isParty) return true;
 
+    // Check if user is an approver (legal or management)
+    const isLegalApprover = contract.approvers?.legal?.email?.toLowerCase() === lowercaseEmail;
+    const isManagementApprover = contract.approvers?.management?.email?.toLowerCase() === lowercaseEmail;
+    if (isLegalApprover || isManagementApprover) return true;
+
     // sharedWith check removed
 
     // User is not involved with this contract
@@ -1487,7 +1497,9 @@ export const getUserContractStats = async (userEmail: string): Promise<ContractS
     const finishedContracts = contracts.filter(c => c.status === 'finished').length;
 
     // Calculate contracts pending approval
+    console.log('Calculating pendingApprovalContracts in getUserContractStats');
     const pendingApprovalContracts = contracts.filter(c => c.status === 'approval').length;
+    console.log('pendingApprovalContracts:', pendingApprovalContracts);
 
     // Calculate contracts expiring in the next 30 days (only active contracts)
     const expiringContracts = contracts.filter(c => {

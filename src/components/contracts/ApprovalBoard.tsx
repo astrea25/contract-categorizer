@@ -142,6 +142,8 @@ const ApprovalBoard = ({
       legal: {
         ...contract.approvers.legal!,
         approved: true,
+        declined: false,  // Ensure declined is set to false when approving
+        declinedAt: null,
         approvedAt: new Date().toISOString()
       }
     });
@@ -221,6 +223,8 @@ const ApprovalBoard = ({
       management: {
         ...contract.approvers.management!,
         approved: true,
+        declined: false,  // Ensure declined is set to false when approving
+        declinedAt: null,
         approvedAt: new Date().toISOString()
       }
     });
