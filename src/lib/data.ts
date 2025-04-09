@@ -69,6 +69,20 @@ export interface Contract {
     details?: string;
   }[];
   comments?: Comment[];
+  approvers?: {
+    legal?: {
+      email: string;
+      name: string;
+      approved: boolean;
+      approvedAt?: string;
+    };
+    management?: {
+      email: string;
+      name: string;
+      approved: boolean;
+      approvedAt?: string;
+    };
+  };
 }
 
 export interface Comment {
@@ -266,6 +280,7 @@ export const updateContract = async (id: string, contract: Partial<Omit<Contract
   const changes: string[] = [];
   let statusChanged = false;
   let newStatus = '';
+  let approversChanged = false;
 
   if (contract.title && contract.title !== currentContract.title) {
     changes.push('title');
@@ -307,7 +322,69 @@ export const updateContract = async (id: string, contract: Partial<Omit<Contract
   const existingTimeline = currentContract.timeline || [];
   let timeline = [...existingTimeline];
 
-  if (changes.length > 0) {
+  // Check for approvers changes
+  if (contract.approvers && JSON.stringify(contract.approvers) !== JSON.stringify(currentContract.approvers)) {
+    approversChanged = true;
+
+    // Check for legal approver changes
+    if (contract.approvers.legal && (!currentContract.approvers?.legal ||
+        contract.approvers.legal.email !== currentContract.approvers.legal.email)) {
+      timeline.push({
+        timestamp: now.toDate().toISOString(),
+        action: 'Legal Approver Assigned',
+        userEmail: editorEmail,
+        details: contract.approvers.legal.name
+      });
+    } else if (currentContract.approvers?.legal && !contract.approvers.legal) {
+      timeline.push({
+        timestamp: now.toDate().toISOString(),
+        action: 'Legal Approver Removed',
+        userEmail: editorEmail,
+        details: currentContract.approvers.legal.name
+      });
+    }
+
+    // Check for management approver changes
+    if (contract.approvers.management && (!currentContract.approvers?.management ||
+        contract.approvers.management.email !== currentContract.approvers.management.email)) {
+      timeline.push({
+        timestamp: now.toDate().toISOString(),
+        action: 'Management Approver Assigned',
+        userEmail: editorEmail,
+        details: contract.approvers.management.name
+      });
+    } else if (currentContract.approvers?.management && !contract.approvers.management) {
+      timeline.push({
+        timestamp: now.toDate().toISOString(),
+        action: 'Management Approver Removed',
+        userEmail: editorEmail,
+        details: currentContract.approvers.management.name
+      });
+    }
+
+    // Check for approval status changes
+    if (contract.approvers.legal?.approved &&
+        (!currentContract.approvers?.legal?.approved || currentContract.approvers.legal.approved === false)) {
+      timeline.push({
+        timestamp: now.toDate().toISOString(),
+        action: 'Legal Approval Granted',
+        userEmail: editorEmail,
+        details: contract.approvers.legal.name
+      });
+    }
+
+    if (contract.approvers.management?.approved &&
+        (!currentContract.approvers?.management?.approved || currentContract.approvers.management.approved === false)) {
+      timeline.push({
+        timestamp: now.toDate().toISOString(),
+        action: 'Management Approval Granted',
+        userEmail: editorEmail,
+        details: contract.approvers.management.name
+      });
+    }
+  }
+
+  if (changes.length > 0 && !approversChanged) {
     // If status changed, use that as the primary action
     const action = statusChanged
       ? `Status Changed to ${newStatus

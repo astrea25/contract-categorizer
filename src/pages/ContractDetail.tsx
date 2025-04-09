@@ -10,6 +10,7 @@ import ContractForm from '@/components/contracts/ContractForm';
 import ContractProgressBar from '@/components/contracts/ContractProgressBar';
 import StatusSelectCard from '@/components/contracts/StatusSelectCard';
 import CommentSection from '@/components/contracts/CommentSection';
+import ApprovalBoard from '@/components/contracts/ApprovalBoard';
 import ConfirmationDialog from '@/components/contracts/ConfirmationDialog';
 import {
   Contract,
@@ -192,6 +193,24 @@ const ContractDetail = () => {
       toast.error('Failed to update status');
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const handleUpdateApprovers = async (approvers: Contract['approvers']) => {
+    if (!contract || !id || !currentUser?.email || !isAuthorized) return;
+
+    try {
+      await updateContract(id, { approvers }, currentUser.email);
+
+      const updatedContract = await getContract(id);
+      if (updatedContract) {
+        setContract(updatedContract);
+        toast.success('Approvers updated successfully');
+      }
+      return Promise.resolve();
+    } catch (error) {
+      toast.error('Failed to update approvers');
+      return Promise.reject(error);
     }
   };
 
@@ -473,6 +492,13 @@ const ContractDetail = () => {
             <ContractProgressBar currentStatus={contract.status} />
           </CardContent>
         </Card>
+
+        {/* Approval Board */}
+        <ApprovalBoard
+          contract={contract}
+          onUpdateApprovers={handleUpdateApprovers}
+          isRequired={contract.status !== 'requested'}
+        />
 
         {/* Timeline */}
         <Card className="mb-8 overflow-hidden transition-all duration-300 hover:shadow-md">
