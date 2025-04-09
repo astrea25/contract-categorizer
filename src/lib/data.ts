@@ -1182,7 +1182,7 @@ export const inviteUser = async (
       <div style="font-family: sans-serif;">
         <h2>Welcome to the Contract Management System</h2>
         <p>This is an automated notification from the Contract Management System.</p>
-        <p>An account has been created for you by ${invitedBy}. This system helps manage and track contracts efficiently.</p>
+        <p>An account has been created for you by WWF-Philippines Team. This system helps manage and track contracts efficiently.</p>
         <p>You can log in immediately using the credentials below:</p>
         <p><strong>Login email:</strong> ${email.toLowerCase()}</p>
         <p><strong>Temporary access code:</strong> ${defaultPassword}</p>
@@ -1202,7 +1202,7 @@ Welcome to the Contract Management System
 
 This is an automated notification from the Contract Management System.
 
-An account has been created for you by ${invitedBy}. This system helps manage and track contracts efficiently.
+An account has been created for you by WWF-Philippines Team. This system helps manage and track contracts efficiently.
 
 You can log in immediately using the credentials below:
 
