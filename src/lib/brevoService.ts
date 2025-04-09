@@ -17,7 +17,7 @@ export const sendNotificationEmail = async (
   try {
     // Retrieve sender info from environment variables
     const senderName = import.meta.env.VITE_EMAIL_SENDER_NAME || 'WWF Admin';
-    const senderEmail = import.meta.env.VITE_EMAIL_SENDER_ADDRESS || 'wwfcontracts@9034299.brevosend.com';
+    const senderEmail = import.meta.env.VITE_EMAIL_SENDER_ADDRESS || 'wwfcontracts@gmail.com';
 
     // Create email data
     const emailData: any = {
