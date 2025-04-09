@@ -440,6 +440,17 @@ const ContractDetail = () => {
           </Card>
         )}
 
+        {/* Contract Progress Bar */}
+        <Card className="mb-8 overflow-hidden transition-all duration-300 hover:shadow-md">
+          <CardHeader>
+            <CardTitle>Contract Progress</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ContractProgressBar currentStatus={contract.status} />
+          </CardContent>
+        </Card>
+
+        {/* Timeline */}
         <Card className="mb-8 overflow-hidden transition-all duration-300 hover:shadow-md">
           <CardHeader>
             <CardTitle>Timeline</CardTitle>
@@ -539,9 +550,6 @@ const ContractDetail = () => {
             </div>
 
             <Separator className="my-6" />
-
-            {/* Add the progress bar component */}
-            <ContractProgressBar currentStatus={contract.status} />
           </CardContent>
         </Card>
 
