@@ -110,6 +110,7 @@ const Admin = () => {
   // State for user removal confirmation
   const [userToRemove, setUserToRemove] = useState<User | null>(null);
   const [isRemovingUser, setIsRemovingUser] = useState(false);
+  const [deleteAuthAccount, setDeleteAuthAccount] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -491,17 +492,34 @@ const Admin = () => {
 
       if (userToRemove.isPendingInvite) {
         // This is a pending invitation - delete from users collection with pending status
-        await removeUser(userToRemove.id);
+        await removeUser(userToRemove.id, currentUser?.email || 'admin');
         toast.success(`Invitation for ${userToRemove.email} has been canceled`);
       } else {
         // This is a registered user - use the removeUser function
-        await removeUser(userToRemove.id);
-        toast.success(`User ${userToRemove.email} has been removed from the database`, {
-          description: "Note: Their Firebase Authentication account may still exist."
-        });
+        // Pass the admin's email for logging and potential server-side operations
+        await removeUser(userToRemove.id, currentUser?.email || 'admin');
+
+        // Check if we should also delete the Firebase Auth account
+        if (deleteAuthAccount) {
+          // Import the removeAuthUser function
+          const { removeAuthUser } = await import('@/lib/data');
+
+          // Delete the Firebase Auth account
+          // This will log out the current user
+          await removeAuthUser(userToRemove.email);
+
+          toast.success(`User ${userToRemove.email} has been completely removed`, {
+            description: "The user has been removed from both the database and Firebase Authentication. You will be logged out."
+          });
+        } else {
+          toast.success(`User ${userToRemove.email} has been removed`, {
+            description: "The user has been removed from the database and can no longer access the application."
+          });
+        }
       }
 
       setUserToRemove(null);
+      setDeleteAuthAccount(false); // Reset the checkbox
       fetchData(); // Refresh data
     } catch (error) {
       console.error('Error removing user:', error);
@@ -780,9 +798,6 @@ const Admin = () => {
                 <div className="text-sm text-muted-foreground">
                   This section shows both registered users and pending invitations. Regular users can be removed using the delete icon.
                   This application is invitation-only - new users must be invited via the "Invite User" button before they can sign up.
-                </div>
-                <div className="text-xs text-amber-600">
-                  <strong>Note:</strong> User removal only affects database records. Firebase Authentication accounts must be deleted separately through Firebase Console or using Admin SDK.
                 </div>
               </CardFooter>
             </Card>
@@ -1112,14 +1127,33 @@ const Admin = () => {
                 ) : (
                   <>
                     Are you sure you want to remove <span className="font-semibold">{userToRemove?.email}</span>?
-                    This will permanently delete the user's data from the database, including any pending invitations.
-                    <p className="mt-3 text-amber-600 text-sm">
-                      <strong>Note:</strong> This will remove user data from Firestore, but their Firebase Authentication account will remain.
-                      Users removed this way can still sign in until they are deleted from Firebase Authentication directly.
+                    This will permanently delete the user's data from the database and prevent them from accessing the application.
+                    <p className="mt-3 text-green-600 text-sm">
+                      <strong>Note:</strong> This will remove the user from the database and prevent them from accessing the application.
+                      The user will no longer be able to sign in after this operation.
                     </p>
-                    <p className="mt-1 text-muted-foreground text-xs">
-                      To fully remove users from Firebase Auth, you'll need to use the Firebase Console or implement a Cloud Function with Admin SDK.
-                    </p>
+                    <div className="mt-3 p-3 border border-amber-200 bg-amber-50 rounded-md">
+                      <p className="text-amber-700 text-sm font-medium">Firebase Authentication Account</p>
+                      <p className="text-amber-700 text-sm mt-1">
+                        Do you also want to delete the user's Firebase Authentication account?
+                      </p>
+                      <div className="flex items-center mt-2">
+                        <input
+                          type="checkbox"
+                          id="deleteAuthAccount"
+                          className="h-4 w-4 text-blue-600 rounded border-gray-300"
+                          checked={deleteAuthAccount}
+                          onChange={(e) => setDeleteAuthAccount(e.target.checked)}
+                        />
+                        <label htmlFor="deleteAuthAccount" className="ml-2 text-amber-700 text-sm">
+                          Yes, delete the Firebase Authentication account
+                        </label>
+                      </div>
+                      <p className="text-red-600 text-sm mt-2 font-medium">
+                        <strong>Warning:</strong> This will log you out. You will need to log back in after the operation.
+                      </p>
+                    </div>
+
                   </>
                 )}
               </AlertDialogDescription>

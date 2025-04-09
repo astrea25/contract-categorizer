@@ -521,6 +521,15 @@ import { sendNotificationEmail } from './brevoService';
 export const isUserAllowed = async (email: string): Promise<boolean> => {
   if (!email) return false;
 
+  // First check if the user is in the deleted_users collection
+  const deletedUsersRef = collection(db, 'deleted_users');
+  const deletedUserQuery = query(deletedUsersRef, where('email', '==', email.toLowerCase()));
+  const deletedUserSnapshot = await getDocs(deletedUserQuery);
+
+  if (!deletedUserSnapshot.empty) {
+    return false; // User has been deleted and is not allowed to access the application
+  }
+
   // Check admin collection first
   const adminRef = collection(db, 'admin');
   const adminQuery = query(adminRef, where('email', '==', email.toLowerCase()));
@@ -1252,7 +1261,7 @@ export const getManagementTeamMemberRole = async (email: string): Promise<string
 };
 
 // Remove a user from the system
-export const removeUser = async (id: string): Promise<void> => {
+export const removeUser = async (id: string, adminEmail: string = ''): Promise<void> => {
   // First get the user details to know their email and userId
   const userRef = doc(db, 'users', id);
   const userSnapshot = await getDoc(userRef);
@@ -1265,28 +1274,37 @@ export const removeUser = async (id: string): Promise<void> => {
     // Delete the user from users collection
     await deleteDoc(userRef);
 
-    // Additionally, try to remove the user from Firebase Authentication
-    if (userId) {
-      try {
-        // This will only work for admin-level operations or if the user is the current user
-        // For security reasons, regular clients can only delete their own user account
-        const currentUser = firebaseAuth.currentUser;
+    // Mark the user as deleted in a separate collection to prevent future access
+    try {
+      // Add to deleted_users collection to prevent future access
+      const deletedUsersRef = doc(db, 'deleted_users', email);
+      await setDoc(deletedUsersRef, {
+        email: email,
+        deletedAt: new Date().toISOString(),
+        deletedBy: adminEmail
+      });
 
-        if (currentUser && currentUser.uid === userId) {
-          // If removing the current user, we can delete them directly
-          await deleteUser(currentUser);
-        } else {
-          // For other users, we can't delete them directly from client-side code
-          // We would need a Firebase Admin SDK on a server/cloud function
-        }
-      } catch (error) {
-        console.error('Error removing user from Firebase Auth:', error);
-        // Continue even if this fails, as the user data has been removed
-      }
+      console.log(`User ${email} marked as deleted in Firestore`);
+    } catch (error) {
+      console.error('Error marking user as deleted:', error);
+      // Continue even if this fails, as the user data has been removed
     }
   } else {
     // If user doesn't exist, just exit
     return;
+  }
+};
+
+// Remove a user from Firebase Authentication
+// WARNING: This will log out the current user
+export const removeAuthUser = async (email: string): Promise<boolean> => {
+  try {
+    const { deleteAuthUser } = await import('./delete-auth-user');
+    await deleteAuthUser(email);
+    return true;
+  } catch (error) {
+    console.error('Error removing user from Firebase Authentication:', error);
+    return false;
   }
 };
 
