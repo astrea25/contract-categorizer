@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+import { differenceInDays, parseISO, format } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   getContractStats,
   getContracts,
@@ -34,6 +36,7 @@ const Index = () => {
   const [approvedContracts, setApprovedContracts] = useState<Contract[]>([]);
   const [rejectedContracts, setRejectedContracts] = useState<Contract[]>([]);
   const [allContracts, setAllContracts] = useState<Contract[]>([]);
+  const [expiringContractsList, setExpiringContractsList] = useState<Contract[]>([]); // State for the list
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [isFixingApprovals, setIsFixingApprovals] = useState(false);
@@ -143,8 +146,35 @@ const Index = () => {
             .slice(0, 5);
           setContracts(recentContracts);
         }
+
+        // Filter for expiring contracts (e.g., within 30 days) after allContracts is set
+        // Ensure allContracts is updated before filtering
+        setAllContracts(prevAllContracts => {
+          const today = new Date();
+          const thirtyDaysFromNow = new Date(today);
+          thirtyDaysFromNow.setDate(today.getDate() + 30);
+
+          const expiringSoon = prevAllContracts.filter(contract => {
+            if (!contract.endDate) return false;
+            // Ensure endDate is treated as a string before parsing
+            const endDateStr = typeof contract.endDate === 'string' ? contract.endDate : (contract.endDate as any)?.toDate?.().toISOString();
+            if (!endDateStr) return false;
+            try {
+              const endDate = parseISO(endDateStr);
+              return endDate >= today && endDate <= thirtyDaysFromNow;
+            } catch (e) {
+              console.error("Error parsing endDate:", endDateStr, e);
+              return false; // Ignore invalid dates
+            }
+          });
+          setExpiringContractsList(expiringSoon);
+          return prevAllContracts; // Return the original state for setAllContracts
+        });
+
+
       } catch (error) {
          // Silent catch
+         console.error("Error fetching dashboard data:", error);
       } finally {
         setLoading(false);
       }
@@ -236,14 +266,54 @@ const Index = () => {
     setActiveIndex(null);
   };
 
-  // Get contracts that are active (not finished) and have an end date
-  const expiringContracts = allContracts
-    .filter(c => c.status !== 'finished' && c.endDate)
-    .sort((a, b) => {
-      // Sort by end date (ascending)
-      return new Date(a.endDate!).getTime() - new Date(b.endDate!).getTime();
-    })
-    .slice(0, 3);
+  // Helper function to get days since last edit with actual date
+  const getDaysSinceLastEdit = (updatedAt: string | null): string => {
+    if (!updatedAt) return '-';
+    try {
+      const date = parseISO(updatedAt);
+      const days = differenceInDays(new Date(), date);
+      const actualDate = format(date, 'MMM d, yyyy'); // Format: e.g., Apr 9, 2025
+
+      // Handle potential NaN or invalid dates
+      if (isNaN(days)) return `- (${actualDate})`;
+
+      let relativeDate: string;
+      if (days === 0) {
+        relativeDate = 'Today';
+      } else if (days === 1) {
+        relativeDate = '1 day ago';
+      } else {
+        relativeDate = `${days} days ago`;
+      }
+      return `${relativeDate} (${actualDate})`;
+    } catch (e) {
+      // console.error("Error parsing updatedAt date:", updatedAt, e);
+      return '-'; // Return simple dash on error
+    }
+  };
+
+  // Helper function to get the display identifier for the last editor
+  const getLastEditorDisplay = (contract: Contract): string => {
+    // Current data structure only provides email in the timeline.
+    // Future enhancement: Fetch user profile to get name based on email.
+    if (contract.timeline && contract.timeline.length > 0) {
+      const lastEntry = contract.timeline[contract.timeline.length - 1];
+      // Prioritize userName if it were available, otherwise use userEmail
+      // return lastEntry.userName || lastEntry.userEmail;
+      return lastEntry.userEmail; // Use email as name is not available in timeline entry
+    }
+    // Fallback to owner email if timeline is empty
+    return contract.owner || 'Unknown';
+  };
+
+  // Helper function to format status strings
+  const formatStatus = (status: string): string => {
+    if (!status) return '-';
+    return status
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
 
   return (
     <PageTransition>
@@ -564,8 +634,8 @@ const Index = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {expiringContracts.length > 0 ? (
-                    expiringContracts.map(contract => (
+                  {expiringContractsList.length > 0 ? (
+                    expiringContractsList.map(contract => (
                       <div key={contract.id} className="flex justify-between items-center border-b pb-3 last:border-0">
                         <div>
                           <h4 className="font-medium">{contract.title}</h4>
@@ -613,17 +683,52 @@ const Index = () => {
           </div>
 
           {loading ? (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-4">
               {[...Array(3)].map((_, i) => (
-                <Skeleton key={i} className="h-48 w-full" />
+                 <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
           ) : (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {contracts.slice(0, 3).map(contract => (
-                <ContractCard key={contract.id} contract={contract} />
-              ))}
-            </div>
+             contracts.length > 0 ? (
+              <Card>
+                <CardContent className="p-0"> {/* Remove padding if table handles it */}
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Project Name</TableHead>
+                        <TableHead>Last Edited</TableHead>
+                        <TableHead>Progress</TableHead>
+                        <TableHead>Editor</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {contracts.map(contract => (
+                        <TableRow key={contract.id}>
+                          <TableCell>
+                            <Link to={`/contracts/${contract.id}`} className="font-medium hover:underline">
+                              {contract.projectName || 'Untitled Contract'}
+                            </Link>
+                          </TableCell>
+                          <TableCell>{getDaysSinceLastEdit(contract.updatedAt)}</TableCell>
+                          <TableCell>{formatStatus(contract.status)}</TableCell>
+                          <TableCell>{getLastEditorDisplay(contract)}</TableCell>
+                          <TableCell>
+                            <Button variant="outline" size="sm" asChild>
+                              <Link to={`/contracts/${contract.id}`}>View</Link>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No recent contract activity.
+              </p>
+            )
           )}
         </div>
       </div>
