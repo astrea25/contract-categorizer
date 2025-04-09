@@ -1188,6 +1188,7 @@ export const inviteUser = async (
         <li>Click the link below to access the system</li>
         <li>Enter your email and the password provided above</li>
         <li>After logging in, go to your profile to change your password</li>
+        <li>Kindly change your first name and last name in your profile for us to better identify you</li>
       </ol>
       <a href="${appUrl}/login" style="
           display: inline-block;
