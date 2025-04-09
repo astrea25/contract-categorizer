@@ -545,13 +545,29 @@ export const filterByDateRange = (
 
   return contracts.filter(contract => {
     if (startDate && contract.startDate) {
-      if (new Date(contract.startDate) < new Date(startDate)) {
+      // Create date objects and normalize them for comparison
+      const contractStartDate = new Date(contract.startDate);
+      const filterStartDate = new Date(startDate);
+
+      // Compare dates by converting to simple date strings (YYYY-MM-DD)
+      const contractDateStr = contractStartDate.toISOString().split('T')[0];
+      const filterDateStr = filterStartDate.toISOString().split('T')[0];
+
+      if (contractDateStr < filterDateStr) {
         return false;
       }
     }
 
     if (endDate && contract.endDate) {
-      if (new Date(contract.endDate) > new Date(endDate)) {
+      // Create date objects and normalize them for comparison
+      const contractEndDate = new Date(contract.endDate);
+      const filterEndDate = new Date(endDate);
+
+      // Compare dates by converting to simple date strings (YYYY-MM-DD)
+      const contractDateStr = contractEndDate.toISOString().split('T')[0];
+      const filterDateStr = filterEndDate.toISOString().split('T')[0];
+
+      if (contractDateStr > filterDateStr) {
         return false;
       }
     }

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { DayPicker } from "react-day-picker";
+import { DayPicker, SelectSingleEventHandler, DateRange } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
@@ -11,8 +11,54 @@ function Calendar({
   className,
   classNames,
   showOutsideDays = true,
+  onSelect,
   ...props
 }: CalendarProps) {
+  // Create a custom onSelect handler to fix timezone issues
+  const handleSelect = React.useCallback(
+    (day: Date | undefined, selectedDay: Date, activeModifiers: Record<string, boolean>) => {
+      if (!onSelect) return;
+
+      // If day is undefined, pass it through
+      if (!day) {
+        (onSelect as any)(undefined);
+        return;
+      }
+
+      // Create a new date at noon to avoid timezone issues
+      const fixedDate = new Date(day);
+      fixedDate.setHours(12, 0, 0, 0);
+
+      // Handle different modes (single, range, multiple)
+      if (props.mode === 'range' && typeof onSelect === 'function') {
+        // For range mode, we need to handle the range object
+        const range = props.selected as DateRange | undefined;
+
+        // Determine if this is the start or end date
+        if (!range?.from) {
+          // First selection - start date
+          (onSelect as any)({ from: fixedDate, to: undefined });
+        } else if (range.from && !range.to) {
+          // Second selection - end date
+          const isAfter = fixedDate > range.from;
+
+          if (isAfter) {
+            (onSelect as any)({ ...range, to: fixedDate });
+          } else {
+            // If selecting a date before the start date, swap them
+            (onSelect as any)({ from: fixedDate, to: range.from });
+          }
+        } else {
+          // Reset selection
+          (onSelect as any)({ from: fixedDate, to: undefined });
+        }
+      } else {
+        // For single mode
+        (onSelect as SelectSingleEventHandler)(fixedDate);
+      }
+    },
+    [onSelect, props.mode, props.selected]
+  );
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
@@ -55,6 +101,7 @@ function Calendar({
         IconLeft: ({ ..._props }) => <ChevronLeft className="h-4 w-4" />,
         IconRight: ({ ..._props }) => <ChevronRight className="h-4 w-4" />,
       }}
+      onSelect={handleSelect}
       {...props}
     />
   );

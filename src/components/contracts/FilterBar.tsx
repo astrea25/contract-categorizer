@@ -73,7 +73,7 @@ const FilterBar = ({ onFilterChange, currentSort, onSortChange, className }: Fil
           className="pl-10"
         />
       </div>
-      
+
       {/* Advanced Filters */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-2">
@@ -85,7 +85,7 @@ const FilterBar = ({ onFilterChange, currentSort, onSortChange, className }: Fil
             onChange={(e) => setOwner(e.target.value)}
           />
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="party">Contract Party</Label>
           <Input
@@ -95,13 +95,13 @@ const FilterBar = ({ onFilterChange, currentSort, onSortChange, className }: Fil
             onChange={(e) => setParty(e.target.value)}
           />
         </div>
-        
+
         <div className="space-y-2">
           <Label>Date Range</Label>
           <Popover>
             <PopoverTrigger asChild>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full justify-start text-left font-normal"
               >
                 <Calendar className="mr-2 h-4 w-4" />
@@ -128,6 +128,7 @@ const FilterBar = ({ onFilterChange, currentSort, onSortChange, className }: Fil
                   to: dateRange.to,
                 }}
                 onSelect={(range) => {
+                  // The dates are already fixed by our custom Calendar component
                   setDateRange({
                     from: range?.from ?? null,
                     to: range?.to ?? null
@@ -139,7 +140,7 @@ const FilterBar = ({ onFilterChange, currentSort, onSortChange, className }: Fil
           </Popover>
         </div>
       </div>
-      
+
       {/* Basic Filters */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2 border-t">
         <div className="space-y-2">
@@ -162,7 +163,7 @@ const FilterBar = ({ onFilterChange, currentSort, onSortChange, className }: Fil
             </SelectContent>
           </Select>
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="type">Contract Type</Label>
           <Select
@@ -182,7 +183,7 @@ const FilterBar = ({ onFilterChange, currentSort, onSortChange, className }: Fil
             </SelectContent>
           </Select>
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="project">Project</Label>
           <Input
@@ -192,10 +193,10 @@ const FilterBar = ({ onFilterChange, currentSort, onSortChange, className }: Fil
             onChange={(e) => setProject(e.target.value)}
           />
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="sort">Sort By</Label>
-          <SortDropdown 
+          <SortDropdown
             currentSort={currentSort}
             onSortChange={onSortChange}
           />

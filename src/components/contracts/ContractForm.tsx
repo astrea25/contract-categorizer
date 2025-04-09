@@ -119,12 +119,14 @@ const ContractForm = ({
 
   const handleStartDateChange = (date: Date | undefined) => {
     if (date) {
+      // The date is already fixed by our custom Calendar component
       setFormData((prev) => ({ ...prev, startDate: date.toISOString().split('T')[0] }));
     }
   };
 
   const handleEndDateChange = (date: Date | undefined) => {
     if (date) {
+      // The date is already fixed by our custom Calendar component
       setFormData((prev) => ({ ...prev, endDate: date.toISOString().split('T')[0] }));
     } else {
       setFormData((prev) => ({ ...prev, endDate: null }));
