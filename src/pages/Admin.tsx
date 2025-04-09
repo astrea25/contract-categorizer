@@ -75,6 +75,7 @@ interface ManagementTeamMember {
 
 const Admin = () => {
   const [users, setUsers] = useState<User[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]); // All users including those in teams
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [legalTeam, setLegalTeam] = useState<LegalTeamMember[]>([]);
   const [managementTeam, setManagementTeam] = useState<ManagementTeamMember[]>([]);
@@ -137,7 +138,7 @@ const Admin = () => {
       const managementTeamData = await getManagementTeamMembers() as ManagementTeamMember[];
 
       // Get users with pending status (invites)
-      const pendingUsers = usersData.filter(user => user.status === 'pending');
+      const pendingUsers = usersData.filter(user => (user as any).status === 'pending');
 
       // Filter out admin users, legal team, and management team members from the users list
       const adminEmails = adminsData.map(admin => admin.email.toLowerCase());
@@ -158,14 +159,21 @@ const Admin = () => {
         isPendingInvite: true // Flag to identify pending invites in the UI
       }));
 
+      // Filter users for the regular users tab (excluding admins, legal, and management)
       const filteredUsers = usersData.filter(user =>
         !adminEmails.includes(user.email.toLowerCase()) &&
         !legalEmails.includes(user.email.toLowerCase()) &&
         !managementEmails.includes(user.email.toLowerCase())
       );
 
-      // Combine regular users with pending invites
+      // Keep a separate list of all users for admin selection
+      const allUsers = [...usersData, ...pendingInvites];
+
+      // Combine regular users with pending invites for the users tab
       setUsers([...filteredUsers, ...pendingInvites]);
+
+      // Set all users for admin selection
+      setAllUsers(allUsers);
       setAdmins(adminsData);
       setLegalTeam(legalTeamData);
       setManagementTeam(managementTeamData);
@@ -181,7 +189,7 @@ const Admin = () => {
     fetchData();
   }, []);
 
-  // Function to invite a new user
+  // Function to create a new user account
   const handleInviteUser = async () => {
     if (!newUserEmail) {
       toast.error('Email is required');
@@ -196,12 +204,13 @@ const Admin = () => {
         currentUser?.email || 'admin'
       );
 
-      toast.success(`Invitation sent to ${newUserEmail}`);
+      toast.success(`Account created for ${newUserEmail}`);
       setNewUserEmail('');
       setIsInviteDialogOpen(false);
+      fetchData(); // Refresh data to show the new user
     } catch (error) {
-      console.error('Error inviting user:', error);
-      toast.error('Failed to invite user');
+      console.error('Error creating user account:', error);
+      toast.error('Failed to create user account');
     } finally {
       setInviting(false);
     }
@@ -213,8 +222,9 @@ const Admin = () => {
       const adminEmails = admins.map(admin => admin.email.toLowerCase());
 
       if (adminUserSearch.trim() !== '') {
-        const filtered = users.filter(user =>
-          !adminEmails.includes(user.email.toLowerCase()) &&
+        // Allow all users to be admins, including those in legal and management teams
+        const filtered = allUsers.filter(user =>
+          !adminEmails.includes(user.email.toLowerCase()) && // Only exclude existing admins
           (user.email.toLowerCase().includes(adminUserSearch.toLowerCase()) ||
            user.displayName?.toLowerCase().includes(adminUserSearch.toLowerCase()) ||
            `${user.firstName || ''} ${user.lastName || ''}`.trim().toLowerCase().includes(adminUserSearch.toLowerCase()))
@@ -224,7 +234,7 @@ const Admin = () => {
         setFilteredAdminUsers([]);
       }
     }
-  }, [adminUserSearch, isAdminDialogOpen, admins, users]);
+  }, [adminUserSearch, isAdminDialogOpen, admins, allUsers]);
 
   // Function to add user as admin
   const handleAddAdmin = async (user: User) => {
@@ -263,10 +273,12 @@ const Admin = () => {
   useEffect(() => {
     if (isLegalDialogOpen) {
       const legalEmails = legalTeam.map(member => member.email.toLowerCase());
+      const managementEmails = managementTeam.map(member => member.email.toLowerCase());
 
       if (legalUserSearch.trim() !== '') {
         const filtered = users.filter(user =>
           !legalEmails.includes(user.email.toLowerCase()) &&
+          !managementEmails.includes(user.email.toLowerCase()) && // Exclude management team members
           (user.email.toLowerCase().includes(legalUserSearch.toLowerCase()) ||
            user.displayName?.toLowerCase().includes(legalUserSearch.toLowerCase()) ||
            `${user.firstName || ''} ${user.lastName || ''}`.trim().toLowerCase().includes(legalUserSearch.toLowerCase()))
@@ -276,7 +288,7 @@ const Admin = () => {
         setFilteredLegalUsers([]);
       }
     }
-  }, [legalUserSearch, isLegalDialogOpen, legalTeam, users]);
+  }, [legalUserSearch, isLegalDialogOpen, legalTeam, managementTeam, users]);
 
   // Function to add a legal team member
   const handleAddLegalMember = async (user: User) => {
@@ -300,9 +312,15 @@ const Admin = () => {
       setFilteredLegalUsers([]);
       setIsLegalDialogOpen(false);
       fetchData(); // Refresh data
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding legal team member:', error);
-      toast.error('Failed to add legal team member');
+
+      // Check for specific error message
+      if (error.message && error.message.includes('cannot be in both legal and management teams')) {
+        toast.error('This user is already a management team member. A user cannot be in both legal and management teams.');
+      } else {
+        toast.error('Failed to add legal team member');
+      }
     } finally {
       setAddingLegal(false);
     }
@@ -324,10 +342,12 @@ const Admin = () => {
   useEffect(() => {
     if (isManagementDialogOpen) {
       const managementEmails = managementTeam.map(member => member.email.toLowerCase());
+      const legalEmails = legalTeam.map(member => member.email.toLowerCase());
 
       if (managementUserSearch.trim() !== '') {
         const filtered = users.filter(user =>
           !managementEmails.includes(user.email.toLowerCase()) &&
+          !legalEmails.includes(user.email.toLowerCase()) && // Exclude legal team members
           (user.email.toLowerCase().includes(managementUserSearch.toLowerCase()) ||
            user.displayName?.toLowerCase().includes(managementUserSearch.toLowerCase()) ||
            `${user.firstName || ''} ${user.lastName || ''}`.trim().toLowerCase().includes(managementUserSearch.toLowerCase()))
@@ -337,7 +357,7 @@ const Admin = () => {
         setFilteredManagementUsers([]);
       }
     }
-  }, [managementUserSearch, isManagementDialogOpen, managementTeam, users]);
+  }, [managementUserSearch, isManagementDialogOpen, managementTeam, legalTeam, users]);
 
   // Function to add a management team member
   const handleAddManagementMember = async (user: User) => {
@@ -361,9 +381,15 @@ const Admin = () => {
       setFilteredManagementUsers([]);
       setIsManagementDialogOpen(false);
       fetchData(); // Refresh data
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding management team member:', error);
-      toast.error('Failed to add management team member');
+
+      // Check for specific error message
+      if (error.message && error.message.includes('cannot be in both legal and management teams')) {
+        toast.error('This user is already a legal team member. A user cannot be in both legal and management teams.');
+      } else {
+        toast.error('Failed to add management team member');
+      }
     } finally {
       setAddingManagement(false);
     }
@@ -664,14 +690,14 @@ const Admin = () => {
             <DialogTrigger asChild>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
-                Invite User
+                Add User
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Invite New User</DialogTitle>
+                <DialogTitle>Create User Account</DialogTitle>
                 <DialogDescription>
-                  Invite a new user to the application. This will grant them access to sign up and log in.
+                  Create a new user account. An email with login credentials will be sent to the user.
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
@@ -686,7 +712,7 @@ const Admin = () => {
                   />
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  <p>Only invited users can access this application. The invited user will need to sign up with this exact email address.</p>
+                  <p>A new account will be created with the default password '12345678'. The user will receive an email with login instructions.</p>
                 </div>
               </div>
               <DialogFooter>
@@ -694,7 +720,7 @@ const Admin = () => {
                   Cancel
                 </Button>
                 <Button onClick={handleInviteUser} disabled={inviting}>
-                  {inviting ? 'Sending...' : 'Send Invite'}
+                  {inviting ? 'Creating...' : 'Create Account'}
                 </Button>
               </DialogFooter>
             </DialogContent>

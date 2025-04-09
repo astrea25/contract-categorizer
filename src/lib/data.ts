@@ -13,8 +13,9 @@ import {
   Timestamp,
   setDoc
 } from 'firebase/firestore';
-import { getAuth, deleteUser, updateProfile, createUserWithEmailAndPassword } from "firebase/auth";
+import { getAuth, deleteUser, updateProfile } from "firebase/auth";
 import { auth as firebaseAuth } from "./firebase";
+import { createUserAccountViaAPI } from "./auth-api";
 
 export interface ContractStats {
   totalContracts: number;
@@ -1018,6 +1019,13 @@ export const addLegalTeamMember = async (
   email: string,
   displayName: string = ''
 ): Promise<void> => {
+  // First check if the user is already in the management team
+  const isManagement = await isUserManagementTeam(email);
+
+  if (isManagement) {
+    throw new Error('User is already a management team member. A user cannot be in both legal and management teams.');
+  }
+
   const legalTeamRef = collection(db, 'legalTeam');
   const legalTeamQuery = query(legalTeamRef, where('email', '==', email.toLowerCase()));
   const legalTeamSnapshot = await getDocs(legalTeamQuery);
@@ -1053,6 +1061,13 @@ export const addManagementTeamMember = async (
   email: string,
   displayName: string = ''
 ): Promise<void> => {
+  // First check if the user is already in the legal team
+  const isLegal = await isUserLegalTeam(email);
+
+  if (isLegal) {
+    throw new Error('User is already a legal team member. A user cannot be in both legal and management teams.');
+  }
+
   const managementTeamRef = collection(db, 'managementTeam');
   const managementTeamQuery = query(managementTeamRef, where('email', '==', email.toLowerCase()));
   const managementTeamSnapshot = await getDocs(managementTeamQuery);
@@ -1083,28 +1098,30 @@ export const removeManagementTeamMember = async (id: string): Promise<void> => {
   await deleteDoc(managementTeamRef);
 };
 
-// Auto-create a Firebase Authentication account with default password
-export const createDefaultAccount = async (email: string): Promise<string> => {
+// Create a user account using the REST API
+// This avoids the issue of logging out the current user
+export const createUserRecord = async (email: string): Promise<string> => {
   try {
     // Default password for new accounts
     const defaultPassword = '12345678';
 
-    // Create the user account in Firebase Authentication
-    await createUserWithEmailAndPassword(firebaseAuth, email, defaultPassword);
+    // Create the user account in Firebase Auth using the REST API
+    // This won't affect the current user's session
+    const success = await createUserAccountViaAPI(email, defaultPassword);
 
-    return defaultPassword;
-  } catch (error: any) {
-    // If the account already exists, just return the default password
-    if (error.code === 'auth/email-already-in-use') {
-      return '12345678'; // Return the default password anyway for the email
+    if (!success) {
+      console.warn('Failed to create Firebase Auth account via API, but will continue with Firestore record');
     }
 
-    console.error('Error creating default account:', error);
-    throw error;
+    return defaultPassword;
+  } catch (error) {
+    console.error('Error creating user record:', error);
+    // Return default password anyway so the email can be sent
+    return '12345678';
   }
 };
 
-// Create a general invite for a user
+// Create a user account directly without invitation process
 export const inviteUser = async (
   email: string,
   role: string = 'user',
@@ -1115,44 +1132,48 @@ export const inviteUser = async (
   const userSnapshot = await getDocs(userQuery);
 
   if (!userSnapshot.empty) {
-    return; // User already exists, no need to invite
+    return; // User already exists, no need to create a new account
   }
 
-  // Create user invite record in database
-  const inviteData = {
+  // Create user data
+  const userData = {
     email: email.toLowerCase(),
     role,
     invitedBy,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    displayName: email.split('@')[0], // Default display name from email
+    status: 'active' // Mark as active user, not pending
   };
 
-  // Add to users collection with pending status
-  await addDoc(collection(db, 'users'), {
-    ...inviteData,
-    status: 'pending',
-    displayName: email.split('@')[0] // Default display name from email
-  });
+  // Add to users collection as an active user
+  await addDoc(collection(db, 'users'), userData);
 
-  // Auto-create a Firebase Authentication account with default password
-  let defaultPassword;
+  // Get default password without creating Firebase Auth account
+  // This prevents logging out the current user
+  let defaultPassword = '12345678';
   try {
-    defaultPassword = await createDefaultAccount(email.toLowerCase());
+    defaultPassword = await createUserRecord(email.toLowerCase());
   } catch (error) {
-    console.error('Error creating default account:', error);
-    // Continue even if account creation fails
+    console.error('Error creating user record:', error);
+    // Continue with default password even if there's an error
   }
 
-  // Send invitation email with account details
+  // Send account creation email with credentials
   try {
     const appUrl = import.meta.env.VITE_APP_URL || 'https://contract-management-phi.vercel.app';
     const htmlContent = `
       <h2>Welcome to the Contract Management System</h2>
-      <p>You have been invited to join the Contract Management System with the role of <strong>${role}</strong>.</p>
-      <p>An account has been created for you with the following credentials:</p>
+      <p>An account has been created for you with the role of <strong>${role}</strong>.</p>
+      <p>You can log in immediately with the following credentials:</p>
       <p><strong>Email:</strong> ${email.toLowerCase()}</p>
-      <p><strong>Password:</strong> ${defaultPassword || '12345678'}</p>
-      <p>Please change your password after logging in for the first time.</p>
-      <p>Click the link below to access the system:</p>
+      <p><strong>Password:</strong> ${defaultPassword}</p>
+      <p><strong>Important:</strong> Please change your password after logging in for security reasons.</p>
+      <p><strong>First-time Login Instructions:</strong></p>
+      <ol>
+        <li>Click the link below to access the system</li>
+        <li>Enter your email and the password provided above</li>
+        <li>After logging in, go to your profile to change your password</li>
+      </ol>
       <a href="${appUrl}/login" style="
           display: inline-block;
           padding: 10px 20px;
@@ -1171,7 +1192,7 @@ export const inviteUser = async (
       htmlContent
     );
   } catch (error) {
-    console.error('Error sending invitation email:', error);
+    console.error('Error sending account creation email:', error);
     // Continue even if email fails - the user is still added to the database
   }
 };

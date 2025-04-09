@@ -130,7 +130,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const legal = await isUserLegalTeam(user.email || '');
       const management = await isUserManagementTeam(user.email || '');
 
-      // Determine user role
+      // Determine primary display role (for UI purposes)
+      // A user can be both admin and legal/management team member
       let role = "user";
       if (admin) {
         role = "admin";
@@ -140,7 +141,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role = "Management Team";
       }
 
-      // Return the new user state
+      // Return the new user state with all role flags
+      // This allows a user to have multiple roles (admin + legal or admin + management)
       return {
         currentUser: user,
         isAdmin: admin,
