@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Check, Search, UserPlus, X } from 'lucide-react';
+import { Check, Search, UserPlus, X, ThumbsDown } from 'lucide-react';
 import { Contract, getLegalTeamMembers, getManagementTeamMembers } from '@/lib/data';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -44,7 +44,7 @@ const ApprovalBoard = ({
         setLoading(true);
         const legalMembers = await getLegalTeamMembers() as TeamMember[];
         const managementMembers = await getManagementTeamMembers() as TeamMember[];
-        
+
         setLegalTeamMembers(legalMembers);
         setManagementTeamMembers(managementMembers);
       } catch (error) {
@@ -63,7 +63,7 @@ const ApprovalBoard = ({
       setFilteredLegalMembers(legalTeamMembers);
     } else {
       const filtered = legalTeamMembers.filter(
-        member => 
+        member =>
           member.email.toLowerCase().includes(legalSearch.toLowerCase()) ||
           (member.displayName && member.displayName.toLowerCase().includes(legalSearch.toLowerCase()))
       );
@@ -77,7 +77,7 @@ const ApprovalBoard = ({
       setFilteredManagementMembers(managementTeamMembers);
     } else {
       const filtered = managementTeamMembers.filter(
-        member => 
+        member =>
           member.email.toLowerCase().includes(managementSearch.toLowerCase()) ||
           (member.displayName && member.displayName.toLowerCase().includes(managementSearch.toLowerCase()))
       );
@@ -128,10 +128,10 @@ const ApprovalBoard = ({
   // Handle approving as legal team member
   const handleLegalApprove = () => {
     if (!isLegalTeam || !currentUser?.email) return;
-    
+
     // Only allow if the current user is the assigned legal approver
     if (contract.approvers?.legal?.email.toLowerCase() !== currentUser.email.toLowerCase()) return;
-    
+
     onUpdateApprovers({
       ...contract.approvers,
       legal: {
@@ -142,13 +142,30 @@ const ApprovalBoard = ({
     });
   };
 
+  // Handle disapproving as legal team member
+  const handleLegalDisapprove = () => {
+    if (!isLegalTeam || !currentUser?.email) return;
+
+    // Only allow if the current user is the assigned legal approver
+    if (contract.approvers?.legal?.email.toLowerCase() !== currentUser.email.toLowerCase()) return;
+
+    onUpdateApprovers({
+      ...contract.approvers,
+      legal: {
+        ...contract.approvers.legal!,
+        approved: false,
+        approvedAt: undefined
+      }
+    });
+  };
+
   // Handle approving as management team member
   const handleManagementApprove = () => {
     if (!isManagementTeam || !currentUser?.email) return;
-    
+
     // Only allow if the current user is the assigned management approver
     if (contract.approvers?.management?.email.toLowerCase() !== currentUser.email.toLowerCase()) return;
-    
+
     onUpdateApprovers({
       ...contract.approvers,
       management: {
@@ -159,14 +176,31 @@ const ApprovalBoard = ({
     });
   };
 
+  // Handle disapproving as management team member
+  const handleManagementDisapprove = () => {
+    if (!isManagementTeam || !currentUser?.email) return;
+
+    // Only allow if the current user is the assigned management approver
+    if (contract.approvers?.management?.email.toLowerCase() !== currentUser.email.toLowerCase()) return;
+
+    onUpdateApprovers({
+      ...contract.approvers,
+      management: {
+        ...contract.approvers.management!,
+        approved: false,
+        approvedAt: undefined
+      }
+    });
+  };
+
   // Check if current user is the legal approver
-  const isCurrentUserLegalApprover = 
-    currentUser?.email && 
+  const isCurrentUserLegalApprover =
+    currentUser?.email &&
     contract.approvers?.legal?.email.toLowerCase() === currentUser.email.toLowerCase();
 
   // Check if current user is the management approver
-  const isCurrentUserManagementApprover = 
-    currentUser?.email && 
+  const isCurrentUserManagementApprover =
+    currentUser?.email &&
     contract.approvers?.management?.email.toLowerCase() === currentUser.email.toLowerCase();
 
   // Determine if the user can edit approvers
@@ -197,9 +231,9 @@ const ApprovalBoard = ({
                   {canEditApprovers && (
                     !contract.approvers?.legal ? (
                       <div className="relative">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => setShowLegalDropdown(!showLegalDropdown)}
                           className="gap-1"
                           disabled={legalTeamMembers.length === 0}
@@ -207,7 +241,7 @@ const ApprovalBoard = ({
                           <UserPlus className="h-3.5 w-3.5" />
                           <span>Assign</span>
                         </Button>
-                        
+
                         {showLegalDropdown && (
                           <div className="absolute right-0 mt-1 w-64 bg-card border rounded-md shadow-lg z-50">
                             <div className="p-2">
@@ -252,8 +286,8 @@ const ApprovalBoard = ({
                         )}
                       </div>
                     ) : (
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={handleRemoveLegalApprover}
                         className="h-8 w-8 p-0 text-destructive"
@@ -263,7 +297,7 @@ const ApprovalBoard = ({
                     )
                   )}
                 </div>
-                
+
                 {contract.approvers?.legal ? (
                   <div className="flex items-center justify-between p-3 border rounded-md bg-card/50">
                     <div>
@@ -276,13 +310,24 @@ const ApprovalBoard = ({
                           Approved
                         </Badge>
                       ) : isCurrentUserLegalApprover ? (
-                        <Button 
-                          size="sm" 
-                          onClick={handleLegalApprove}
-                          className="bg-blue-500 hover:bg-blue-600"
-                        >
-                          Approve
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={handleLegalApprove}
+                            className="bg-blue-500 hover:bg-blue-600"
+                          >
+                            <Check className="h-3.5 w-3.5 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleLegalDisapprove}
+                            variant="destructive"
+                          >
+                            <ThumbsDown className="h-3.5 w-3.5 mr-1" />
+                            Reject
+                          </Button>
+                        </div>
                       ) : (
                         <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
                           Pending
@@ -296,7 +341,7 @@ const ApprovalBoard = ({
                   </div>
                 )}
               </div>
-              
+
               {/* Management Team Approver */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
@@ -304,9 +349,9 @@ const ApprovalBoard = ({
                   {canEditApprovers && (
                     !contract.approvers?.management ? (
                       <div className="relative">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => setShowManagementDropdown(!showManagementDropdown)}
                           className="gap-1"
                           disabled={managementTeamMembers.length === 0}
@@ -314,7 +359,7 @@ const ApprovalBoard = ({
                           <UserPlus className="h-3.5 w-3.5" />
                           <span>Assign</span>
                         </Button>
-                        
+
                         {showManagementDropdown && (
                           <div className="absolute right-0 mt-1 w-64 bg-card border rounded-md shadow-lg z-50">
                             <div className="p-2">
@@ -359,8 +404,8 @@ const ApprovalBoard = ({
                         )}
                       </div>
                     ) : (
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={handleRemoveManagementApprover}
                         className="h-8 w-8 p-0 text-destructive"
@@ -370,7 +415,7 @@ const ApprovalBoard = ({
                     )
                   )}
                 </div>
-                
+
                 {contract.approvers?.management ? (
                   <div className="flex items-center justify-between p-3 border rounded-md bg-card/50">
                     <div>
@@ -383,13 +428,24 @@ const ApprovalBoard = ({
                           Approved
                         </Badge>
                       ) : isCurrentUserManagementApprover ? (
-                        <Button 
-                          size="sm" 
-                          onClick={handleManagementApprove}
-                          className="bg-blue-500 hover:bg-blue-600"
-                        >
-                          Approve
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={handleManagementApprove}
+                            className="bg-blue-500 hover:bg-blue-600"
+                          >
+                            <Check className="h-3.5 w-3.5 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleManagementDisapprove}
+                            variant="destructive"
+                          >
+                            <ThumbsDown className="h-3.5 w-3.5 mr-1" />
+                            Reject
+                          </Button>
+                        </div>
                       ) : (
                         <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
                           Pending
@@ -403,31 +459,31 @@ const ApprovalBoard = ({
                   </div>
                 )}
               </div>
-              
+
               {/* Approval Status Summary */}
               {(contract.approvers?.legal || contract.approvers?.management) && (
                 <div className={`mt-4 p-3 border rounded-md ${
-                  (contract.approvers?.legal?.approved && contract.approvers?.management?.approved) 
-                    ? "bg-green-50 border-green-200" 
+                  (contract.approvers?.legal?.approved && contract.approvers?.management?.approved)
+                    ? "bg-green-50 border-green-200"
                     : "bg-yellow-50 border-yellow-200"
                 }`}>
                   <div className="text-sm font-medium">
-                    {(contract.approvers?.legal?.approved && contract.approvers?.management?.approved) 
-                      ? "✅ All approvals complete" 
+                    {(contract.approvers?.legal?.approved && contract.approvers?.management?.approved)
+                      ? "✅ All approvals complete"
                       : "⏳ Waiting for approvals"}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
                     {!contract.approvers?.legal?.approved && "Pending legal approval. "}
                     {!contract.approvers?.management?.approved && "Pending management approval."}
-                    {(contract.approvers?.legal?.approved && contract.approvers?.management?.approved) && 
+                    {(contract.approvers?.legal?.approved && contract.approvers?.management?.approved) &&
                       "This contract has been approved by both legal and management teams."}
                   </div>
                 </div>
               )}
-              
+
               {/* Warning for required approvers */}
-              {isRequired && 
-               contract.status !== 'requested' && 
+              {isRequired &&
+               contract.status !== 'requested' &&
                (!contract.approvers?.legal || !contract.approvers?.management) && (
                 <div className="mt-4 p-3 border border-yellow-200 bg-yellow-50 rounded-md">
                   <div className="text-sm font-medium text-yellow-800">

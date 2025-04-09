@@ -30,6 +30,7 @@ import {
   isUserAdmin,
   isUserLegalTeam
 } from '@/lib/data';
+import { getContractsForApproval, getApprovedContracts } from '@/lib/approval-utils';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Tooltip } from '@/components/ui/tooltip';
 import { ResponsiveContainer, BarChart, Bar, XAxis } from 'recharts';
@@ -46,7 +47,7 @@ const Contracts = () => {
   const { toast: uiToast } = useToast();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedFolder, setSelectedFolder] = useState<string | 'all' | 'archive'>('all');
+  const [selectedFolder, setSelectedFolder] = useState<string | 'all' | 'archive' | 'approval'>('all');
   const [folders, setFolders] = useState<Folder[]>([]);
   const [sort, setSort] = useState<SortOption>({
     field: 'updatedAt',
@@ -69,7 +70,7 @@ const Contracts = () => {
   const status = searchParams.get('status');
   const filter = searchParams.get('filter');
 
-  const { currentUser, isAdmin, isLegalTeam } = useAuth();
+  const { currentUser, isAdmin, isLegalTeam, isManagementTeam } = useAuth();
 
   // Load folders when component mounts
   useEffect(() => {
@@ -123,6 +124,13 @@ const Contracts = () => {
         } else {
           allContracts = [];
         }
+      } else if (selectedFolder === 'approval' && currentUser?.email) {
+        // Get contracts that need approval from the current user
+        if ((isLegalTeam || isManagementTeam) && currentUser?.email) {
+          allContracts = await getContractsForApproval(currentUser.email, isLegalTeam, isManagementTeam);
+        } else {
+          allContracts = [];
+        }
       } else {
         // Get regular contracts
         if (isAdmin) {
@@ -130,8 +138,8 @@ const Contracts = () => {
           allContracts = await getContracts(true);
           // Filter out archived contracts for the main view
           allContracts = allContracts.filter(contract => !contract.archived);
-        } else if (isLegalTeam) {
-          // Legal team can see all non-archived contracts
+        } else if (isLegalTeam || isManagementTeam) {
+          // Legal and management team can see all non-archived contracts
           allContracts = await getContracts();
         } else if (currentUser?.email) {
           // Regular users can only see contracts they are involved with
