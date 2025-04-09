@@ -1200,6 +1200,11 @@ export const inviteUser = async (
       ">Access System</a>
       <p>If you can't click the button, copy and paste this link into your browser:</p>
       <p>${appUrl}/login</p>
+      <hr />
+      <p style="font-size: 12px; color: #999;">
+        Sent by Contract Management System – WWF Contracts<br />
+      </p>
+
     `;
 
     await sendNotificationEmail(
