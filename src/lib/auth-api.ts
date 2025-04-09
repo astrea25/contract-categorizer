@@ -36,7 +36,6 @@ export const createUserAccountViaAPI = async (email: string, password: string): 
 
       // If the user already exists, consider it a success
       if (errorData?.error?.message === 'EMAIL_EXISTS') {
-        console.log('User already exists in Firebase Auth');
         return true;
       }
 
@@ -129,9 +128,6 @@ export const deleteUserAccountViaAPI = async (email: string, adminEmail: string)
       console.error('Could not get ID token for current user');
       return false;
     }
-
-    // Log the deletion request
-    console.log(`Admin ${adminEmail} requested deletion of user ${email} (UID: ${uid})`);
 
     // Use the Firebase Auth REST API to delete the user
     // Note: This is a workaround and may not work in all cases

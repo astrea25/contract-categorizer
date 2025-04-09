@@ -31,6 +31,8 @@ const Index = () => {
     expiringThisYear: 0
   });
   const [contracts, setContracts] = useState<Contract[]>([]);
+  const [approvedContracts, setApprovedContracts] = useState<Contract[]>([]);
+  const [rejectedContracts, setRejectedContracts] = useState<Contract[]>([]);
   const [allContracts, setAllContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -45,9 +47,8 @@ const Index = () => {
         // Fix any inconsistent approval states
         try {
           await fixInconsistentApprovalStates();
-          console.log('Fixed inconsistent approval states');
         } catch (error) {
-          console.error('Error fixing inconsistent approval states:', error);
+          // Silent catch
         }
 
         // Use different statistics fetching based on user role
@@ -71,21 +72,28 @@ const Index = () => {
 
           // Get all contracts assigned to this user
           const userContracts = await getUserContracts(currentUser?.email || '');
-          console.log('All user contracts in Index.tsx:', userContracts.map(c => ({
-            id: c.id,
-            title: c.title,
-            status: c.status,
-            legal: c.approvers?.legal ? {
-              email: c.approvers.legal.email,
-              approved: c.approvers.legal.approved,
-              declined: c.approvers.legal.declined
-            } : null,
-            management: c.approvers?.management ? {
-              email: c.approvers.management.email,
-              approved: c.approvers.management.approved,
-              declined: c.approvers.management.declined
-            } : null
-          })));
+          // Get approved and rejected contracts by this user
+          const approved = userContracts.filter(c => {
+            if (isLegalTeam && c.approvers?.legal?.email === currentUser?.email) {
+              return c.approvers.legal.approved;
+            }
+            if (isManagementTeam && c.approvers?.management?.email === currentUser?.email) {
+              return c.approvers.management.approved;
+            }
+            return false;
+          });
+          setApprovedContracts(approved);
+
+          const rejected = userContracts.filter(c => {
+            if (isLegalTeam && c.approvers?.legal?.email === currentUser?.email) {
+              return c.approvers.legal.declined;
+            }
+            if (isManagementTeam && c.approvers?.management?.email === currentUser?.email) {
+              return c.approvers.management.declined;
+            }
+            return false;
+          });
+          setRejectedContracts(rejected);
 
           // Get contracts requiring approval from this user
           const contractsForApproval = await getContractsForApproval(
@@ -101,15 +109,6 @@ const Index = () => {
             isManagementTeam
           );
 
-          console.log('Dashboard stats:', {
-            userEmail: currentUser?.email,
-            isLegalTeam,
-            isManagementTeam,
-            contractsRequiringApproval: contractsForApproval.length,
-            contractsAlreadyResponded: respondedContracts.length,
-            contractsRequiringApprovalTitles: contractsForApproval.map(c => c.title),
-            contractsAlreadyRespondedTitles: respondedContracts.map(c => c.title)
-          });
 
           // Update stats with contracts requiring approval
           setStats({
@@ -119,10 +118,6 @@ const Index = () => {
             totalContracts: contractStats.totalContracts
           });
 
-          console.log('Updated stats:', {
-            pendingApprovalContracts: contractsForApproval.length,
-            totalContracts: contractStats.totalContracts
-          });
 
           // Get only contracts assigned to this user for the dashboard and chart data
           const fetchedContracts = await getUserContracts(currentUser?.email || '');
@@ -149,7 +144,7 @@ const Index = () => {
           setContracts(recentContracts);
         }
       } catch (error) {
-        console.error("Error fetching dashboard data:", error);
+         // Silent catch
       } finally {
         setLoading(false);
       }
@@ -213,7 +208,6 @@ const Index = () => {
         variant: "default"
       });
     } catch (error) {
-      console.error("Error fixing approval states:", error);
       toast({
         title: "Error",
         description: "An error occurred while fixing approval states.",
@@ -279,7 +273,6 @@ const Index = () => {
                     {isLegalTeam || isManagementTeam ? (
                       <>
                         {stats.pendingApprovalContracts}
-                        {console.log('Displaying pendingApprovalContracts:', stats.pendingApprovalContracts)}
                       </>
                     ) : stats.totalContracts}
                   </div>
@@ -314,7 +307,6 @@ const Index = () => {
                     {isLegalTeam || isManagementTeam ? (
                       <>
                         {stats.totalContracts}
-                        {console.log('Displaying totalContracts:', stats.totalContracts)}
                       </>
                     ) : stats.finishedContracts}
                   </div>
@@ -336,24 +328,36 @@ const Index = () => {
           <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">
-                Expiring Soon
+                {isLegalTeam || isManagementTeam ? 'Approved' : 'Expiring Soon'}
               </CardTitle>
-              <Calendar className="h-4 w-4 text-yellow-500" />
+              {isLegalTeam || isManagementTeam ? (
+                <Calendar className="h-4 w-4 text-green-500" />
+              ) : (
+                <Calendar className="h-4 w-4 text-yellow-500" />
+              )}
             </CardHeader>
             <CardContent>
               {loading ? (
                 <Skeleton className="h-8 w-16" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{stats.expiringContracts}</div>
+                  <div className="text-2xl font-bold">
+                    {isLegalTeam || isManagementTeam ? (
+                      approvedContracts.length
+                    ) : (
+                      stats.expiringContracts
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Within the next 30 days
+                    {isLegalTeam || isManagementTeam ? 'Contracts you have approved' : 'Within the next 30 days'}
                   </p>
                   <Link
-                    to="/contracts?filter=expiringSoon"
+                    to={isLegalTeam || isManagementTeam ?
+                       "/contracts?filter=my_approved" :
+                       "/contracts?filter=expiringSoon"}
                     className="text-xs text-primary hover:underline inline-flex items-center mt-2"
                   >
-                    View expiring soon
+                    {isLegalTeam || isManagementTeam ? 'View approved contracts' : 'View expiring soon'}
                     <ArrowRight className="h-3 w-3 ml-1" />
                   </Link>
                 </>
@@ -364,24 +368,36 @@ const Index = () => {
           <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">
-                Expiring This Year
+                {isLegalTeam || isManagementTeam ? 'Rejected' : 'Expiring This Year'}
               </CardTitle>
-              <Calendar className="h-4 w-4 text-green-500" />
+              {isLegalTeam || isManagementTeam ? (
+                <Calendar className="h-4 w-4 text-red-500" />
+              ) : (
+                <Calendar className="h-4 w-4 text-green-500" />
+              )}
             </CardHeader>
             <CardContent>
               {loading ? (
                 <Skeleton className="h-8 w-16" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{stats.expiringThisYear}</div>
+                  <div className="text-2xl font-bold">
+                    {isLegalTeam || isManagementTeam ? (
+                      rejectedContracts.length
+                    ) : (
+                      stats.expiringThisYear
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Contracts expiring in {new Date().getFullYear()}
+                    {isLegalTeam || isManagementTeam ? 'Contracts you have rejected' : `Contracts expiring in ${new Date().getFullYear()}`}
                   </p>
                   <Link
-                    to="/contracts?filter=expiringThisYear"
+                    to={isLegalTeam || isManagementTeam ?
+                       "/contracts?filter=my_rejected" :
+                       "/contracts?filter=expiringThisYear"}
                     className="text-xs text-primary hover:underline inline-flex items-center mt-2"
                   >
-                    View all expiring this year
+                    {isLegalTeam || isManagementTeam ? 'View rejected contracts' : 'View all expiring this year'}
                     <ArrowRight className="h-3 w-3 ml-1" />
                   </Link>
                 </>

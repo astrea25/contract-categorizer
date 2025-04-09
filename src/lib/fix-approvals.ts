@@ -39,12 +39,8 @@ export const fixInconsistentApprovalStates = async (): Promise<void> => {
            managementApprovedIsString || managementDeclinedIsString;
   });
 
-  console.log(`Found ${contractsToFix.length} contracts with inconsistent approval states`);
-
   // Fix each contract
   for (const contract of contractsToFix) {
-    console.log(`Fixing contract ${contract.id} - ${contract.title}`);
-
     const updatedApprovers = { ...contract.approvers };
 
     // Fix legal approver if needed
@@ -52,7 +48,6 @@ export const fixInconsistentApprovalStates = async (): Promise<void> => {
       // Fix inconsistent approved/declined state
       if (updatedApprovers.legal.approved === true &&
           (updatedApprovers.legal.declined === true || updatedApprovers.legal.declined === undefined)) {
-        console.log(`Fixing legal approver inconsistent state for contract ${contract.id}`);
         updatedApprovers.legal = {
           ...updatedApprovers.legal,
           declined: false,
@@ -62,7 +57,6 @@ export const fixInconsistentApprovalStates = async (): Promise<void> => {
 
       // Fix string values
       if (typeof updatedApprovers.legal.approved === 'string') {
-        console.log(`Fixing legal approver string approved value for contract ${contract.id}`);
         updatedApprovers.legal = {
           ...updatedApprovers.legal,
           approved: updatedApprovers.legal.approved === 'true',
@@ -70,7 +64,6 @@ export const fixInconsistentApprovalStates = async (): Promise<void> => {
       }
 
       if (typeof updatedApprovers.legal.declined === 'string') {
-        console.log(`Fixing legal approver string declined value for contract ${contract.id}`);
         updatedApprovers.legal = {
           ...updatedApprovers.legal,
           declined: updatedApprovers.legal.declined === 'true',
@@ -83,7 +76,6 @@ export const fixInconsistentApprovalStates = async (): Promise<void> => {
       // Fix inconsistent approved/declined state
       if (updatedApprovers.management.approved === true &&
           (updatedApprovers.management.declined === true || updatedApprovers.management.declined === undefined)) {
-        console.log(`Fixing management approver inconsistent state for contract ${contract.id}`);
         updatedApprovers.management = {
           ...updatedApprovers.management,
           declined: false,
@@ -93,7 +85,6 @@ export const fixInconsistentApprovalStates = async (): Promise<void> => {
 
       // Fix string values
       if (typeof updatedApprovers.management.approved === 'string') {
-        console.log(`Fixing management approver string approved value for contract ${contract.id}`);
         updatedApprovers.management = {
           ...updatedApprovers.management,
           approved: updatedApprovers.management.approved === 'true',
@@ -101,7 +92,6 @@ export const fixInconsistentApprovalStates = async (): Promise<void> => {
       }
 
       if (typeof updatedApprovers.management.declined === 'string') {
-        console.log(`Fixing management approver string declined value for contract ${contract.id}`);
         updatedApprovers.management = {
           ...updatedApprovers.management,
           declined: updatedApprovers.management.declined === 'true',
@@ -111,8 +101,5 @@ export const fixInconsistentApprovalStates = async (): Promise<void> => {
 
     // Update the contract
     await updateContract(contract.id, { approvers: updatedApprovers }, 'system');
-    console.log(`Fixed contract ${contract.id}`);
   }
-
-  console.log('Finished fixing inconsistent approval states');
 };

@@ -23,8 +23,6 @@ export const deleteAuthUser = async (email: string, password: string = '12345678
     
     // Delete the user
     await deleteUser(user);
-    
-    console.log(`Successfully deleted Firebase Auth account for ${email}`);
   } catch (error) {
     console.error('Error deleting Firebase Auth account:', error);
     throw error;

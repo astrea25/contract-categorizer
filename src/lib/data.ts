@@ -1327,7 +1327,6 @@ export const removeUser = async (id: string, adminEmail: string = ''): Promise<v
     try {
       const { deleteAuthUser } = await import('./delete-auth-user');
       await deleteAuthUser(email);
-      console.log(`User ${email} deleted from Firebase Authentication`);
     } catch (error) {
       console.error('Error deleting user from Firebase Authentication:', error);
       // Continue even if this fails, as the user data has been removed from Firestore
@@ -1497,9 +1496,7 @@ export const getUserContractStats = async (userEmail: string): Promise<ContractS
     const finishedContracts = contracts.filter(c => c.status === 'finished').length;
 
     // Calculate contracts pending approval
-    console.log('Calculating pendingApprovalContracts in getUserContractStats');
     const pendingApprovalContracts = contracts.filter(c => c.status === 'approval').length;
-    console.log('pendingApprovalContracts:', pendingApprovalContracts);
 
     // Calculate contracts expiring in the next 30 days (only active contracts)
     const expiringContracts = contracts.filter(c => {

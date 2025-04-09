@@ -35,8 +35,6 @@ export const disableUserAccount = async (
       deletedAt: new Date().toISOString()
     });
     
-    console.log(`Marked user ${email} as deleted in Firestore`);
-    
     // Return true to indicate success
     // We won't try to change the password as that would log out the current user
     return true;

@@ -79,7 +79,7 @@ const Contracts = () => {
         const foldersList = await getFolders();
         setFolders(foldersList);
       } catch (error) {
-        console.error('Failed to load folders', error);
+        // Silent fail
       }
     };
 
@@ -162,6 +162,30 @@ const Contracts = () => {
         const currentYear = now.getFullYear();
 
         switch (filter) {
+          case 'my_approved':
+            // Filter approved contracts by current user
+            filteredContracts = filteredContracts.filter(contract => {
+              if (isLegalTeam && contract.approvers?.legal?.email?.toLowerCase() === currentUser?.email?.toLowerCase()) {
+                return contract.approvers.legal.approved === true;
+              }
+              if (isManagementTeam && contract.approvers?.management?.email?.toLowerCase() === currentUser?.email?.toLowerCase()) {
+                return contract.approvers.management.approved === true;
+              }
+              return false;
+            });
+            break;
+          case 'my_rejected':
+            // Filter rejected contracts by current user
+            filteredContracts = filteredContracts.filter(contract => {
+              if (isLegalTeam && contract.approvers?.legal?.email?.toLowerCase() === currentUser?.email?.toLowerCase()) {
+                return contract.approvers.legal.declined === true;
+              }
+              if (isManagementTeam && contract.approvers?.management?.email?.toLowerCase() === currentUser?.email?.toLowerCase()) {
+                return contract.approvers.management.declined === true;
+              }
+              return false;
+            });
+            break;
           case 'expiringSoon':
             filteredContracts = filteredContracts.filter(contract => {
               if (!contract.endDate) return false;
@@ -179,18 +203,6 @@ const Contracts = () => {
         }
       }
 
-      // Log counts for debugging
-      console.log('Pre-filtered contracts view:', {
-        total: filteredContracts.length,
-        selectedFolder,
-        status,
-        contracts: filteredContracts.map(c => ({
-          id: c.id,
-          title: c.title,
-          status: c.status,
-          approvers: c.approvers
-        }))
-      });
 
       setContracts(filteredContracts);
     };
@@ -247,11 +259,9 @@ const Contracts = () => {
           description: 'Your new contract has been created successfully.',
         });
       } catch (createError) {
-        console.error('Error in createContract function:', createError);
         toast.error(`Failed to create contract: ${createError.message}`);
       }
     } catch (error) {
-      console.error('Error preparing contract data:', error);
       toast.error(`Failed to create contract: ${error.message}`);
     }
   };
@@ -314,7 +324,6 @@ const Contracts = () => {
           try {
             return multiplier * (new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime());
           } catch (error) {
-            console.error('Error sorting by updatedAt:', error);
             return 0;
           }
 
@@ -327,7 +336,6 @@ const Contracts = () => {
           try {
             return multiplier * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
           } catch (error) {
-            console.error('Error sorting by createdAt:', error);
             return 0;
           }
 
@@ -340,7 +348,6 @@ const Contracts = () => {
           try {
             return multiplier * (new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
           } catch (error) {
-            console.error('Error sorting by startDate:', error);
             return 0;
           }
 
@@ -353,7 +360,6 @@ const Contracts = () => {
           try {
             return multiplier * (new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
           } catch (error) {
-            console.error('Error sorting by endDate:', error);
             return 0;
           }
 

@@ -62,8 +62,6 @@ export const deleteUserViaAPI = async (email: string): Promise<boolean> => {
     // This is a client-side workaround that doesn't actually delete the Firebase Auth account
     // but it will prevent the user from logging in by removing their Firestore record
 
-    console.log(`Marked user ${email} (UID: ${uid}) as deleted in Firestore`);
-
     // In a real implementation with server-side code, you would:
     // 1. Create a server endpoint that accepts the user UID and admin token
     // 2. Verify the admin token on the server
@@ -89,7 +87,6 @@ export const disableUserAccount = async (email: string): Promise<boolean> => {
   try {
     // For now, we'll just return true since we can't actually disable accounts from client-side code
     // The user will still be prevented from logging in because their Firestore record is deleted
-    console.log(`User ${email} is effectively disabled by removing their Firestore record`);
     return true;
   } catch (error) {
     console.error('Error disabling user account:', error);

@@ -78,7 +78,6 @@ export const deleteUserViaAPI = async (email: string): Promise<boolean> => {
     // In a production environment, you would use the Firebase Admin SDK in a server function
     
     // For now, we'll just return true and rely on the Firestore deletion to prevent access
-    console.log(`User ${email} (UID: ${uid}) has been removed from Firestore. Firebase Auth account remains but cannot access the application.`);
     
     return true;
   } catch (error) {
