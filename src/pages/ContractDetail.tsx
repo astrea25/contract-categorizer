@@ -18,6 +18,7 @@ import {
   getContract,
   updateContract,
   contractTypeLabels,
+  statusColors,
   archiveContract,
   unarchiveContract,
   deleteContract
@@ -26,7 +27,6 @@ import { ArrowLeft, CalendarClock, Edit, FileText, Users, Wallet, ShieldAlert, A
 import { formatDistance } from 'date-fns';
 import { toast } from 'sonner';
 import PageTransition from '@/components/layout/PageTransition';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 
 const ContractDetail = () => {
@@ -42,6 +42,8 @@ const ContractDetail = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showAllTimelineEntries, setShowAllTimelineEntries] = useState(false);
+  const DEFAULT_TIMELINE_ENTRIES = 3;
 
   useEffect(() => {
     const checkUserAndFetchContract = async () => {
@@ -191,6 +193,28 @@ const ContractDetail = () => {
     } finally {
       setUpdatingStatus(false);
     }
+  };
+
+  // Format timeline details by removing "Changed: " prefix and capitalizing each word
+  const formatTimelineDetails = (details: string, isStatusChange: boolean): string => {
+    // For status changes, don't add any details (they're redundant)
+    if (isStatusChange) return '';
+
+    if (!details) return '';
+
+    // If the details start with "Changed: ", remove it
+    const cleanDetails = details.startsWith('Changed: ')
+      ? details.substring('Changed: '.length)
+      : details;
+
+    // Split by commas and capitalize each item
+    return ': ' + cleanDetails
+      .split(', ')
+      .map(item => item.split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ')
+      )
+      .join(', ');
   };
 
   if (loading) {
@@ -459,75 +483,115 @@ const ContractDetail = () => {
             <div className="space-y-4">
               {/* Contract timeline events */}
               {contract.timeline && contract.timeline.length > 0 ? (
-                contract.timeline.map((event, index) => {
-                  // Check if this is a status change event
-                  const isStatusChange = event.action.startsWith('Status Changed to');
+                <>
+                  {/* Sort timeline entries by timestamp (newest first) and show either all or just the most recent */}
+                  {(showAllTimelineEntries
+                    ? [...contract.timeline].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                    : [...contract.timeline].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, DEFAULT_TIMELINE_ENTRIES))
+                    .map((event, index, displayedTimeline) => {
+                      // Check if this is a status change event
+                      const isStatusChange = event.action.startsWith('Status Changed to');
 
-                  return (
-                    <div key={index} className="flex items-start">
-                      <div className="flex flex-col items-center mr-4">
-                        <div className={`w-3 h-3 rounded-full ${isStatusChange ? 'bg-blue-500' : 'bg-primary'}`}></div>
-                        {index < contract.timeline!.length - 1 && (
-                          <div className="w-0.5 h-full bg-border"></div>
-                        )}
-                      </div>
-                      <div>
-                        <div className={`font-medium ${isStatusChange ? 'text-blue-700' : ''}`}>
-                          {event.action}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {new Date(event.timestamp).toLocaleString()}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          By: {event.userEmail}
-                        </div>
-                        {event.details && (
-                          <div className="text-sm text-muted-foreground mt-1">
-                            {event.details}
+                      // Extract status from the action text if it's a status change
+                      let statusKey: ContractStatus | null = null;
+                      if (isStatusChange) {
+                        const statusText = event.action.replace('Status Changed to ', '');
+                        // Convert the formatted status back to the status key
+                        if (statusText === 'Legal Review') statusKey = 'legal_review';
+                        else if (statusText === 'Management Review') statusKey = 'management_review';
+                        else statusKey = statusText.toLowerCase() as ContractStatus;
+                      }
+
+                      return (
+                        <div key={index} className="flex items-start">
+                          <div className="flex flex-col items-center mr-4">
+                            <div className={`w-3 h-3 rounded-full mt-2 ${isStatusChange && statusKey ?
+                              statusKey === 'requested' ? 'bg-blue-800' :
+                              statusKey === 'draft' ? 'bg-gray-800' :
+                              statusKey === 'legal_review' ? 'bg-purple-800' :
+                              statusKey === 'management_review' ? 'bg-orange-800' :
+                              statusKey === 'approval' ? 'bg-yellow-800' :
+                              statusKey === 'finished' ? 'bg-green-800' : 'bg-primary'
+                              : 'bg-primary'}`}></div>
+                            {index < displayedTimeline.length - 1 && (
+                              <div className={`w-0.5 h-full ${isStatusChange && statusKey ? statusColors[statusKey].bg : 'bg-border'}`}></div>
+                            )}
                           </div>
-                        )}
-                      </div>
+                          <div className="pt-0">
+                            <div className={`font-medium ${isStatusChange && statusKey ? statusColors[statusKey].text : ''}`}>
+                              {event.action}{event.details ? formatTimelineDetails(event.details, isStatusChange) : ''}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {new Date(event.timestamp).toLocaleString()}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              By: {event.userEmail}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                  {/* Show More/Hide button if there are more than DEFAULT_TIMELINE_ENTRIES entries */}
+                  {contract.timeline.length > DEFAULT_TIMELINE_ENTRIES && (
+                    <div className="flex justify-center mt-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowAllTimelineEntries(!showAllTimelineEntries)}
+                      >
+                        {showAllTimelineEntries ? 'Hide' : `Show More (${contract.timeline.length - DEFAULT_TIMELINE_ENTRIES} more)`}
+                      </Button>
                     </div>
-                  );
-                })
+                  )}
+                </>
               ) : (
                 <>
                   {/* Legacy timeline events if no timeline array exists */}
                   <div className="flex items-start">
                     <div className="flex flex-col items-center mr-4">
-                      <div className="w-3 h-3 rounded-full bg-primary"></div>
+                      <div className="w-3 h-3 rounded-full mt-1.5 bg-primary"></div>
                       <div className="w-0.5 h-full bg-border"></div>
                     </div>
-                    <div>
+                    <div className="pt-0">
                       <div className="font-medium">Contract Created</div>
                       <div className="text-sm text-muted-foreground">
                         {new Date(contract.createdAt).toLocaleString()}
                       </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start">
-                    <div className="flex flex-col items-center mr-4">
-                      <div className="w-3 h-3 rounded-full bg-primary"></div>
-                      <div className="w-0.5 h-full bg-border"></div>
-                    </div>
-                    <div>
-                      <div className="font-medium">Contract Started</div>
                       <div className="text-sm text-muted-foreground">
-                        {new Date(contract.startDate).toLocaleDateString()}
+                        By: {contract.owner || 'System'}
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-start">
                     <div className="flex flex-col items-center mr-4">
-                      <div className="w-3 h-3 rounded-full bg-primary"></div>
+                      <div className="w-3 h-3 rounded-full mt-1.5 bg-primary"></div>
+                      <div className="w-0.5 h-full bg-border"></div>
+                    </div>
+                    <div className="pt-0">
+                      <div className="font-medium">Contract Started</div>
+                      <div className="text-sm text-muted-foreground">
+                        {new Date(contract.startDate).toLocaleDateString()}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        By: {contract.owner || 'System'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start">
+                    <div className="flex flex-col items-center mr-4">
+                      <div className="w-3 h-3 rounded-full mt-1.5 bg-primary"></div>
                       {contract.endDate && <div className="w-0.5 h-full bg-border"></div>}
                     </div>
-                    <div>
+                    <div className="pt-0">
                       <div className="font-medium">Last Updated</div>
                       <div className="text-sm text-muted-foreground">
                         {new Date(contract.updatedAt).toLocaleString()}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        By: {contract.owner || 'System'}
                       </div>
                     </div>
                   </div>
@@ -535,12 +599,15 @@ const ContractDetail = () => {
                   {contract.endDate && (
                     <div className="flex items-start">
                       <div className="flex flex-col items-center mr-4">
-                        <div className="w-3 h-3 rounded-full bg-muted-foreground"></div>
+                        <div className="w-3 h-3 rounded-full mt-0.5 bg-muted-foreground"></div>
                       </div>
-                      <div>
+                      <div className="pt-0">
                         <div className="font-medium">Contract End Date</div>
                         <div className="text-sm text-muted-foreground">
                           {new Date(contract.endDate).toLocaleDateString()}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          By: {contract.owner || 'System'}
                         </div>
                       </div>
                     </div>

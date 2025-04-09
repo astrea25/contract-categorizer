@@ -320,7 +320,7 @@ export const updateContract = async (id: string, contract: Partial<Omit<Contract
       timestamp: now.toDate().toISOString(),
       action,
       userEmail: editorEmail,
-      details: `Changed: ${changes.join(', ')}`
+      details: `${changes.join(', ')}`
     });
   }
 
