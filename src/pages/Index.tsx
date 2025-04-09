@@ -9,7 +9,7 @@ import {
   isUserAdmin,
   isUserLegalTeam
 } from '@/lib/data';
-import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
+import { ResponsiveContainer, Tooltip, PieChart, Pie, Cell, Legend } from 'recharts';
 import { ArrowRight, Calendar, FileText, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -78,14 +78,28 @@ const Index = () => {
     fetchData();
   }, [currentUser, isAdmin, isLegalTeam]);
 
+  // Define colors for each status
+  const COLORS = {
+    requested: '#3b82f6', // blue
+    draft: '#6b7280', // gray
+    legal_review: '#8b5cf6', // purple
+    management_review: '#f97316', // orange
+    approval: '#eab308', // yellow
+    finished: '#22c55e', // green
+  };
+
+  // Create chart data with counts
   const chartData = [
-    { name: 'Requested', value: allContracts.filter(c => c.status === 'requested').length },
-    { name: 'Draft', value: allContracts.filter(c => c.status === 'draft').length },
-    { name: 'Legal Review', value: allContracts.filter(c => c.status === 'legal_review').length },
-    { name: 'Management Review', value: allContracts.filter(c => c.status === 'management_review').length },
-    { name: 'Approval', value: allContracts.filter(c => c.status === 'approval').length },
-    { name: 'Finished', value: allContracts.filter(c => c.status === 'finished').length },
+    { name: 'Requested', value: allContracts.filter(c => c.status === 'requested').length, color: COLORS.requested },
+    { name: 'Draft', value: allContracts.filter(c => c.status === 'draft').length, color: COLORS.draft },
+    { name: 'Legal Review', value: allContracts.filter(c => c.status === 'legal_review').length, color: COLORS.legal_review },
+    { name: 'Management Review', value: allContracts.filter(c => c.status === 'management_review').length, color: COLORS.management_review },
+    { name: 'Approval', value: allContracts.filter(c => c.status === 'approval').length, color: COLORS.approval },
+    { name: 'Finished', value: allContracts.filter(c => c.status === 'finished').length, color: COLORS.finished },
   ];
+
+  // Filter out statuses with zero contracts for a cleaner pie chart
+  const filteredChartData = chartData.filter(item => item.value > 0);
 
   // Get contracts that are active (not finished) and have an end date
   const expiringContracts = allContracts
@@ -235,12 +249,101 @@ const Index = () => {
                   <Skeleton className="h-full w-full" />
                 </div>
               ) : (
-                <div className="h-[200px]">
+                <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData}>
-                      <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                    <PieChart>
+                      <Pie
+                        data={filteredChartData.length > 0 ? filteredChartData : [{ name: 'No Data', value: 1, color: '#e5e7eb' }]}
+                        cx="50%"
+                        cy="45%"
+                        labelLine={false}
+                        innerRadius={0} // Set to 0 for solid pie chart
+                        outerRadius={90}
+                        paddingAngle={1}
+                        fill="#8884d8"
+                        dataKey="value"
+                        nameKey="name"
+                        label={({ name, value, percent, x, y, midAngle, cx, cy, innerRadius, outerRadius }) => {
+                          // Only show label for segments with enough space (more than 5%)
+                          if (percent < 0.05) return null;
+
+                          // Calculate the position for the label inside the slice
+                          // Use a position that's halfway between center and outer edge
+                          const radius = outerRadius * 0.6; // 60% of the way from center to edge
+                          const sin = Math.sin(-midAngle * Math.PI / 180);
+                          const cos = Math.cos(-midAngle * Math.PI / 180);
+                          const sx = cx + (radius * cos);
+                          const sy = cy + (radius * sin);
+
+                          return (
+                            <g>
+                              {/* Shadow for better readability */}
+                              <text
+                                x={sx}
+                                y={sy}
+                                fill="black"
+                                textAnchor="middle"
+                                dominantBaseline="central"
+                                fontWeight="bold"
+                                fontSize="18"
+                                opacity="0.6"
+                                transform="translate(1,1)"
+                              >
+                                {value}
+                              </text>
+
+                              {/* Count value */}
+                              <text
+                                x={sx}
+                                y={sy}
+                                fill="white"
+                                textAnchor="middle"
+                                dominantBaseline="central"
+                                fontWeight="bold"
+                                fontSize="18"
+                              >
+                                {value}
+                              </text>
+                            </g>
+                          );
+                        }}
+                      >
+                        {filteredChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Legend
+                        layout="vertical"
+                        verticalAlign="middle"
+                        align="right"
+                        wrapperStyle={{ paddingLeft: 20 }}
+                        iconSize={10}
+                        formatter={(value, entry, index) => {
+                          // Handle the case when there's no data
+                          if (filteredChartData.length === 0 || value === 'No Data') {
+                            return <span className="text-sm">No contracts</span>;
+                          }
+
+                          const item = filteredChartData[index];
+                          return (
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm">{value}</span>
+                              <span
+                                className="font-bold text-xs px-2 py-0.5 rounded-full"
+                                style={{
+                                  backgroundColor: item.color + '20', // Add transparency
+                                  color: item.color,
+                                  border: `1px solid ${item.color}40`
+                                }}
+                              >
+                                {item.value}
+                              </span>
+                            </div>
+                          );
+                        }}
+                      />
                       <Tooltip
-                        cursor={{fill: 'rgba(0, 0, 0, 0.05)'}}
+                        formatter={(value) => [`${value} contracts`, 'Count']}
                         contentStyle={{
                           background: 'rgba(255, 255, 255, 0.8)',
                           border: '1px solid #e2e8f0',
@@ -248,13 +351,7 @@ const Index = () => {
                           boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
                         }}
                       />
-                      <Bar
-                        dataKey="value"
-                        fill="hsl(var(--primary))"
-                        radius={[4, 4, 0, 0]}
-                        className="animate-slide-in"
-                      />
-                    </BarChart>
+                    </PieChart>
                   </ResponsiveContainer>
                 </div>
               )}
