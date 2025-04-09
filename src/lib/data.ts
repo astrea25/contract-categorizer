@@ -1355,6 +1355,36 @@ export const updateUserPassword = async (
   return Promise.resolve();
 };
 
+// Check if a user exists in the system (for password reset)
+export const doesUserExist = async (email: string): Promise<boolean> => {
+  if (!email) return false;
+
+  // First check if the user is in the deleted_users collection
+  const deletedUsersRef = collection(db, 'deleted_users');
+  const deletedUserQuery = query(deletedUsersRef, where('email', '==', email.toLowerCase()));
+  const deletedUserSnapshot = await getDocs(deletedUserQuery);
+
+  if (!deletedUserSnapshot.empty) {
+    return false; // User has been deleted and should not be able to reset password
+  }
+
+  // Check admin collection
+  const adminRef = collection(db, 'admin');
+  const adminQuery = query(adminRef, where('email', '==', email.toLowerCase()));
+  const adminSnapshot = await getDocs(adminQuery);
+
+  if (!adminSnapshot.empty) {
+    return true; // User is an admin
+  }
+
+  // Check users collection
+  const usersRef = collection(db, 'users');
+  const userQuery = query(usersRef, where('email', '==', email.toLowerCase()));
+  const userSnapshot = await getDocs(userQuery);
+
+  return !userSnapshot.empty; // User exists if the snapshot is not empty
+};
+
 // Function to get contracts for a regular user - only returns contracts where the user
 // is either the owner or mentioned in the parties list or shared with list
 export const getUserContracts = async (userEmail: string, includeArchived: boolean = false): Promise<Contract[]> => {

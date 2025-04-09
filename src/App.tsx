@@ -11,6 +11,7 @@ import Contracts from "./pages/Contracts";
 import ContractDetail from "./pages/ContractDetail";
 // AcceptInvite import removed
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
 // SignUp page removed
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
@@ -28,6 +29,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             {/* AcceptInvite route removed */}
             <Route path="/make-admin" element={<MakeAdmin />} />
 
