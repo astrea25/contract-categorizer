@@ -5,19 +5,25 @@
  * @param recipientEmail Email address of the recipient
  * @param subject Email subject
  * @param htmlContent HTML content of the email
+ * @param textContent Optional plain text content of the email
  * @returns Promise resolving to the API response
  */
 export const sendNotificationEmail = async (
   recipientEmail: string,
   subject: string,
-  htmlContent: string
+  htmlContent: string,
+  textContent?: string
 ): Promise<any> => {
   try {
+    // Retrieve sender info from environment variables
+    const senderName = import.meta.env.VITE_EMAIL_SENDER_NAME || 'WWF Admin';
+    const senderEmail = import.meta.env.VITE_EMAIL_SENDER_ADDRESS || 'noreply@example.com';
+
     // Create email data
-    const emailData = {
+    const emailData: any = {
       sender: {
-        name: 'WWF Admin',
-        email: 'wwfcontracts@gmail.com'
+        name: senderName,
+        email: senderEmail
       },
       to: [
         { email: recipientEmail }
@@ -25,6 +31,11 @@ export const sendNotificationEmail = async (
       subject: subject,
       htmlContent: htmlContent
     };
+
+    // Add textContent if provided
+    if (textContent) {
+      emailData.textContent = textContent;
+    }
 
     // Send the email using Brevo API
     const response = await fetch('https://api.brevo.com/v3/smtp/email', {

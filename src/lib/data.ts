@@ -819,7 +819,7 @@ export const deleteFolder = async (id: string): Promise<void> => {
   const contractsInFolder = contracts.filter(contract => contract.folderId === id);
 
   for (const contract of contractsInFolder) {
-    await updateContract(contract.id, { folderId: null }, 'System');
+    await updateContract(contract.id, { folderId: null }, { email: 'system@internal', displayName: 'System' });
   }
 
   // Then delete the folder
@@ -1175,42 +1175,54 @@ export const inviteUser = async (
 
   // Send account creation email with credentials
   try {
-    const appUrl = import.meta.env.VITE_APP_URL || 'https://contract-management-phi.vercel.app';
-    const htmlContent = `
-      <h2>Welcome to the Contract Management System</h2>
-      <p>An account has been created for you with the role of <strong>${role}</strong>.</p>
-      <p>You can log in immediately with the following credentials:</p>
-      <p><strong>Email:</strong> ${email.toLowerCase()}</p>
-      <p><strong>Password:</strong> ${defaultPassword}</p>
-      <p><strong>Important:</strong> Please change your password after logging in for security reasons.</p>
-      <p><strong>First-time Login Instructions:</strong></p>
-      <ol>
-        <li>Click the link below to access the system</li>
-        <li>Enter your email and the password provided above</li>
-        <li>After logging in, go to your profile to change your password</li>
-        <li>Kindly change your first name and last name in your profile for us to better identify you</li>
-      </ol>
-      <a href="${appUrl}/login" style="
-          display: inline-block;
-          padding: 10px 20px;
-          background-color: #0066cc;
-          color: white;
-          text-decoration: none;
-          border-radius: 5px;
-      ">Access System</a>
-      <p>If you can't click the button, copy and paste this link into your browser:</p>
-      <p>${appUrl}/login</p>
-      <hr />
-      <p style="font-size: 12px; color: #999;">
-        Sent by Contract Management System – WWF Contracts<br />
-      </p>
+    const appUrl = import.meta.env.VITE_APP_URL || 'https://contract-management-system-omega.vercel.app';
 
+    // Construct HTML content
+    const htmlContent = `
+      <div style="font-family: sans-serif;">
+        <h2>Welcome to the Contract Management System</h2>
+        <p>This is an automated notification from the Contract Management System.</p>
+        <p>An account has been created for you by ${invitedBy}. This system helps manage and track contracts efficiently.</p>
+        <p>You can log in immediately using the credentials below:</p>
+        <p><strong>Login email:</strong> ${email.toLowerCase()}</p>
+        <p><strong>Temporary access code:</strong> ${defaultPassword}</p>
+        <p style="font-size: 12px; color: #999;">This is a temporary credential for your first login. For your security, please change it immediately after accessing the system.</p>
+        <p>You can access the system here:</p>
+        <p><a href="${appUrl}">${appUrl}</a></p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;"/>
+        <p style="font-size: 12px; color: #999;">
+          Sent by Contract Management System – WWF Contracts<br />
+        </p>
+      </div>
+    `;
+
+    // Construct plain text content
+    const textContent = `
+Welcome to the Contract Management System
+
+This is an automated notification from the Contract Management System.
+
+An account has been created for you by ${invitedBy}. This system helps manage and track contracts efficiently.
+
+You can log in immediately using the credentials below:
+
+Login email: ${email.toLowerCase()}
+Temporary access code: ${defaultPassword}
+
+(This is a temporary credential for your first login. For your security, please change it immediately after accessing the system.)
+
+You can access the system here:
+${appUrl}
+
+---
+Sent by Contract Management System – WWF Contracts
     `;
 
     await sendNotificationEmail(
       email.toLowerCase(),
       'Your Contract Management System Account',
-      htmlContent
+      htmlContent,
+      textContent // Pass the text content
     );
   } catch (error) {
     console.error('Error sending account creation email:', error);
