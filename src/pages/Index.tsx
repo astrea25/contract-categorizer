@@ -21,6 +21,7 @@ import ContractCard from '@/components/contracts/ContractCard';
 import PageTransition from '@/components/layout/PageTransition';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
+import { Badge } from '@/components/ui/badge';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -268,51 +269,38 @@ const Index = () => {
 
   // Helper function to get days since last edit with actual date
   const getDaysSinceLastEdit = (updatedAt: string | null): string => {
-    if (!updatedAt) return '-';
+    if (!updatedAt) return 'N/A';
     try {
-      const date = parseISO(updatedAt);
-      const days = differenceInDays(new Date(), date);
-      const actualDate = format(date, 'MMM d, yyyy'); // Format: e.g., Apr 9, 2025
-
-      // Handle potential NaN or invalid dates
-      if (isNaN(days)) return `- (${actualDate})`;
-
-      let relativeDate: string;
-      if (days === 0) {
-        relativeDate = 'Today';
-      } else if (days === 1) {
-        relativeDate = '1 day ago';
-      } else {
-        relativeDate = `${days} days ago`;
-      }
-      return `${relativeDate} (${actualDate})`;
+      const lastEditDate = parseISO(updatedAt);
+      const days = differenceInDays(new Date(), lastEditDate);
+      if (days === 0) return 'today';
+      if (days === 1) return 'yesterday';
+      return `${days} days ago`;
     } catch (e) {
-      // console.error("Error parsing updatedAt date:", updatedAt, e);
-      return '-'; // Return simple dash on error
+      console.error("Error parsing updatedAt:", updatedAt, e);
+      return 'N/A'; // Return N/A if date parsing fails
     }
   };
 
-  // Helper function to get the display identifier for the last editor
+  // Helper to get the display name or email of the last editor
   const getLastEditorDisplay = (contract: Contract): string => {
-    // Current data structure only provides email in the timeline.
-    // Future enhancement: Fetch user profile to get name based on email.
-    if (contract.timeline && contract.timeline.length > 0) {
-      const lastEntry = contract.timeline[contract.timeline.length - 1];
-      // Prioritize userName if it were available, otherwise use userEmail
-      // return lastEntry.userName || lastEntry.userEmail;
-      return lastEntry.userEmail; // Use email as name is not available in timeline entry
+    if (!contract.timeline || contract.timeline.length === 0) {
+      // Fallback to owner if no timeline
+      return contract.owner; // Consider fetching owner's name here if needed
     }
-    // Fallback to owner email if timeline is empty
-    return contract.owner || 'Unknown';
+
+    // Sort timeline to get the latest entry
+    const latestEntry = [...contract.timeline].sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    )[0];
+
+    // Return userName if available, otherwise userEmail
+    return latestEntry.userName || latestEntry.userEmail || 'Unknown User';
   };
 
   // Helper function to format status strings
   const formatStatus = (status: string): string => {
-    if (!status) return '-';
-    return status
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
+    return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
   return (
@@ -695,26 +683,44 @@ const Index = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Project Name</TableHead>
-                        <TableHead>Last Edited</TableHead>
-                        <TableHead>Progress</TableHead>
+                        <TableHead>Contract</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Last Updated</TableHead>
                         <TableHead>Editor</TableHead>
-                        <TableHead>Actions</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {contracts.map(contract => (
                         <TableRow key={contract.id}>
                           <TableCell>
-                            <Link to={`/contracts/${contract.id}`} className="font-medium hover:underline">
-                              {contract.projectName || 'Untitled Contract'}
+                            <Link
+                              to={`/contracts/${contract.id}`}
+                              className="font-medium hover:underline text-primary"
+                            >
+                              {contract.title}
                             </Link>
+                            <p className="text-xs text-muted-foreground">
+                              {contract.projectName}
+                            </p>
                           </TableCell>
-                          <TableCell>{getDaysSinceLastEdit(contract.updatedAt)}</TableCell>
-                          <TableCell>{formatStatus(contract.status)}</TableCell>
-                          <TableCell>{getLastEditorDisplay(contract)}</TableCell>
                           <TableCell>
-                            <Button variant="outline" size="sm" asChild>
+                             <Badge variant="secondary">
+                               {formatStatus(contract.status)}
+                             </Badge>
+                          </TableCell>
+                          <TableCell>
+                             {getDaysSinceLastEdit(contract.updatedAt)}
+                          </TableCell>
+                          <TableCell>
+                            {getLastEditorDisplay(contract)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              asChild
+                            >
                               <Link to={`/contracts/${contract.id}`}>View</Link>
                             </Button>
                           </TableCell>

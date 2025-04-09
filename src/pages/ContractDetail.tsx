@@ -113,7 +113,10 @@ const ContractDetail = () => {
     if (!contract || !id || !currentUser?.email || !isAuthorized) return;
 
     try {
-      await updateContract(id, updatedData, currentUser.email);
+      await updateContract(id, updatedData, {
+        email: currentUser.email,
+        displayName: currentUser.displayName
+      });
 
       const updatedContract = await getContract(id);
       if (updatedContract) {
@@ -130,14 +133,15 @@ const ContractDetail = () => {
 
     try {
       setIsArchiving(true);
+      const user = { email: currentUser.email, displayName: currentUser.displayName };
 
       if (contract.archived) {
         // Unarchive the contract
-        await unarchiveContract(id, currentUser.email);
+        await unarchiveContract(id, user);
         toast.success('Contract restored from archive');
       } else {
         // Archive the contract
-        await archiveContract(id, currentUser.email);
+        await archiveContract(id, user);
         toast.success('Contract archived successfully');
       }
 
@@ -189,7 +193,10 @@ const ContractDetail = () => {
 
     try {
       setUpdatingStatus(true);
-      await updateContract(id, { status: newStatus }, currentUser.email);
+      await updateContract(id, { status: newStatus }, {
+        email: currentUser.email,
+        displayName: currentUser.displayName
+      });
 
       const updatedContract = await getContract(id);
       if (updatedContract) {
@@ -207,7 +214,10 @@ const ContractDetail = () => {
     if (!contract || !id || !currentUser?.email || !isAuthorized) return;
 
     try {
-      await updateContract(id, { approvers }, currentUser.email);
+      await updateContract(id, { approvers }, {
+        email: currentUser.email,
+        displayName: currentUser.displayName
+      });
 
       const updatedContract = await getContract(id);
       if (updatedContract) {
@@ -522,19 +532,21 @@ const ContractDetail = () => {
                   {(showAllTimelineEntries
                     ? [...contract.timeline].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
                     : [...contract.timeline].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, DEFAULT_TIMELINE_ENTRIES))
-                    .map((event, index, displayedTimeline) => {
+                    .map((entry, index, displayedTimeline) => {
                       // Check if this is a status change event
-                      const isStatusChange = event.action.startsWith('Status Changed to');
+                      const isStatusChange = entry.action.startsWith('Status Changed to');
 
                       // Extract status from the action text if it's a status change
                       let statusKey: ContractStatus | null = null;
                       if (isStatusChange) {
-                        const statusText = event.action.replace('Status Changed to ', '');
+                        const statusText = entry.action.replace('Status Changed to ', '');
                         // Convert the formatted status back to the status key
                         if (statusText === 'Legal Review') statusKey = 'legal_review';
                         else if (statusText === 'Management Review') statusKey = 'management_review';
                         else statusKey = statusText.toLowerCase() as ContractStatus;
                       }
+
+                      const userIdentifier = entry.userName || entry.userEmail; // Prioritize userName
 
                       return (
                         <div key={index} className="flex items-start">
@@ -553,13 +565,13 @@ const ContractDetail = () => {
                           </div>
                           <div className="pt-0">
                             <div className={`font-medium ${isStatusChange && statusKey ? statusColors[statusKey].text : ''}`}>
-                              {event.action}{event.details ? formatTimelineDetails(event.details, isStatusChange) : ''}
+                              {entry.action}{entry.details ? formatTimelineDetails(entry.details, isStatusChange) : ''}
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              {new Date(event.timestamp).toLocaleString()}
+                              {new Date(entry.timestamp).toLocaleString()}
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              By: {event.userEmail}
+                              By: {userIdentifier}
                             </div>
                           </div>
                         </div>

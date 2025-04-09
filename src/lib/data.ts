@@ -67,6 +67,7 @@ export interface Contract {
     timestamp: string;
     action: string;
     userEmail: string;
+    userName?: string; // Added optional user name for display
     details?: string;
   }[];
   comments?: Comment[];
@@ -240,7 +241,7 @@ export const getContract = async (id: string): Promise<Contract | null> => {
 
 export const createContract = async (
   contract: Omit<Contract, 'id' | 'createdAt' | 'updatedAt'>,
-  creatorEmail: string
+  creator: { email: string; displayName?: string | null }
 ): Promise<string> => {
   const now = Timestamp.now();
   const initialStatus = contract.status || 'draft';
@@ -249,315 +250,254 @@ export const createContract = async (
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 
-  // Create a clean contract object with no undefined values
-  const cleanContract = { ...contract };
-
-  // Ensure folderId is null and not undefined if it doesn't exist
-  if (cleanContract.folderId === undefined) {
-    cleanContract.folderId = null;
-  }
-
-  const contractToCreate = {
-    ...cleanContract,
-    createdAt: now,
-    updatedAt: now,
-    timeline: [{
-      timestamp: now.toDate().toISOString(),
-      action: `Contract Created with ${formattedStatus} Status`,
-      userEmail: creatorEmail,
-      details: 'Contract was initially created'
-    }]
+  // Create the initial timeline entry
+  const initialTimelineEntry = {
+    timestamp: now.toDate().toISOString(),
+    action: 'Contract Created',
+    userEmail: creator.email,
+    userName: creator.displayName || undefined,
+    details: `Initial status set to ${formattedStatus}`
   };
 
-  const docRef = await addDoc(collection(db, 'contracts'), contractToCreate);
+  const newContract = {
+    ...contract,
+    status: initialStatus,
+    owner: creator.email,
+    createdAt: now.toDate().toISOString(),
+    updatedAt: now.toDate().toISOString(),
+    archived: false,
+    timeline: [initialTimelineEntry]
+  };
+
+  const docRef = await addDoc(collection(db, 'contracts'), newContract);
   return docRef.id;
 };
 
-export const updateContract = async (id: string, contract: Partial<Omit<Contract, 'id' | 'createdAt'>>, editorEmail: string): Promise<void> => {
-  const contractRef = doc(db, 'contracts', id);
-  const currentContract = await getContract(id);
+export const updateContract = async (
+  id: string,
+  contractUpdates: Partial<Omit<Contract, 'id' | 'createdAt'>>,
+  editor: { email: string; displayName?: string | null }
+): Promise<void> => {
+  const contractDoc = doc(db, 'contracts', id);
+  const now = Timestamp.now();
 
-  if (!currentContract) {
+  // Fetch the current contract data to compare changes
+  const currentContractSnap = await getDoc(contractDoc);
+  if (!currentContractSnap.exists()) {
     throw new Error('Contract not found');
   }
+  const currentContractData = currentContractSnap.data() as Contract;
 
-  // Determine what changed
-  const changes: string[] = [];
-  let statusChanged = false;
-  let newStatus = '';
-  let approversChanged = false;
+  // Prepare the update data
+  const updateData: Record<string, any> = {
+    ...contractUpdates,
+    updatedAt: now.toDate().toISOString(),
+  };
 
-  if (contract.title && contract.title !== currentContract.title) {
-    changes.push('title');
-  }
-  if (contract.status && contract.status !== currentContract.status) {
-    changes.push('status');
-    statusChanged = true;
-    newStatus = contract.status;
-  }
-  if (contract.projectName && contract.projectName !== currentContract.projectName) {
-    changes.push('project name');
-  }
-  if (contract.value !== undefined && contract.value !== currentContract.value) {
-    changes.push('contract value');
-  }
-  if (contract.description && contract.description !== currentContract.description) {
-    changes.push('description');
-  }
-  if (contract.startDate && contract.startDate !== currentContract.startDate) {
-    changes.push('start date');
-  }
-  if (contract.endDate !== undefined && contract.endDate !== currentContract.endDate) {
-    changes.push('end date');
-  }
-  if (contract.documentLink !== undefined && contract.documentLink !== currentContract.documentLink) {
-    changes.push('document link');
-  }
+  // Prepare timeline entries based on changes
+  const newTimelineEntries: any[] = [];
 
-  // More robust comparison for parties
-  if (contract.parties) {
-    const partiesChanged = arePartiesDifferent(contract.parties, currentContract.parties);
-    if (partiesChanged) {
-      changes.push('parties');
-    }
-  }
-
-  // Create a timeline entry if changes were made
-  const now = Timestamp.now();
-  const existingTimeline = currentContract.timeline || [];
-  let timeline = [...existingTimeline];
-
-  // Check for approvers changes
-  if (contract.approvers && JSON.stringify(contract.approvers) !== JSON.stringify(currentContract.approvers)) {
-    approversChanged = true;
-
-    // Check for legal approver changes
-    if (contract.approvers.legal && (!currentContract.approvers?.legal ||
-        contract.approvers.legal.email !== currentContract.approvers.legal.email)) {
-      timeline.push({
-        timestamp: now.toDate().toISOString(),
-        action: 'Legal Approver Assigned',
-        userEmail: editorEmail,
-        details: contract.approvers.legal.name
-      });
-    } else if (currentContract.approvers?.legal && !contract.approvers.legal) {
-      timeline.push({
-        timestamp: now.toDate().toISOString(),
-        action: 'Legal Approver Removed',
-        userEmail: editorEmail,
-        details: currentContract.approvers.legal.name
-      });
-    }
-
-    // Check for management approver changes
-    if (contract.approvers.management && (!currentContract.approvers?.management ||
-        contract.approvers.management.email !== currentContract.approvers.management.email)) {
-      timeline.push({
-        timestamp: now.toDate().toISOString(),
-        action: 'Management Approver Assigned',
-        userEmail: editorEmail,
-        details: contract.approvers.management.name
-      });
-    } else if (currentContract.approvers?.management && !contract.approvers.management) {
-      timeline.push({
-        timestamp: now.toDate().toISOString(),
-        action: 'Management Approver Removed',
-        userEmail: editorEmail,
-        details: currentContract.approvers.management.name
-      });
-    }
-
-    // Check for approval status changes
-    if (contract.approvers.legal?.approved &&
-        (!currentContract.approvers?.legal?.approved || currentContract.approvers.legal.approved === false)) {
-      timeline.push({
-        timestamp: now.toDate().toISOString(),
-        action: 'Legal Approval Granted',
-        userEmail: editorEmail,
-        details: contract.approvers.legal.name
-      });
-    }
-
-    // Check for legal approval withdrawal
-    if (currentContract.approvers?.legal?.approved === true &&
-        contract.approvers.legal?.approved === false) {
-      timeline.push({
-        timestamp: now.toDate().toISOString(),
-        action: 'Legal Approval Withdrawn',
-        userEmail: editorEmail,
-        details: contract.approvers.legal.name
-      });
-    }
-
-    // Check for legal approval decline
-    if (contract.approvers.legal?.declined === true &&
-        (!currentContract.approvers?.legal?.declined || currentContract.approvers.legal.declined === false)) {
-      timeline.push({
-        timestamp: now.toDate().toISOString(),
-        action: 'Legal Approval Declined',
-        userEmail: editorEmail,
-        details: contract.approvers.legal.name
-      });
-    }
-
-    if (contract.approvers.management?.approved &&
-        (!currentContract.approvers?.management?.approved || currentContract.approvers.management.approved === false)) {
-      timeline.push({
-        timestamp: now.toDate().toISOString(),
-        action: 'Management Approval Granted',
-        userEmail: editorEmail,
-        details: contract.approvers.management.name
-      });
-    }
-
-    // Check for management approval withdrawal
-    if (currentContract.approvers?.management?.approved === true &&
-        contract.approvers.management?.approved === false) {
-      timeline.push({
-        timestamp: now.toDate().toISOString(),
-        action: 'Management Approval Withdrawn',
-        userEmail: editorEmail,
-        details: contract.approvers.management.name
-      });
-    }
-
-    // Check for management approval decline
-    if (contract.approvers.management?.declined === true &&
-        (!currentContract.approvers?.management?.declined || currentContract.approvers.management.declined === false)) {
-      timeline.push({
-        timestamp: now.toDate().toISOString(),
-        action: 'Management Approval Declined',
-        userEmail: editorEmail,
-        details: contract.approvers.management.name
-      });
-    }
-  }
-
-  if (changes.length > 0 && !approversChanged) {
-    // If status changed, use that as the primary action
-    const action = statusChanged
-      ? `Status Changed to ${newStatus
-          .split('_')
-          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(' ')}`
-      : 'Contract Edited';
-
-    timeline.push({
+  // Check for changes in specific fields and create timeline entries
+  if (contractUpdates.title && contractUpdates.title !== currentContractData.title) {
+    newTimelineEntries.push({
       timestamp: now.toDate().toISOString(),
-      action,
-      userEmail: editorEmail,
-      details: `${changes.join(', ')}`
+      action: 'Title Updated',
+      userEmail: editor.email,
+      userName: editor.displayName || undefined,
+      details: `Changed from "${currentContractData.title}" to "${contractUpdates.title}"`
+    });
+  }
+  if (contractUpdates.projectName && contractUpdates.projectName !== currentContractData.projectName) {
+    newTimelineEntries.push({
+      timestamp: now.toDate().toISOString(),
+      action: 'Project Name Updated',
+      userEmail: editor.email,
+      userName: editor.displayName || undefined,
+      details: `Changed from "${currentContractData.projectName}" to "${contractUpdates.projectName}"`
+    });
+  }
+  if (contractUpdates.description && contractUpdates.description !== currentContractData.description) {
+    newTimelineEntries.push({
+      timestamp: now.toDate().toISOString(),
+      action: 'Description Updated',
+      userEmail: editor.email,
+      userName: editor.displayName || undefined
+      // Details might be too long for description, omit for brevity or consider summarizing
+    });
+  }
+  if (contractUpdates.type && contractUpdates.type !== currentContractData.type) {
+    newTimelineEntries.push({
+      timestamp: now.toDate().toISOString(),
+      action: 'Type Updated',
+      userEmail: editor.email,
+      userName: editor.displayName || undefined,
+      details: `Changed from ${contractTypeLabels[currentContractData.type]} to ${contractTypeLabels[contractUpdates.type]}`
+    });
+  }
+  if (contractUpdates.status && contractUpdates.status !== currentContractData.status) {
+    const formattedStatus = contractUpdates.status
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+    const timelineEntry = {
+      timestamp: now.toDate().toISOString(),
+      action: `Status Changed to ${formattedStatus}`,
+      userEmail: editor.email,
+      userName: editor.displayName || undefined,
+      // Details are implicit in the action
+    };
+
+    newTimelineEntries.push(timelineEntry);
+  }
+  if (contractUpdates.startDate && contractUpdates.startDate !== currentContractData.startDate) {
+    newTimelineEntries.push({
+      timestamp: now.toDate().toISOString(),
+      action: 'Start Date Updated',
+      userEmail: editor.email,
+      userName: editor.displayName || undefined,
+      details: `Changed from ${currentContractData.startDate} to ${contractUpdates.startDate}`
+    });
+  }
+  if (contractUpdates.endDate !== undefined && contractUpdates.endDate !== currentContractData.endDate) {
+    newTimelineEntries.push({
+      timestamp: now.toDate().toISOString(),
+      action: 'End Date Updated',
+      userEmail: editor.email,
+      userName: editor.displayName || undefined,
+      details: `Changed from ${currentContractData.endDate || 'Ongoing'} to ${contractUpdates.endDate || 'Ongoing'}`
+    });
+  }
+  if (contractUpdates.value !== undefined && contractUpdates.value !== currentContractData.value) {
+    newTimelineEntries.push({
+      timestamp: now.toDate().toISOString(),
+      action: 'Value Updated',
+      userEmail: editor.email,
+      userName: editor.displayName || undefined,
+      details: `Changed from ${currentContractData.value?.toLocaleString() || 'N/A'} to ${contractUpdates.value?.toLocaleString() || 'N/A'}`
+    });
+  }
+  if (contractUpdates.parties && arePartiesDifferent(contractUpdates.parties, currentContractData.parties)) {
+    newTimelineEntries.push({
+      timestamp: now.toDate().toISOString(),
+      action: 'Parties Updated',
+      userEmail: editor.email,
+      userName: editor.displayName || undefined
+      // Details could list added/removed parties if needed, complex logic omitted
+    });
+  }
+  if (contractUpdates.documentLink !== undefined && contractUpdates.documentLink !== currentContractData.documentLink) {
+    newTimelineEntries.push({
+      timestamp: now.toDate().toISOString(),
+      action: 'Document Link Updated',
+      userEmail: editor.email,
+      userName: editor.displayName || undefined
+    });
+  }
+  // Logic for approvers update might need specific handling if approvers can be updated directly here
+  if (contractUpdates.approvers) {
+    // Determine changes in approvers (complex logic potentially needed)
+    // For simplicity, just log that approvers were updated
+    newTimelineEntries.push({
+      timestamp: now.toDate().toISOString(),
+      action: 'Approvers Updated',
+      userEmail: editor.email,
+      userName: editor.displayName || undefined
+      // Add details about which approvers changed if necessary
     });
   }
 
-  await updateDoc(contractRef, {
-    ...contract,
-    updatedAt: now,
-    timeline
-  });
+  // Add new timeline entries to the existing timeline array
+  if (newTimelineEntries.length > 0) {
+    updateData.timeline = [
+      ...(currentContractData.timeline || []),
+      ...newTimelineEntries,
+    ];
+  }
+
+  try {
+    await updateDoc(contractDoc, updateData);
+  } catch (error) {
+    console.error('Error updating contract:', error);
+    throw error;
+  }
 };
 
-// Helper function to properly compare parties arrays
+// Helper function to compare parties arrays (simple comparison based on stringify)
 const arePartiesDifferent = (newParties: any[], oldParties: any[]): boolean => {
-  if (newParties.length !== oldParties.length) {
-    return true;
-  }
-
-  // Sort both arrays to ensure consistent comparison
+  // Ensure stable order for comparison
   const sortParties = (p: any[]) => [...p].sort((a, b) =>
-    (a.name + a.email + a.role).localeCompare(b.name + b.email + b.role)
-  );
+    (a.email || '').localeCompare(b.email || '') || (a.name || '').localeCompare(b.name || ''));
 
-  const sortedNewParties = sortParties(newParties);
-  const sortedOldParties = sortParties(oldParties);
+  if (!newParties && !oldParties) return false; // Both are null/undefined
+  if (!newParties || !oldParties) return true; // One is null/undefined, the other isn't
+  if (newParties.length !== oldParties.length) return true; // Different lengths
 
-  // Compare each party's properties
-  for (let i = 0; i < sortedNewParties.length; i++) {
-    const newParty = sortedNewParties[i];
-    const oldParty = sortedOldParties[i];
-
-    if (
-      newParty.name !== oldParty.name ||
-      newParty.email !== oldParty.email ||
-      newParty.role !== oldParty.role
-    ) {
-      return true;
-    }
+  try {
+    return JSON.stringify(sortParties(newParties)) !== JSON.stringify(sortParties(oldParties));
+  } catch (e) {
+    console.error("Error comparing parties:", e);
+    return true; // Assume different if error occurs
   }
-
-  return false;
 };
 
 export const deleteContract = async (id: string): Promise<void> => {
-  const contractRef = doc(db, 'contracts', id);
-  await deleteDoc(contractRef);
+  const contractDoc = doc(db, 'contracts', id);
+  await deleteDoc(contractDoc);
 };
 
-export const archiveContract = async (id: string, userEmail: string): Promise<void> => {
-  const contractRef = doc(db, 'contracts', id);
-  const contractSnapshot = await getDoc(contractRef);
-
-  if (!contractSnapshot.exists()) {
-    throw new Error('Contract not found');
-  }
-
+export const archiveContract = async (
+  id: string,
+  archiver: { email: string; displayName?: string | null }
+): Promise<void> => {
+  const contractDoc = doc(db, 'contracts', id);
   const now = Timestamp.now();
-  const currentContract = await getContract(id);
 
-  if (!currentContract) {
-    throw new Error('Contract not found');
-  }
+  // Fetch current timeline
+  const currentContractSnap = await getDoc(contractDoc);
+  const currentTimeline = currentContractSnap.data()?.timeline || [];
 
-  // Add a timeline entry for archiving
-  const existingTimeline = currentContract.timeline || [];
-  const timeline = [...existingTimeline, {
+  // Create archive timeline entry
+  const archiveTimelineEntry = {
     timestamp: now.toDate().toISOString(),
     action: 'Contract Archived',
-    userEmail: userEmail,
-    details: 'Contract was archived'
-  }];
+    userEmail: archiver.email,
+    userName: archiver.displayName || undefined
+  };
 
-  // Update the contract with archived flag and timeline
-  await updateDoc(contractRef, {
+  await updateDoc(contractDoc, {
     archived: true,
-    archivedAt: now,
-    archivedBy: userEmail,
-    updatedAt: now,
-    timeline: timeline
+    archivedAt: now.toDate().toISOString(),
+    archivedBy: archiver.email,
+    updatedAt: now.toDate().toISOString(),
+    timeline: [...currentTimeline, archiveTimelineEntry]
   });
 };
 
-export const unarchiveContract = async (id: string, userEmail: string): Promise<void> => {
-  const contractRef = doc(db, 'contracts', id);
-  const contractSnapshot = await getDoc(contractRef);
-
-  if (!contractSnapshot.exists()) {
-    throw new Error('Contract not found');
-  }
-
+export const unarchiveContract = async (
+  id: string,
+  restorer: { email: string; displayName?: string | null }
+): Promise<void> => {
+  const contractDoc = doc(db, 'contracts', id);
   const now = Timestamp.now();
-  const currentContract = await getContract(id);
 
-  if (!currentContract) {
-    throw new Error('Contract not found');
-  }
+  // Fetch current timeline
+  const currentContractSnap = await getDoc(contractDoc);
+  const currentTimeline = currentContractSnap.data()?.timeline || [];
 
-  // Add a timeline entry for unarchiving
-  const existingTimeline = currentContract.timeline || [];
-  const timeline = [...existingTimeline, {
+  // Create unarchive timeline entry
+  const unarchiveTimelineEntry = {
     timestamp: now.toDate().toISOString(),
-    action: 'Contract Unarchived',
-    userEmail: userEmail,
-    details: 'Contract was restored from archive'
-  }];
+    action: 'Contract Restored',
+    userEmail: restorer.email,
+    userName: restorer.displayName || undefined
+  };
 
-  // Update the contract to remove archived flag and update timeline
-  await updateDoc(contractRef, {
+  await updateDoc(contractDoc, {
     archived: false,
     archivedAt: null,
     archivedBy: null,
-    updatedAt: now,
-    timeline: timeline
+    updatedAt: now.toDate().toISOString(),
+    timeline: [...currentTimeline, unarchiveTimelineEntry]
   });
 };
 
@@ -887,32 +827,50 @@ export const deleteFolder = async (id: string): Promise<void> => {
   await deleteDoc(folderRef);
 };
 
-export const assignContractToFolder = async (contractId: string, folderId: string | null, userEmail: string): Promise<void> => {
-  const contractRef = doc(db, 'contracts', contractId);
-  const currentContract = await getContract(contractId);
+export const assignContractToFolder = async (
+  contractId: string,
+  folderId: string | null,
+  user: { email: string; displayName?: string | null }
+): Promise<void> => {
+  const contractDoc = doc(db, 'contracts', contractId);
+  const now = Timestamp.now();
 
-  if (!currentContract) {
+  // Fetch current contract data to get timeline and folderId
+  const currentContractSnap = await getDoc(contractDoc);
+  if (!currentContractSnap.exists()) {
     throw new Error('Contract not found');
   }
+  const currentData = currentContractSnap.data();
+  const currentTimeline = currentData?.timeline || [];
+  const currentFolderId = currentData?.folderId;
 
-  const now = Timestamp.now();
-  const existingTimeline = currentContract.timeline || [];
-  let timeline = [...existingTimeline];
+  if (currentFolderId === folderId) {
+    // No change needed
+    return;
+  }
 
-  // Create a timeline entry for the folder change
-  timeline.push({
+  let folderName = 'Unassigned';
+  if (folderId) {
+    const folderDoc = doc(db, 'folders', folderId);
+    const folderSnap = await getDoc(folderDoc);
+    if (folderSnap.exists()) {
+      folderName = folderSnap.data()?.name || folderId;
+    }
+  }
+
+  // Create timeline entry for folder change
+  const folderTimelineEntry = {
     timestamp: now.toDate().toISOString(),
-    action: folderId ? 'Contract Moved to Folder' : 'Contract Removed from Folder',
-    userEmail: userEmail,
-    details: folderId
-      ? `Contract was moved to a folder`
-      : `Contract was removed from its folder`
-  });
+    action: folderId ? `Moved to Folder: ${folderName}` : 'Removed from Folder',
+    userEmail: user.email,
+    userName: user.displayName || undefined,
+    details: folderId ? `Assigned to folder ID: ${folderId}` : 'Unassigned from any folder'
+  };
 
-  await updateDoc(contractRef, {
-    folderId,
-    updatedAt: now,
-    timeline
+  await updateDoc(contractDoc, {
+    folderId: folderId,
+    updatedAt: now.toDate().toISOString(),
+    timeline: [...currentTimeline, folderTimelineEntry]
   });
 };
 

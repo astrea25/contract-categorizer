@@ -248,19 +248,18 @@ const Contracts = () => {
         folderId: newContract.folderId === null || newContract.folderId === "none" ? null : (newContract.folderId || (selectedFolder !== 'all' && selectedFolder !== 'archive' ? selectedFolder : null))
       } as Omit<Contract, 'id' | 'createdAt' | 'updatedAt'>;
 
-      try {
-        await createContract(contractToAdd, currentUser.email);
+      await createContract(contractToAdd, {
+        email: currentUser.email,
+        displayName: currentUser.displayName
+      });
 
-        const updatedContracts = await getContracts();
-        setContracts(updatedContracts);
+      const updatedContracts = await getContracts();
+      setContracts(updatedContracts);
 
-        uiToast({
-          title: 'Contract created',
-          description: 'Your new contract has been created successfully.',
-        });
-      } catch (createError) {
-        toast.error(`Failed to create contract: ${createError.message}`);
-      }
+      uiToast({
+        title: 'Contract created',
+        description: 'Your new contract has been created successfully.',
+      });
     } catch (error) {
       toast.error(`Failed to create contract: ${error.message}`);
     }
@@ -286,20 +285,17 @@ const Contracts = () => {
   };
 
   const handleDropContract = async (contractId: string, folderId: string | null) => {
-    if (!currentUser?.email) return;
-
+    if (!currentUser?.email) {
+      toast.error('You must be logged in to move contracts.');
+      return;
+    }
     try {
-      await assignContractToFolder(contractId, folderId, currentUser.email);
+      await assignContractToFolder(contractId, folderId, {
+        email: currentUser.email,
+        displayName: currentUser.displayName
+      });
 
-      // Refresh contracts to update folder assignments
-      const updatedContracts = await getContracts();
-      setContracts(updatedContracts);
-
-      toast.success(
-        folderId
-          ? 'Contract moved to folder'
-          : 'Contract removed from folder'
-      );
+      toast.success(`Contract moved successfully`);
     } catch (error) {
       toast.error('Failed to move contract');
     }
