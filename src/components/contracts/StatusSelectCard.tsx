@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { FileText } from 'lucide-react';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle 
+import { FileText, AlertCircle } from 'lucide-react';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle
 } from '@/components/ui/card';
 import {
   Select,
@@ -13,16 +13,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ContractStatus } from '@/lib/data';
+import { Contract, ContractStatus } from '@/lib/data';
 import ContractStatusBadge from './ContractStatusBadge';
+import { toast } from '@/components/ui/use-toast';
 
 interface StatusSelectCardProps {
   status: ContractStatus;
   onStatusChange: (status: ContractStatus) => Promise<void>;
   isUpdating: boolean;
+  contract: Contract;
 }
 
-const StatusSelectCard = ({ status, onStatusChange, isUpdating }: StatusSelectCardProps) => {
+const StatusSelectCard = ({ status, onStatusChange, isUpdating, contract }: StatusSelectCardProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
   // Status options and their formatted labels
@@ -35,8 +37,35 @@ const StatusSelectCard = ({ status, onStatusChange, isUpdating }: StatusSelectCa
     { value: 'finished', label: 'Finished' },
   ];
 
+  // Check if both legal and management have approved the contract
+  const areBothApproved =
+    contract.approvers?.legal?.approved &&
+    contract.approvers?.management?.approved;
+
   const handleStatusChange = async (value: string) => {
-    await onStatusChange(value as ContractStatus);
+    const newStatus = value as ContractStatus;
+
+    // If trying to change to approval status, check if both approvers have approved
+    if (newStatus === 'approval' && !areBothApproved) {
+      // Check what approvals are missing
+      const missingApprovals = [];
+      if (!contract.approvers?.legal?.approved) missingApprovals.push('Legal');
+      if (!contract.approvers?.management?.approved) missingApprovals.push('Management');
+
+      // If approvers aren't even assigned
+      if (!contract.approvers?.legal) missingApprovals.push('Legal (not assigned)');
+      if (!contract.approvers?.management) missingApprovals.push('Management (not assigned)');
+
+      toast({
+        title: "Cannot change status to Approval",
+        description: `This contract requires approval from both legal and management teams. Missing approvals: ${missingApprovals.join(', ')}.`,
+        variant: "destructive"
+      });
+      setIsOpen(false);
+      return;
+    }
+
+    await onStatusChange(newStatus);
     setIsOpen(false);
   };
 
@@ -51,7 +80,7 @@ const StatusSelectCard = ({ status, onStatusChange, isUpdating }: StatusSelectCa
           <div className="flex items-center space-x-2">
             <ContractStatusBadge status={status} />
           </div>
-          
+
           <Select
             value={status}
             onValueChange={handleStatusChange}
@@ -74,7 +103,7 @@ const StatusSelectCard = ({ status, onStatusChange, isUpdating }: StatusSelectCa
               ))}
             </SelectContent>
           </Select>
-          
+
           {isUpdating && (
             <p className="text-xs text-muted-foreground">Updating status...</p>
           )}
@@ -84,4 +113,4 @@ const StatusSelectCard = ({ status, onStatusChange, isUpdating }: StatusSelectCa
   );
 };
 
-export default StatusSelectCard; 
+export default StatusSelectCard;

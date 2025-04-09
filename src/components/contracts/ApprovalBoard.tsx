@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Check, Search, UserPlus, X, ThumbsDown } from 'lucide-react';
 import { Contract, getLegalTeamMembers, getManagementTeamMembers } from '@/lib/data';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from '@/components/ui/use-toast';
 
 interface TeamMember {
   id: string;
@@ -126,13 +127,17 @@ const ApprovalBoard = ({
   };
 
   // Handle approving as legal team member
-  const handleLegalApprove = () => {
+  const handleLegalApprove = async () => {
     if (!isLegalTeam || !currentUser?.email) return;
 
     // Only allow if the current user is the assigned legal approver
     if (contract.approvers?.legal?.email.toLowerCase() !== currentUser.email.toLowerCase()) return;
 
-    onUpdateApprovers({
+    // Check if management has already approved
+    const managementAlreadyApproved = contract.approvers?.management?.approved;
+
+    // Update approvers
+    await onUpdateApprovers({
       ...contract.approvers,
       legal: {
         ...contract.approvers.legal!,
@@ -140,6 +145,25 @@ const ApprovalBoard = ({
         approvedAt: new Date().toISOString()
       }
     });
+
+    // If management has already approved, automatically update status to approval
+    if (managementAlreadyApproved && contract.status !== 'approval') {
+      // Import the updateContract function
+      const { updateContract } = await import('@/lib/data');
+
+      // Update the contract status to approval
+      await updateContract(contract.id, { status: 'approval' }, currentUser.email);
+
+      // Show success message
+      toast({
+        title: "Contract Status Updated",
+        description: "Both approvals granted. Contract status has been automatically updated to Approval.",
+        variant: "default"
+      });
+
+      // Refresh the page to show the updated status
+      window.location.reload();
+    }
   };
 
   // Handle disapproving as legal team member
@@ -160,13 +184,17 @@ const ApprovalBoard = ({
   };
 
   // Handle approving as management team member
-  const handleManagementApprove = () => {
+  const handleManagementApprove = async () => {
     if (!isManagementTeam || !currentUser?.email) return;
 
     // Only allow if the current user is the assigned management approver
     if (contract.approvers?.management?.email.toLowerCase() !== currentUser.email.toLowerCase()) return;
 
-    onUpdateApprovers({
+    // Check if legal has already approved
+    const legalAlreadyApproved = contract.approvers?.legal?.approved;
+
+    // Update approvers
+    await onUpdateApprovers({
       ...contract.approvers,
       management: {
         ...contract.approvers.management!,
@@ -174,6 +202,25 @@ const ApprovalBoard = ({
         approvedAt: new Date().toISOString()
       }
     });
+
+    // If legal has already approved, automatically update status to approval
+    if (legalAlreadyApproved && contract.status !== 'approval') {
+      // Import the updateContract function
+      const { updateContract } = await import('@/lib/data');
+
+      // Update the contract status to approval
+      await updateContract(contract.id, { status: 'approval' }, currentUser.email);
+
+      // Show success message
+      toast({
+        title: "Contract Status Updated",
+        description: "Both approvals granted. Contract status has been automatically updated to Approval.",
+        variant: "default"
+      });
+
+      // Refresh the page to show the updated status
+      window.location.reload();
+    }
   };
 
   // Handle disapproving as management team member

@@ -374,6 +374,7 @@ const ContractDetail = () => {
             status={contract.status}
             onStatusChange={handleStatusChange}
             isUpdating={updatingStatus}
+            contract={contract}
           />
 
           {contract.value !== null && (
