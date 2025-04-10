@@ -7,7 +7,7 @@ import {
   updateProfile
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { isUserAllowed, registerUser, isUserAdmin, isUserLegalTeam, isUserManagementTeam } from "@/lib/data";
+import { isUserAllowed, registerUser, isUserAdmin, isUserLegalTeam, isUserManagementTeam, isUserApprover } from "@/lib/data";
 
 interface AuthContextType {
   currentUser: User | null;
@@ -15,6 +15,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isLegalTeam: boolean;
   isManagementTeam: boolean;
+  isApprover: boolean;
   userRole: string;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   // signUpWithEmail removed
@@ -39,6 +40,7 @@ interface UserState {
   isAdmin: boolean;
   isLegalTeam: boolean;
   isManagementTeam: boolean;
+  isApprover: boolean;
   userRole: string;
 }
 
@@ -48,6 +50,7 @@ const initialUserState: UserState = {
   isAdmin: false,
   isLegalTeam: false,
   isManagementTeam: false,
+  isApprover: false,
   userRole: "user"
 };
 
@@ -129,6 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const admin = await isUserAdmin(user.email || '');
       const legal = await isUserLegalTeam(user.email || '');
       const management = await isUserManagementTeam(user.email || '');
+      const approver = await isUserApprover(user.email || '');
 
       // Determine primary display role (for UI purposes)
       // A user can be both admin and legal/management team member
@@ -139,6 +143,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role = "Legal Team";
       } else if (management) {
         role = "Management Team";
+      } else if (approver) {
+        role = "Approver";
       }
 
       // Return the new user state with all role flags
@@ -148,6 +154,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAdmin: admin,
         isLegalTeam: legal,
         isManagementTeam: management,
+        isApprover: approver,
         userRole: role
       };
     } catch (error) {
@@ -184,6 +191,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isAdmin: false,
           isLegalTeam: false,
           isManagementTeam: false,
+          isApprover: false,
           userRole: "user"
         });
         setLoading(false);

@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Check, Search, UserPlus, X, ThumbsDown } from 'lucide-react';
-import { Contract, getLegalTeamMembers, getManagementTeamMembers } from '@/lib/data';
+import { Contract, getLegalTeamMembers, getManagementTeamMembers, getApprovers, normalizeApprovers, updateContract } from '@/lib/data';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/components/ui/use-toast';
 
@@ -14,6 +14,27 @@ interface TeamMember {
   email: string;
   displayName: string;
   createdAt: string;
+}
+
+// Add type definitions for approvers
+interface Approver {
+  email: string;
+  name: string;
+  approved: boolean;
+  declined?: boolean;
+  approvedAt?: string | null;
+  declinedAt?: string | null;
+}
+
+// Fix the type for the Contract interface to properly support arrays of approvers
+type ApproverArray = Approver[];
+type ApproverOrArray = Approver | ApproverArray;
+
+// Create a type-safe wrapper for the approvers object
+interface TypedApprovers {
+  legal?: ApproverArray;
+  management?: ApproverArray;
+  approver?: ApproverArray;
 }
 
 interface ApprovalBoardProps {
@@ -27,16 +48,30 @@ const ApprovalBoard = ({
   onUpdateApprovers,
   isRequired
 }: ApprovalBoardProps) => {
-  const { isAdmin, isLegalTeam, isManagementTeam, currentUser } = useAuth();
+  const { isAdmin, isLegalTeam, isManagementTeam, isApprover, currentUser } = useAuth();
   const [legalTeamMembers, setLegalTeamMembers] = useState<TeamMember[]>([]);
   const [managementTeamMembers, setManagementTeamMembers] = useState<TeamMember[]>([]);
+  const [approverMembers, setApproverMembers] = useState<TeamMember[]>([]);
   const [legalSearch, setLegalSearch] = useState('');
   const [managementSearch, setManagementSearch] = useState('');
+  const [approverSearch, setApproverSearch] = useState('');
   const [filteredLegalMembers, setFilteredLegalMembers] = useState<TeamMember[]>([]);
   const [filteredManagementMembers, setFilteredManagementMembers] = useState<TeamMember[]>([]);
+  const [filteredApproverMembers, setFilteredApproverMembers] = useState<TeamMember[]>([]);
   const [showLegalDropdown, setShowLegalDropdown] = useState(false);
   const [showManagementDropdown, setShowManagementDropdown] = useState(false);
+  const [showApproverDropdown, setShowApproverDropdown] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Normalize contract approvers
+  const normalizedContract = normalizeApprovers(contract);
+
+  // Get approver limits
+  const approverLimits = normalizedContract.approverLimits || {
+    legal: 2,
+    management: 5,
+    approver: 1  // Changed from 5 back to 1 for Approver Team
+  };
 
   // Fetch team members
   useEffect(() => {
@@ -45,16 +80,16 @@ const ApprovalBoard = ({
         setLoading(true);
         const legalMembers = await getLegalTeamMembers() as TeamMember[];
         const managementMembers = await getManagementTeamMembers() as TeamMember[];
-
+        const approvers = await getApprovers() as TeamMember[];
         setLegalTeamMembers(legalMembers);
         setManagementTeamMembers(managementMembers);
+        setApproverMembers(approvers);
       } catch (error) {
         console.error('Error fetching team members:', error);
       } finally {
         setLoading(false);
       }
     };
-
     fetchTeamMembers();
   }, []);
 
@@ -86,15 +121,52 @@ const ApprovalBoard = ({
     }
   }, [managementSearch, managementTeamMembers]);
 
+  // Filter approver members based on search
+  useEffect(() => {
+    if (approverSearch.trim() === '') {
+      setFilteredApproverMembers(approverMembers);
+    } else {
+      const filtered = approverMembers.filter(
+        member =>
+          member.email.toLowerCase().includes(approverSearch.toLowerCase()) ||
+          (member.displayName && member.displayName.toLowerCase().includes(approverSearch.toLowerCase()))
+      );
+      setFilteredApproverMembers(filtered);
+    }
+  }, [approverSearch, approverMembers]);
+
   // Handle selecting a legal team member
   const handleSelectLegalMember = (member: TeamMember) => {
+    // Get the current legal approvers
+    const normalizedContract = normalizeApprovers(contract);
+    const currentLegalApprovers = Array.isArray(normalizedContract.approvers?.legal) 
+      ? normalizedContract.approvers.legal 
+      : normalizedContract.approvers?.legal ? [normalizedContract.approvers.legal] : [];
+
+    // Check if we've reached the limit
+    if (currentLegalApprovers.length >= approverLimits.legal) {
+      toast({
+        title: 'Limit Reached',
+        description: `You can only add up to ${approverLimits.legal} legal team approver(s)`,
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Add the new legal approver
     onUpdateApprovers({
-      ...contract.approvers,
-      legal: {
-        email: member.email,
-        name: member.displayName || member.email,
-        approved: false
-      }
+      ...normalizedContract.approvers,
+      legal: [
+        ...currentLegalApprovers,
+        {
+          email: member.email,
+          name: member.displayName || member.email,
+          approved: false,
+          declined: false,
+          approvedAt: null,
+          declinedAt: null,
+        } as Approver
+      ]
     });
     setShowLegalDropdown(false);
     setLegalSearch('');
@@ -102,279 +174,516 @@ const ApprovalBoard = ({
 
   // Handle selecting a management team member
   const handleSelectManagementMember = (member: TeamMember) => {
+    // Get the current management approvers
+    const normalizedContract = normalizeApprovers(contract);
+    const currentManagementApprovers = getManagementApprovers();
+
+    // Check if we've reached the limit
+    if (currentManagementApprovers.length >= approverLimits.management) {
+      toast({
+        title: 'Limit Reached',
+        description: `You can only add up to ${approverLimits.management} management team approver(s)`,
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Add the new management approver
     onUpdateApprovers({
-      ...contract.approvers,
-      management: {
-        email: member.email,
-        name: member.displayName || member.email,
-        approved: false
-      }
+      ...normalizedContract.approvers,
+      management: [
+        ...currentManagementApprovers,
+        {
+          email: member.email,
+          name: member.displayName || member.email,
+          approved: false,
+          declined: false,
+          approvedAt: null,
+          declinedAt: null,
+        } as Approver
+      ]
     });
     setShowManagementDropdown(false);
     setManagementSearch('');
   };
 
   // Handle removing a legal team approver
-  const handleRemoveLegalApprover = () => {
-    const { legal, ...rest } = contract.approvers || {};
-    onUpdateApprovers(rest);
+  const handleRemoveLegalApprover = (email: string) => {
+    const normalizedContract = normalizeApprovers(contract);
+    const currentLegalApprovers = getLegalApprovers();
+    
+    // Filter out the approver to remove
+    const updatedLegalApprovers = currentLegalApprovers.filter(approver => approver.email !== email);
+    // Update the approvers
+    onUpdateApprovers({
+      ...normalizedContract.approvers,
+      legal: updatedLegalApprovers.length > 0 ? updatedLegalApprovers : undefined
+    });
   };
 
   // Handle removing a management team approver
-  const handleRemoveManagementApprover = () => {
-    const { management, ...rest } = contract.approvers || {};
-    onUpdateApprovers(rest);
+  const handleRemoveManagementApprover = (email: string) => {
+    const normalizedContract = normalizeApprovers(contract);
+    const currentManagementApprovers = getManagementApprovers();
+    
+    // Filter out the approver to remove
+    const updatedManagementApprovers = currentManagementApprovers.filter(approver => approver.email !== email);
+    // Update the approvers
+    onUpdateApprovers({
+      ...normalizedContract.approvers,
+      management: updatedManagementApprovers.length > 0 ? updatedManagementApprovers : undefined
+    });
   };
 
-  // Handle approving as legal team member
+  // Handle selecting an approver
+  const handleSelectApprover = (member: TeamMember) => {
+    // Get the current approvers
+    const normalizedContract = normalizeApprovers(contract);
+    const currentApprovers = normalizedContract.approvers?.approver || [];
+
+    // Check if we've reached the limit
+    if (currentApprovers.length >= approverLimits.approver) {
+      toast({
+        title: 'Limit Reached',
+        description: `You can only add 1 Approver Team member, who must approve for contract completion`,
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Add the new approver
+    onUpdateApprovers({
+      ...normalizedContract.approvers,
+      approver: [
+        ...currentApprovers,
+        {
+          email: member.email,
+          name: member.displayName || member.email,
+          approved: false,
+          declined: false,
+          approvedAt: null,
+          declinedAt: null,
+        }
+      ]
+    });
+    setShowApproverDropdown(false);
+    setApproverSearch('');
+  };
+
+  // Handle removing an approver
+  const handleRemoveApprover = (email: string) => {
+    const normalizedContract = normalizeApprovers(contract);
+    const currentApprovers = normalizedContract.approvers?.approver || [];
+    // Filter out the approver to remove
+    const updatedApprovers = currentApprovers.filter(approver => approver.email !== email);
+    // Update the approvers
+    onUpdateApprovers({
+      ...normalizedContract.approvers,
+      approver: updatedApprovers.length > 0 ? updatedApprovers : undefined
+    });
+  };
+
+  // Handle approving as an approver
+  const handleApproverApprove = async (email: string) => {
+    if (!isApprover || !currentUser?.email) return;
+
+    // Only allow if the current user is the assigned approver
+    const normalizedContract = normalizeApprovers(contract);
+    const currentApprovers = normalizedContract.approvers?.approver || [];
+    const userApprover = currentApprovers.find(approver => approver.email.toLowerCase() === currentUser.email.toLowerCase());
+    if (!userApprover) return;
+
+    // Update the specific approver's status
+    const updatedApprovers = currentApprovers.map(approver => {
+      if (approver.email.toLowerCase() === currentUser.email.toLowerCase()) {
+        return {
+          ...approver,
+          approved: true,
+          declined: false,
+          declinedAt: null,
+          approvedAt: new Date().toISOString()
+        };
+      }
+      return approver;
+    });
+
+    // Update approvers
+    await onUpdateApprovers({
+      ...normalizedContract.approvers,
+      approver: updatedApprovers
+    });
+
+    toast({
+      title: 'Contract Approved',
+      description: 'You have approved this contract',
+      variant: 'default'
+    });
+  };
+
+  // Handle declining as an approver
+  const handleApproverDecline = async (email: string) => {
+    if (!isApprover || !currentUser?.email) return;
+
+    // Only allow if the current user is the assigned approver
+    const normalizedContract = normalizeApprovers(contract);
+    const currentApprovers = normalizedContract.approvers?.approver || [];
+    const userApprover = currentApprovers.find(approver => approver.email.toLowerCase() === currentUser.email.toLowerCase());
+    if (!userApprover) return;
+
+    // Update the specific approver's status
+    const updatedApprovers = currentApprovers.map(approver => {
+      if (approver.email.toLowerCase() === currentUser.email.toLowerCase()) {
+        return {
+          ...approver,
+          approved: false,
+          declined: true,
+          approvedAt: null,
+          declinedAt: new Date().toISOString()
+        };
+      }
+      return approver;
+    });
+
+    // Update approvers
+    await onUpdateApprovers({
+      ...normalizedContract.approvers,
+      approver: updatedApprovers
+    });
+
+    toast({
+      title: 'Contract Declined',
+      description: 'You have declined this contract',
+      variant: 'destructive'
+    });
+  };
+
+  // Handle withdrawing approver approval
+  const handleApproverWithdraw = async (email: string) => {
+    if (!isApprover || !currentUser?.email) return;
+
+    // Only allow if the current user is the assigned approver
+    const normalizedContract = normalizeApprovers(contract);
+    const currentApprovers = normalizedContract.approvers?.approver || [];
+    const userApprover = currentApprovers.find(approver => approver.email.toLowerCase() === currentUser.email.toLowerCase());
+    if (!userApprover) return;
+
+    // Update the specific approver's status
+    const updatedApprovers = currentApprovers.map(approver => {
+      if (approver.email.toLowerCase() === currentUser.email.toLowerCase()) {
+        return {
+          ...approver,
+          approved: false,
+          declined: false,
+          approvedAt: null,
+          declinedAt: null
+        };
+      }
+      return approver;
+    });
+
+    // Update approvers
+    await onUpdateApprovers({
+      ...normalizedContract.approvers,
+      approver: updatedApprovers
+    });
+
+    toast({
+      title: 'Approval Withdrawn',
+      description: 'You have withdrawn your approval',
+      variant: 'default'
+    });
+  };
+
+  // Handle legal approval
   const handleLegalApprove = async () => {
     if (!isLegalTeam || !currentUser?.email) return;
 
-    // Only allow if the current user is the assigned legal approver
-    if (contract.approvers?.legal?.email.toLowerCase() !== currentUser.email.toLowerCase()) return;
+    // Only allow if the current user is an assigned legal approver
+    const normalizedContract = normalizeApprovers(contract);
+    const currentLegalApprovers = getLegalApprovers();
+    
+    const userApprover = currentLegalApprovers.find(approver => 
+      approver.email.toLowerCase() === currentUser.email.toLowerCase()
+    );
+    if (!userApprover) return;
 
-    // Check if management has already approved
-    const managementAlreadyApproved = contract.approvers?.management?.approved;
+    // Update the specific approver's status
+    const updatedLegalApprovers = currentLegalApprovers.map(approver => {
+      if (approver.email.toLowerCase() === currentUser.email.toLowerCase()) {
+        return {
+          ...approver,
+          approved: true,
+          declined: false,
+          declinedAt: null,
+          approvedAt: new Date().toISOString()
+        };
+      }
+      return approver;
+    });
 
     // Update approvers
     await onUpdateApprovers({
-      ...contract.approvers,
-      legal: {
-        ...contract.approvers.legal!,
-        approved: true,
-        declined: false,  // Ensure declined is set to false when approving
-        declinedAt: null,
-        approvedAt: new Date().toISOString()
-      }
+      ...normalizedContract.approvers,
+      legal: updatedLegalApprovers
     });
 
-    // If management has already approved, automatically update status to approval
-    if (managementAlreadyApproved && contract.status !== 'approval') {
-      // Import the updateContract function
-      const { updateContract } = await import('@/lib/data');
-
-      // Update the contract status to approval
-      await updateContract(contract.id, { status: 'approval' }, currentUser.email);
-
-      // Show success message
-      toast({
-        title: "Contract Status Updated",
-        description: "Both approvals granted. Contract status has been automatically updated to Approval.",
-        variant: "default"
-      });
-
-      // Refresh the page to show the updated status
-      window.location.reload();
-    }
+    toast({
+      title: 'Contract Approved',
+      description: 'You have approved this contract as a legal team member',
+      variant: 'default'
+    });
   };
 
-  // Handle declining as legal team member
+  // Handle legal decline
   const handleLegalDecline = async () => {
     if (!isLegalTeam || !currentUser?.email) return;
 
-    // Only allow if the current user is the assigned legal approver
-    if (contract.approvers?.legal?.email.toLowerCase() !== currentUser.email.toLowerCase()) return;
+    // Only allow if the current user is an assigned legal approver
+    const normalizedContract = normalizeApprovers(contract);
+    const currentLegalApprovers = getLegalApprovers();
+    
+    const userApprover = currentLegalApprovers.find(approver => 
+      approver.email.toLowerCase() === currentUser.email.toLowerCase()
+    );
+    if (!userApprover) return;
 
-    // Update approvers to mark as declined
-    await onUpdateApprovers({
-      ...contract.approvers,
-      legal: {
-        ...contract.approvers.legal!,
-        approved: false,
-        declined: true,
-        approvedAt: null,
-        declinedAt: new Date().toISOString()
+    // Update the specific approver's status
+    const updatedLegalApprovers = currentLegalApprovers.map(approver => {
+      if (approver.email.toLowerCase() === currentUser.email.toLowerCase()) {
+        return {
+          ...approver,
+          approved: false,
+          declined: true,
+          approvedAt: null,
+          declinedAt: new Date().toISOString()
+        };
       }
+      return approver;
     });
-
-    // If the contract is in approval or finished status, move it back to legal review
-    if (contract.status === 'approval' || contract.status === 'finished') {
-      // Import the updateContract function
-      const { updateContract } = await import('@/lib/data');
-
-      // Update the contract status to legal_review
-      await updateContract(contract.id, { status: 'legal_review' }, currentUser.email);
-
-      // Show success message
-      toast({
-        title: "Contract Status Updated",
-        description: "Legal approval withdrawn. Contract status has been moved back to Legal Review.",
-        variant: "default"
-      });
-
-      // Refresh the page to show the updated status
-      window.location.reload();
-    }
-  };
-
-  // Handle approving as management team member
-  const handleManagementApprove = async () => {
-    if (!isManagementTeam || !currentUser?.email) return;
-
-    // Only allow if the current user is the assigned management approver
-    if (contract.approvers?.management?.email.toLowerCase() !== currentUser.email.toLowerCase()) return;
-
-    // Check if legal has already approved
-    const legalAlreadyApproved = contract.approvers?.legal?.approved;
 
     // Update approvers
     await onUpdateApprovers({
-      ...contract.approvers,
-      management: {
-        ...contract.approvers.management!,
-        approved: true,
-        declined: false,  // Ensure declined is set to false when approving
-        declinedAt: null,
-        approvedAt: new Date().toISOString()
-      }
+      ...normalizedContract.approvers,
+      legal: updatedLegalApprovers
     });
 
-    // If legal has already approved, automatically update status to approval
-    if (legalAlreadyApproved && contract.status !== 'approval') {
-      // Import the updateContract function
-      const { updateContract } = await import('@/lib/data');
-
-      // Update the contract status to approval
-      await updateContract(contract.id, { status: 'approval' }, currentUser.email);
-
-      // Show success message
-      toast({
-        title: "Contract Status Updated",
-        description: "Both approvals granted. Contract status has been automatically updated to Approval.",
-        variant: "default"
-      });
-
-      // Refresh the page to show the updated status
-      window.location.reload();
-    }
-  };
-
-  // Handle declining as management team member
-  const handleManagementDecline = async () => {
-    if (!isManagementTeam || !currentUser?.email) return;
-
-    // Only allow if the current user is the assigned management approver
-    if (contract.approvers?.management?.email.toLowerCase() !== currentUser.email.toLowerCase()) return;
-
-    // Update approvers to mark as declined
-    await onUpdateApprovers({
-      ...contract.approvers,
-      management: {
-        ...contract.approvers.management!,
-        approved: false,
-        declined: true,
-        approvedAt: null,
-        declinedAt: new Date().toISOString()
-      }
+    toast({
+      title: 'Contract Declined',
+      description: 'You have declined this contract as a legal team member',
+      variant: 'destructive'
     });
-
-    // If the contract is in approval or finished status, move it back to management review
-    if (contract.status === 'approval' || contract.status === 'finished') {
-      // Import the updateContract function
-      const { updateContract } = await import('@/lib/data');
-
-      // Update the contract status to management_review
-      await updateContract(contract.id, { status: 'management_review' }, currentUser.email);
-
-      // Show success message
-      toast({
-        title: "Contract Status Updated",
-        description: "Management approval withdrawn. Contract status has been moved back to Management Review.",
-        variant: "default"
-      });
-
-      // Refresh the page to show the updated status
-      window.location.reload();
-    }
   };
 
   // Handle withdrawing legal approval
   const handleLegalWithdraw = async () => {
     if (!isLegalTeam || !currentUser?.email) return;
 
-    // Only allow if the current user is the assigned legal approver
-    if (contract.approvers?.legal?.email.toLowerCase() !== currentUser.email.toLowerCase()) return;
+    // Only allow if the current user is an assigned legal approver
+    const normalizedContract = normalizeApprovers(contract);
+    const currentLegalApprovers = getLegalApprovers();
+    
+    const userApprover = currentLegalApprovers.find(approver => 
+      approver.email.toLowerCase() === currentUser.email.toLowerCase()
+    );
+    if (!userApprover) return;
 
-    // Update approvers to remove approval
-    await onUpdateApprovers({
-      ...contract.approvers,
-      legal: {
-        ...contract.approvers.legal!,
-        approved: false,
-        declined: false,
-        approvedAt: null,
-        declinedAt: null
+    // Update the specific approver's status
+    const updatedLegalApprovers = currentLegalApprovers.map(approver => {
+      if (approver.email.toLowerCase() === currentUser.email.toLowerCase()) {
+        return {
+          ...approver,
+          approved: false,
+          declined: false,
+          approvedAt: null,
+          declinedAt: null
+        };
       }
+      return approver;
     });
 
-    // If the contract is in approval or finished status, move it back to legal review
-    if (contract.status === 'approval' || contract.status === 'finished') {
-      // Import the updateContract function
-      const { updateContract } = await import('@/lib/data');
+    // Update approvers
+    await onUpdateApprovers({
+      ...normalizedContract.approvers,
+      legal: updatedLegalApprovers
+    });
 
-      // Update the contract status to legal_review
-      await updateContract(contract.id, { status: 'legal_review' }, currentUser.email);
-
-      // Show success message
-      toast({
-        title: "Contract Status Updated",
-        description: "Legal approval withdrawn. Contract status has been moved back to Legal Review.",
-        variant: "default"
-      });
-
-      // Refresh the page to show the updated status
-      window.location.reload();
-    }
+    toast({
+      title: 'Approval Withdrawn',
+      description: 'You have withdrawn your approval as a legal team member',
+      variant: 'default'
+    });
   };
 
-  // Handle withdrawing management approval
+  // Function to get an array of legal approvers accounting for type differences
+  const getLegalApprovers = (): Approver[] => {
+    return Array.isArray(normalizedContract.approvers?.legal) 
+      ? normalizedContract.approvers.legal as Approver[] 
+      : normalizedContract.approvers?.legal ? [normalizedContract.approvers.legal as Approver] : [];
+  };
+
+  // Function to get an array of management approvers accounting for type differences
+  const getManagementApprovers = (): Approver[] => {
+    return Array.isArray(normalizedContract.approvers?.management) 
+      ? normalizedContract.approvers.management as Approver[] 
+      : normalizedContract.approvers?.management ? [normalizedContract.approvers.management as Approver] : [];
+  };
+
+  // Handle management approval
+  const handleManagementApprove = async () => {
+    if (!isManagementTeam || !currentUser?.email) return;
+
+    // Only allow if the current user is an assigned management approver
+    const normalizedContract = normalizeApprovers(contract);
+    const currentManagementApprovers = getManagementApprovers();
+    
+    const userApprover = currentManagementApprovers.find(approver => 
+      approver.email.toLowerCase() === currentUser.email.toLowerCase()
+    );
+    if (!userApprover) return;
+
+    // Update the specific approver's status
+    const updatedManagementApprovers = currentManagementApprovers.map(approver => {
+      if (approver.email.toLowerCase() === currentUser.email.toLowerCase()) {
+        return {
+          ...approver,
+          approved: true,
+          declined: false,
+          declinedAt: null,
+          approvedAt: new Date().toISOString()
+        };
+      }
+      return approver;
+    });
+
+    // Update approvers
+    await onUpdateApprovers({
+      ...normalizedContract.approvers,
+      management: updatedManagementApprovers
+    });
+
+    toast({
+      title: 'Contract Approved',
+      description: 'You have approved this contract as a management team member',
+      variant: 'default'
+    });
+  };
+
+  // Handle management decline
+  const handleManagementDecline = async () => {
+    if (!isManagementTeam || !currentUser?.email) return;
+
+    // Only allow if the current user is an assigned management approver
+    const normalizedContract = normalizeApprovers(contract);
+    const currentManagementApprovers = getManagementApprovers();
+    
+    const userApprover = currentManagementApprovers.find(approver => 
+      approver.email.toLowerCase() === currentUser.email.toLowerCase()
+    );
+    if (!userApprover) return;
+
+    // Update the specific approver's status
+    const updatedManagementApprovers = currentManagementApprovers.map(approver => {
+      if (approver.email.toLowerCase() === currentUser.email.toLowerCase()) {
+        return {
+          ...approver,
+          approved: false,
+          declined: true,
+          approvedAt: null,
+          declinedAt: new Date().toISOString()
+        };
+      }
+      return approver;
+    });
+
+    // Update approvers
+    await onUpdateApprovers({
+      ...normalizedContract.approvers,
+      management: updatedManagementApprovers
+    });
+
+    toast({
+      title: 'Contract Declined',
+      description: 'You have declined this contract as a management team member',
+      variant: 'destructive'
+    });
+  };
+
+  // Handle management withdraw
   const handleManagementWithdraw = async () => {
     if (!isManagementTeam || !currentUser?.email) return;
 
-    // Only allow if the current user is the assigned management approver
-    if (contract.approvers?.management?.email.toLowerCase() !== currentUser.email.toLowerCase()) return;
+    // Only allow if the current user is an assigned management approver
+    const normalizedContract = normalizeApprovers(contract);
+    const currentManagementApprovers = getManagementApprovers();
+    
+    const userApprover = currentManagementApprovers.find(approver => 
+      approver.email.toLowerCase() === currentUser.email.toLowerCase()
+    );
+    if (!userApprover) return;
 
-    // Update approvers to remove approval
-    await onUpdateApprovers({
-      ...contract.approvers,
-      management: {
-        ...contract.approvers.management!,
-        approved: false,
-        declined: false,
-        approvedAt: null,
-        declinedAt: null
+    // Update the specific approver's status
+    const updatedManagementApprovers = currentManagementApprovers.map(approver => {
+      if (approver.email.toLowerCase() === currentUser.email.toLowerCase()) {
+        return {
+          ...approver,
+          approved: false,
+          declined: false,
+          approvedAt: null,
+          declinedAt: null
+        };
       }
+      return approver;
     });
 
-    // If the contract is in approval or finished status, move it back to management review
-    if (contract.status === 'approval' || contract.status === 'finished') {
-      // Import the updateContract function
-      const { updateContract } = await import('@/lib/data');
+    // Update approvers
+    await onUpdateApprovers({
+      ...normalizedContract.approvers,
+      management: updatedManagementApprovers
+    });
 
-      // Update the contract status to management_review
-      await updateContract(contract.id, { status: 'management_review' }, currentUser.email);
-
-      // Show success message
-      toast({
-        title: "Contract Status Updated",
-        description: "Management approval withdrawn. Contract status has been moved back to Management Review.",
-        variant: "default"
-      });
-
-      // Refresh the page to show the updated status
-      window.location.reload();
-    }
+    toast({
+      title: 'Approval Withdrawn',
+      description: 'You have withdrawn your approval as a management team member',
+      variant: 'default'
+    });
   };
 
-  // Check if current user is the legal approver
-  const isCurrentUserLegalApprover =
-    currentUser?.email &&
-    contract.approvers?.legal?.email.toLowerCase() === currentUser.email.toLowerCase();
+  // Normalize contract approvers for checking
+  const normalizedContractForChecks = normalizeApprovers(contract);
 
-  // Check if current user is the management approver
-  const isCurrentUserManagementApprover =
-    currentUser?.email &&
-    contract.approvers?.management?.email.toLowerCase() === currentUser.email.toLowerCase();
+  // Check if current user is a legal approver
+  const isCurrentUserLegalApprover = currentUser?.email && 
+    getLegalApprovers().some(approver => 
+      approver.email.toLowerCase() === currentUser.email.toLowerCase()
+    );
+
+  // Check if current user is a management approver
+  const isCurrentUserManagementApprover = currentUser?.email && 
+    getManagementApprovers().some(approver => 
+      approver.email.toLowerCase() === currentUser.email.toLowerCase()
+    );
+
+  // Check if current user is an approver
+  const isCurrentUserApprover = currentUser?.email &&
+    normalizedContractForChecks.approvers?.approver &&
+    normalizedContractForChecks.approvers.approver.some(approver =>
+      approver.email.toLowerCase() === currentUser.email.toLowerCase());
+
+  // Fix for email property access on single legal approver UI
+  const getSingleLegalApproverEmail = () => {
+    if (!normalizedContract.approvers?.legal) return '';
+    return Array.isArray(normalizedContract.approvers.legal)
+      ? (normalizedContract.approvers.legal[0]?.email || '')
+      : normalizedContract.approvers.legal.email;
+  };
+
+  // Fix for email property access on single management approver UI
+  const getSingleManagementApproverEmail = () => {
+    if (!normalizedContract.approvers?.management) return '';
+    return Array.isArray(normalizedContract.approvers.management)
+      ? (normalizedContract.approvers.management[0]?.email || '')
+      : normalizedContract.approvers.management.email;
+  };
 
   // Determine if the user can edit approvers
   const canEditApprovers = isAdmin || contract.status === 'requested' || contract.status === 'draft';
@@ -397,12 +706,12 @@ const ApprovalBoard = ({
             <p>Loading team members...</p>
           ) : (
             <div className="space-y-6">
-              {/* Legal Team Approver */}
+              {/* Legal Team Approvers */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <Label className="text-sm font-medium">Legal Team Approver</Label>
+                  <Label className="text-sm font-medium">Legal Team Approvers ({getLegalApprovers().length}/{approverLimits.legal})</Label>
                   {canEditApprovers && (
-                    !contract.approvers?.legal ? (
+                    ((!normalizedContract.approvers?.legal || getLegalApprovers().length < approverLimits.legal)) ? (
                       <div className="relative">
                         <Button
                           variant="outline"
@@ -414,7 +723,6 @@ const ApprovalBoard = ({
                           <UserPlus className="h-3.5 w-3.5" />
                           <span>Assign</span>
                         </Button>
-
                         {showLegalDropdown && (
                           <div className="absolute right-0 mt-1 w-64 bg-card border rounded-md shadow-lg z-50">
                             <div className="p-2">
@@ -458,97 +766,157 @@ const ApprovalBoard = ({
                           </div>
                         )}
                       </div>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleRemoveLegalApprover}
-                        className="h-8 w-8 p-0 text-destructive"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )
+                    ) : null
                   )}
                 </div>
-
-                {contract.approvers?.legal ? (
-                  <div className="flex items-center justify-between p-3 border rounded-md bg-card/50">
-                    <div>
-                      <div className="font-medium">{contract.approvers.legal.name}</div>
-                      <div className="text-sm text-muted-foreground">{contract.approvers.legal.email}</div>
+                {normalizedContract.approvers?.legal ? (
+                  Array.isArray(normalizedContract.approvers.legal) ? (
+                    // Multiple legal approvers
+                    <div className="space-y-2">
+                      {getLegalApprovers().map((approver) => (
+                        <div key={approver.email} className="flex items-center justify-between p-3 border rounded-md bg-card/50">
+                          <div>
+                            <div className="font-medium">{approver.name}</div>
+                            <div className="text-sm text-muted-foreground">{approver.email}</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {approver.approved ? (
+                              <div className="flex items-center gap-2">
+                                <Badge className="bg-green-50 text-green-800 border-green-200">
+                                  Approved
+                                </Badge>
+                                {currentUser?.email?.toLowerCase() === approver.email.toLowerCase() && (
+                                  <Button
+                                    size="sm"
+                                    onClick={handleLegalWithdraw}
+                                    variant="outline"
+                                    className="text-amber-600 border-amber-200 hover:bg-amber-50"
+                                  >
+                                    Withdraw Approval
+                                  </Button>
+                                )}
+                              </div>
+                            ) : approver.declined ? (
+                              <div className="flex items-center gap-2">
+                                <Badge className="bg-red-50 text-red-800 border-red-200">
+                                  Declined
+                                </Badge>
+                                {currentUser?.email?.toLowerCase() === approver.email.toLowerCase() && (
+                                  <Button
+                                    size="sm"
+                                    onClick={handleLegalApprove}
+                                    className="bg-blue-500 hover:bg-blue-600"
+                                  >
+                                    <Check className="h-3.5 w-3.5 mr-1" />
+                                    Approve Instead
+                                  </Button>
+                                )}
+                              </div>
+                            ) : currentUser?.email?.toLowerCase() === approver.email.toLowerCase() ? (
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={handleLegalApprove}
+                                  className="bg-blue-500 hover:bg-blue-600"
+                                >
+                                  <Check className="h-3.5 w-3.5 mr-1" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={handleLegalDecline}
+                                  variant="destructive"
+                                >
+                                  <ThumbsDown className="h-3.5 w-3.5 mr-1" />
+                                  Decline
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex gap-2 items-center">
+                                <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
+                                  Pending
+                                </Badge>
+                                {canEditApprovers && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleRemoveLegalApprover(getSingleLegalApproverEmail())}
+                                    className="h-8 w-8 p-0 text-destructive ml-2"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div>
-                      {contract.approvers.legal.approved ? (
-                        <div className="flex items-center gap-2">
-                          <Badge className="bg-green-50 text-green-800 border-green-200">
-                            Approved
-                          </Badge>
-                          {isCurrentUserLegalApprover && (
-                            <Button
-                              size="sm"
-                              onClick={handleLegalWithdraw}
-                              variant="outline"
-                              className="text-amber-600 border-amber-200 hover:bg-amber-50"
-                            >
-                              Withdraw Approval
-                            </Button>
-                          )}
-                        </div>
-                      ) : contract.approvers.legal.declined ? (
-                        <div className="flex items-center gap-2">
-                          <Badge className="bg-red-50 text-red-800 border-red-200">
-                            Declined
-                          </Badge>
-                          {isCurrentUserLegalApprover && (
-                            <Button
-                              size="sm"
-                              onClick={handleLegalApprove}
-                              className="bg-blue-500 hover:bg-blue-600"
-                            >
-                              <Check className="h-3.5 w-3.5 mr-1" />
-                              Approve Instead
-                            </Button>
-                          )}
-                        </div>
-                      ) : isCurrentUserLegalApprover ? (
-                        <div className="flex gap-2">
+                  ) : (
+                    // Single legal approver (legacy format)
+                    <div className="flex items-center justify-between p-3 border rounded-md bg-card/50">
+                      <div>
+                        <div className="font-medium">{normalizedContract.approvers.legal.name}</div>
+                        <div className="text-sm text-muted-foreground">{getSingleLegalApproverEmail()}</div>
+                      </div>
+                      <div>
+                        {isCurrentUserLegalApprover && getLegalApprovers().some(a => a.approved) ? (
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-green-50 text-green-800 border-green-200">
+                              Approved
+                            </Badge>{isCurrentUserLegalApprover && (
+                              <Button
+                                size="sm"
+                                onClick={handleLegalWithdraw}
+                                variant="outline"
+                                className="text-amber-600 border-amber-200 hover:bg-amber-50"
+                              >
+                                Withdraw Approval
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-red-50 text-red-800 border-red-200">
+                              Declined
+                            </Badge>
+                            {isCurrentUserLegalApprover && (
+                              <Button
+                                size="sm"
+                                onClick={handleLegalApprove}
+                                className="bg-blue-500 hover:bg-blue-600"
+                              >
+                                <Check className="h-3.5 w-3.5 mr-1" />
+                                Approve Instead
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                        {canEditApprovers && (
                           <Button
+                            variant="outline"
                             size="sm"
-                            onClick={handleLegalApprove}
-                            className="bg-blue-500 hover:bg-blue-600"
+                            onClick={() => handleRemoveLegalApprover(getSingleLegalApproverEmail())}
+                            className="h-8 w-8 p-0 text-destructive ml-2"
                           >
-                            <Check className="h-3.5 w-3.5 mr-1" />
-                            Approve
+                            <X className="h-4 w-4" />
                           </Button>
-                          <Button
-                            size="sm"
-                            onClick={handleLegalDecline}
-                            variant="destructive"
-                          >
-                            <ThumbsDown className="h-3.5 w-3.5 mr-1" />
-                            Decline
-                          </Button>
-                        </div>
-                      ) : (
-                        <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
-                          Pending
-                        </Badge>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )
                 ) : (
                   <div className="text-sm text-muted-foreground italic">
                     {isRequired ? "Required - Please assign a legal team approver" : "No legal approver assigned"}
                   </div>
                 )}
               </div>
-
-              {/* Management Team Approver */}
+              {/* Management Team Approvers */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <Label className="text-sm font-medium">Management Team Approver</Label>
+                  <Label className="text-sm font-medium">Management Team Approvers ({getManagementApprovers().length}/{approverLimits.management})</Label>
                   {canEditApprovers && (
-                    !contract.approvers?.management ? (
+                    ((!normalizedContract.approvers?.management || getManagementApprovers().length < approverLimits.management)) ? (
                       <div className="relative">
                         <Button
                           variant="outline"
@@ -560,7 +928,6 @@ const ApprovalBoard = ({
                           <UserPlus className="h-3.5 w-3.5" />
                           <span>Assign</span>
                         </Button>
-
                         {showManagementDropdown && (
                           <div className="absolute right-0 mt-1 w-64 bg-card border rounded-md shadow-lg z-50">
                             <div className="p-2">
@@ -604,125 +971,300 @@ const ApprovalBoard = ({
                           </div>
                         )}
                       </div>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleRemoveManagementApprover}
-                        className="h-8 w-8 p-0 text-destructive"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )
+                    ) : null
                   )}
                 </div>
-
-                {contract.approvers?.management ? (
-                  <div className="flex items-center justify-between p-3 border rounded-md bg-card/50">
-                    <div>
-                      <div className="font-medium">{contract.approvers.management.name}</div>
-                      <div className="text-sm text-muted-foreground">{contract.approvers.management.email}</div>
+                {normalizedContract.approvers?.management ? (
+                  Array.isArray(normalizedContract.approvers.management) ? (
+                    // Multiple management approvers
+                    <div className="space-y-2">
+                      {getManagementApprovers().map((approver) => (
+                        <div key={approver.email} className="flex items-center justify-between p-3 border rounded-md bg-card/50">
+                          <div>
+                            <div className="font-medium">{approver.name}</div>
+                            <div className="text-sm text-muted-foreground">{approver.email}</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {approver.approved ? (
+                              <div className="flex items-center gap-2">
+                                <Badge className="bg-green-50 text-green-800 border-green-200">
+                                  Approved
+                                </Badge>
+                                {currentUser?.email?.toLowerCase() === approver.email.toLowerCase() && (
+                                  <Button
+                                    size="sm"
+                                    onClick={handleManagementWithdraw}
+                                    variant="outline"
+                                    className="text-amber-600 border-amber-200 hover:bg-amber-50"
+                                  >
+                                    Withdraw Approval
+                                  </Button>
+                                )}
+                              </div>
+                            ) : approver.declined ? (
+                              <div className="flex items-center gap-2">
+                                <Badge className="bg-red-50 text-red-800 border-red-200">
+                                  Declined
+                                </Badge>
+                                {currentUser?.email?.toLowerCase() === approver.email.toLowerCase() && (
+                                  <Button
+                                    size="sm"
+                                    onClick={handleManagementApprove}
+                                    className="bg-blue-500 hover:bg-blue-600"
+                                  >
+                                    <Check className="h-3.5 w-3.5 mr-1" />
+                                    Approve Instead
+                                  </Button>
+                                )}
+                              </div>
+                            ) : currentUser?.email?.toLowerCase() === approver.email.toLowerCase() ? (
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={handleManagementApprove}
+                                  className="bg-blue-500 hover:bg-blue-600"
+                                >
+                                  <Check className="h-3.5 w-3.5 mr-1" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={handleManagementDecline}
+                                  variant="destructive"
+                                >
+                                  <ThumbsDown className="h-3.5 w-3.5 mr-1" />
+                                  Decline
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex gap-2 items-center">
+                                <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
+                                  Pending
+                                </Badge>
+                                {canEditApprovers && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleRemoveManagementApprover(getSingleManagementApproverEmail())}
+                                    className="h-8 w-8 p-0 text-destructive ml-2"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div>
-                      {contract.approvers.management.approved ? (
-                        <div className="flex items-center gap-2">
-                          <Badge className="bg-green-50 text-green-800 border-green-200">
-                            Approved
-                          </Badge>
-                          {isCurrentUserManagementApprover && (
-                            <Button
-                              size="sm"
-                              onClick={handleManagementWithdraw}
-                              variant="outline"
-                              className="text-amber-600 border-amber-200 hover:bg-amber-50"
-                            >
-                              Withdraw Approval
-                            </Button>
-                          )}
-                        </div>
-                      ) : contract.approvers.management.declined ? (
-                        <div className="flex items-center gap-2">
-                          <Badge className="bg-red-50 text-red-800 border-red-200">
-                            Declined
-                          </Badge>
-                          {isCurrentUserManagementApprover && (
-                            <Button
-                              size="sm"
-                              onClick={handleManagementApprove}
-                              className="bg-blue-500 hover:bg-blue-600"
-                            >
-                              <Check className="h-3.5 w-3.5 mr-1" />
-                              Approve Instead
-                            </Button>
-                          )}
-                        </div>
-                      ) : isCurrentUserManagementApprover ? (
-                        <div className="flex gap-2">
+                  ) : (
+                    // Single management approver (legacy format)
+                    <div className="flex items-center justify-between p-3 border rounded-md bg-card/50">
+                      <div>
+                        <div className="font-medium">{normalizedContract.approvers.management.name}</div>
+                        <div className="text-sm text-muted-foreground">{getSingleManagementApproverEmail()}</div>
+                      </div>
+                      <div>
+                        {isCurrentUserManagementApprover && getManagementApprovers().some(a => a.approved) ? (
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-green-50 text-green-800 border-green-200">
+                              Approved
+                            </Badge>
+                            {isCurrentUserManagementApprover && (
+                              <Button
+                                size="sm"
+                                onClick={handleManagementWithdraw}
+                                variant="outline"
+                                className="text-amber-600 border-amber-200 hover:bg-amber-50"
+                              >
+                                Withdraw Approval
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-red-50 text-red-800 border-red-200">
+                              Declined
+                            </Badge>
+                            {isCurrentUserManagementApprover && (
+                              <Button
+                                size="sm"
+                                onClick={handleManagementApprove}
+                                className="bg-blue-500 hover:bg-blue-600"
+                              >
+                                <Check className="h-3.5 w-3.5 mr-1" />
+                                Approve Instead
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                        {canEditApprovers && (
                           <Button
+                            variant="outline"
                             size="sm"
-                            onClick={handleManagementApprove}
-                            className="bg-blue-500 hover:bg-blue-600"
+                            onClick={() => handleRemoveManagementApprover(getSingleManagementApproverEmail())}
+                            className="h-8 w-8 p-0 text-destructive ml-2"
                           >
-                            <Check className="h-3.5 w-3.5 mr-1" />
-                            Approve
+                            <X className="h-4 w-4" />
                           </Button>
-                          <Button
-                            size="sm"
-                            onClick={handleManagementDecline}
-                            variant="destructive"
-                          >
-                            <ThumbsDown className="h-3.5 w-3.5 mr-1" />
-                            Decline
-                          </Button>
-                        </div>
-                      ) : (
-                        <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
-                          Pending
-                        </Badge>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )
                 ) : (
                   <div className="text-sm text-muted-foreground italic">
                     {isRequired ? "Required - Please assign a management team approver" : "No management approver assigned"}
                   </div>
                 )}
               </div>
-
-              {/* Approval Status Summary */}
-              {(contract.approvers?.legal || contract.approvers?.management) && (
-                <div className={`mt-4 p-3 border rounded-md ${
-                  (contract.approvers?.legal?.approved && contract.approvers?.management?.approved)
-                    ? "bg-green-50 border-green-200"
-                    : "bg-yellow-50 border-yellow-200"
-                }`}>
-                  <div className="text-sm font-medium">
-                    {(contract.approvers?.legal?.approved && contract.approvers?.management?.approved)
-                      ? "✅ All approvals complete"
-                      : "⏳ Waiting for approvals"}
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {!contract.approvers?.legal?.approved && "Pending legal approval. "}
-                    {!contract.approvers?.management?.approved && "Pending management approval."}
-                    {(contract.approvers?.legal?.approved && contract.approvers?.management?.approved) &&
-                      "This contract has been approved by both legal and management teams."}
-                  </div>
+              {/* Approver Team */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <Label className="text-sm font-medium">Approver Team ({normalizedContract.approvers?.approver?.length || 0}/{approverLimits.approver})</Label>
+                  {canEditApprovers && (
+                    ((!normalizedContract.approvers?.approver || normalizedContract.approvers?.approver?.length < approverLimits.approver)) ? (
+                      <div className="relative">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowApproverDropdown(!showApproverDropdown)}
+                          className="gap-1"
+                          disabled={approverMembers.length === 0}
+                        >
+                          <UserPlus className="h-3.5 w-3.5" />
+                          <span>Assign</span>
+                        </Button>
+                        {showApproverDropdown && (
+                          <div className="absolute right-0 mt-1 w-64 bg-card border rounded-md shadow-lg z-50">
+                            <div className="p-2">
+                              <div className="relative">
+                                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                  placeholder="Search approvers..."
+                                  className="pl-8"
+                                  value={approverSearch}
+                                  onChange={(e) => setApproverSearch(e.target.value)}
+                                />
+                              </div>
+                            </div>
+                            <div className="max-h-48 overflow-y-auto">
+                              {filteredApproverMembers.length > 0 ? (
+                                filteredApproverMembers.map((member) => (
+                                  <div
+                                    key={member.id}
+                                    className="px-3 py-2 hover:bg-accent cursor-pointer flex justify-between items-center"
+                                    onClick={() => handleSelectApprover(member)}
+                                  >
+                                    <div>
+                                      <div className="font-medium text-sm">
+                                        {member.displayName || 'No name'}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">
+                                        {member.email}
+                                      </div>
+                                    </div>
+                                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                                      <Check className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="px-3 py-2 text-sm text-muted-foreground">
+                                  No approvers found
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : null
+                  )}
                 </div>
-              )}
-
-              {/* Warning for required approvers */}
-              {isRequired &&
-               contract.status !== 'requested' &&
-               (!contract.approvers?.legal || !contract.approvers?.management) && (
-                <div className="mt-4 p-3 border border-yellow-200 bg-yellow-50 rounded-md">
-                  <div className="text-sm font-medium text-yellow-800">
-                    Approval Required
+                {normalizedContract.approvers?.approver?.length > 0 ? (
+                  normalizedContract.approvers.approver.map((approver) => (
+                    <div key={approver.email} className="flex items-center justify-between p-3 border rounded-md bg-card/50">
+                      <div>
+                        <div className="font-medium">{approver.name}</div>
+                        <div className="text-sm text-muted-foreground">{approver.email}</div>
+                      </div>
+                      <div>
+                        {approver.approved ? (
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-green-50 text-green-800 border-green-200">
+                              Approved
+                            </Badge>
+                            {currentUser?.email?.toLowerCase() === approver.email.toLowerCase() && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleApproverWithdraw(approver.email)}
+                                variant="outline"
+                                className="text-amber-600 border-amber-200 hover:bg-amber-50"
+                              >
+                                Withdraw Approval
+                              </Button>
+                            )}
+                          </div>
+                        ) : approver.declined ? (
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-red-50 text-red-800 border-red-200">
+                              Declined
+                            </Badge>
+                            {currentUser?.email?.toLowerCase() === approver.email.toLowerCase() && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleApproverApprove(approver.email)}
+                                className="bg-blue-500 hover:bg-blue-600"
+                              >
+                                <Check className="h-3.5 w-3.5 mr-1" />
+                                Approve Instead
+                              </Button>
+                            )}
+                          </div>
+                        ) : currentUser?.email?.toLowerCase() === approver.email.toLowerCase() ? (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleApproverApprove(approver.email)}
+                              className="bg-blue-500 hover:bg-blue-600"
+                            >
+                              <Check className="h-3.5 w-3.5 mr-1" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleApproverDecline(approver.email)}
+                              variant="destructive"
+                            >
+                              <ThumbsDown className="h-3.5 w-3.5 mr-1" />
+                              Decline
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2 items-center">
+                            <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
+                              Pending
+                            </Badge>
+                            {canEditApprovers && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleRemoveApprover(approver.email)}
+                                className="h-8 w-8 p-0 text-destructive"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-muted-foreground italic">
+                    No approver team member assigned - required for contract completion
                   </div>
-                  <div className="text-xs text-yellow-700 mt-1">
-                    This contract requires approval from both legal and management teams before it can proceed to the approval stage.
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
         </CardContent>

@@ -79,7 +79,14 @@ export interface Contract {
       declined?: boolean;
       approvedAt?: string;
       declinedAt?: string;
-    };
+    }[] | {
+      email: string;
+      name: string;
+      approved: boolean;
+      declined?: boolean;
+      approvedAt?: string;
+      declinedAt?: string;
+    }; // Support both array and single object for backward compatibility
     management?: {
       email: string;
       name: string;
@@ -87,7 +94,27 @@ export interface Contract {
       declined?: boolean;
       approvedAt?: string;
       declinedAt?: string;
-    };
+    }[] | {
+      email: string;
+      name: string;
+      approved: boolean;
+      declined?: boolean;
+      approvedAt?: string;
+      declinedAt?: string;
+    }; // Support both array and single object for backward compatibility
+    approver?: {
+      email: string;
+      name: string;
+      approved: boolean;
+      declined?: boolean;
+      approvedAt?: string;
+      declinedAt?: string;
+    }[];
+  };
+  approverLimits?: {
+    legal: number;
+    management: number;
+    approver: number;
   };
 }
 
@@ -1284,6 +1311,123 @@ export const getManagementTeamMemberRole = async (email: string): Promise<string
   return 'Management Team';
 };
 
+// Check if a user is an approver
+export const isUserApprover = async (email: string): Promise<boolean> => {
+  if (!email) return false;
+
+  const approversRef = collection(db, 'approvers');
+  const approverQuery = query(approversRef, where('email', '==', email.toLowerCase()));
+  const approverSnapshot = await getDocs(approverQuery);
+
+  return !approverSnapshot.empty;
+};
+
+// Add a user to the approvers
+export const addApprover = async (
+  email: string,
+  displayName: string = ''
+): Promise<void> => {
+  const approversRef = collection(db, 'approvers');
+  const approverQuery = query(approversRef, where('email', '==', email.toLowerCase()));
+  const approverSnapshot = await getDocs(approverQuery);
+
+  if (approverSnapshot.empty) {
+    await addDoc(approversRef, {
+      email: email.toLowerCase(),
+      displayName,
+      createdAt: new Date().toISOString()
+    });
+  }
+};
+
+// Get all approvers
+export const getApprovers = async (): Promise<any[]> => {
+  const approversRef = collection(db, 'approvers');
+  const approversSnapshot = await getDocs(approversRef);
+
+  return approversSnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+};
+
+// Remove an approver
+export const removeApprover = async (id: string): Promise<void> => {
+  const approverRef = doc(db, 'approvers', id);
+  await deleteDoc(approverRef);
+};
+
+// Get the approver role
+export const getApproverRole = async (email: string): Promise<string | null> => {
+  if (!email) return null;
+
+  const approversRef = collection(db, 'approvers');
+  const approverQuery = query(approversRef, where('email', '==', email.toLowerCase()));
+  const approverSnapshot = await getDocs(approverQuery);
+
+  if (approverSnapshot.empty) {
+    return null;
+  }
+
+  // Return a fixed role
+  return 'Approver';
+};
+
+// Helper function to normalize approvers structure
+// This converts the old single-approver format to the new multi-approver format
+export const normalizeApprovers = (contract: Contract): Contract => {
+  if (!contract.approvers) {
+    // Initialize with default limits if no approvers exist
+    return {
+      ...contract,
+      approvers: {},
+      approverLimits: {
+        legal: 2,
+        management: 5,
+        approver: 1
+      }
+    };
+  }
+
+  const normalizedApprovers: any = {};
+  const approverLimits = contract.approverLimits || {
+    legal: 2,
+    management: 5,
+    approver: 1
+  };
+
+  // Handle legal team approvers
+  if (contract.approvers.legal) {
+    if (!Array.isArray(contract.approvers.legal)) {
+      // Convert single object to array
+      normalizedApprovers.legal = [contract.approvers.legal];
+    } else {
+      normalizedApprovers.legal = contract.approvers.legal;
+    }
+  }
+
+  // Handle management team approvers
+  if (contract.approvers.management) {
+    if (!Array.isArray(contract.approvers.management)) {
+      // Convert single object to array
+      normalizedApprovers.management = [contract.approvers.management];
+    } else {
+      normalizedApprovers.management = contract.approvers.management;
+    }
+  }
+
+  // Handle approvers
+  if (contract.approvers.approver) {
+    normalizedApprovers.approver = contract.approvers.approver;
+  }
+
+  return {
+    ...contract,
+    approvers: normalizedApprovers,
+    approverLimits
+  };
+};
+
 // Remove a user from the system
 export const removeUser = async (id: string, adminEmail: string = ''): Promise<void> => {
   // First get the user details to know their email and userId
@@ -1411,10 +1555,26 @@ export const getUserContracts = async (userEmail: string, includeArchived: boole
     );
     if (isParty) return true;
 
-    // Check if user is an approver (legal or management)
-    const isLegalApprover = contract.approvers?.legal?.email?.toLowerCase() === lowercaseEmail;
-    const isManagementApprover = contract.approvers?.management?.email?.toLowerCase() === lowercaseEmail;
-    if (isLegalApprover || isManagementApprover) return true;
+    // Check if user is an approver (legal, management, or approver)
+    // First normalize the approvers structure
+    const normalizedContract = normalizeApprovers(contract);
+
+    // Check if user is a legal approver
+    const isLegalApprover = normalizedContract.approvers?.legal?.some(
+      approver => approver.email.toLowerCase() === lowercaseEmail
+    );
+
+    // Check if user is a management approver
+    const isManagementApprover = normalizedContract.approvers?.management?.some(
+      approver => approver.email.toLowerCase() === lowercaseEmail
+    );
+
+    // Check if user is an approver
+    const isApprover = normalizedContract.approvers?.approver?.some(
+      approver => approver.email.toLowerCase() === lowercaseEmail
+    );
+
+    if (isLegalApprover || isManagementApprover || isApprover) return true;
 
     // sharedWith check removed
 
@@ -1443,10 +1603,26 @@ export const getUserArchivedContracts = async (userEmail: string): Promise<Contr
     );
     if (isParty) return true;
 
-    // Check if user is an approver (legal or management)
-    const isLegalApprover = contract.approvers?.legal?.email?.toLowerCase() === lowercaseEmail;
-    const isManagementApprover = contract.approvers?.management?.email?.toLowerCase() === lowercaseEmail;
-    if (isLegalApprover || isManagementApprover) return true;
+    // Check if user is an approver (legal, management, or approver)
+    // First normalize the approvers structure
+    const normalizedContract = normalizeApprovers(contract);
+
+    // Check if user is a legal approver
+    const isLegalApprover = normalizedContract.approvers?.legal?.some(
+      approver => approver.email.toLowerCase() === lowercaseEmail
+    );
+
+    // Check if user is a management approver
+    const isManagementApprover = normalizedContract.approvers?.management?.some(
+      approver => approver.email.toLowerCase() === lowercaseEmail
+    );
+
+    // Check if user is an approver
+    const isApprover = normalizedContract.approvers?.approver?.some(
+      approver => approver.email.toLowerCase() === lowercaseEmail
+    );
+
+    if (isLegalApprover || isManagementApprover || isApprover) return true;
 
     // sharedWith check removed
 

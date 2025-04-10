@@ -18,6 +18,9 @@ import {
   getManagementTeamMembers,
   addManagementTeamMember,
   removeManagementTeamMember,
+  getApprovers,
+  addApprover,
+  removeApprover,
   inviteUser,
   addAdminUser,
   removeAdminUser,
@@ -73,12 +76,21 @@ interface ManagementTeamMember {
   createdAt?: string;
 }
 
+interface ApproverMember {
+  id: string;
+  email: string;
+  displayName?: string;
+  role?: string;
+  createdAt?: string;
+}
+
 const Admin = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]); // All users including those in teams
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [legalTeam, setLegalTeam] = useState<LegalTeamMember[]>([]);
   const [managementTeam, setManagementTeam] = useState<ManagementTeamMember[]>([]);
+  const [approvers, setApprovers] = useState<ApproverMember[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>('users');
   const { currentUser } = useAuth();
@@ -106,6 +118,12 @@ const Admin = () => {
   const [filteredManagementUsers, setFilteredManagementUsers] = useState<User[]>([]);
   const [isManagementDialogOpen, setIsManagementDialogOpen] = useState(false);
   const [addingManagement, setAddingManagement] = useState(false);
+
+  // State for approver member form
+  const [approverUserSearch, setApproverUserSearch] = useState('');
+  const [filteredApproverUsers, setFilteredApproverUsers] = useState<User[]>([]);
+  const [isApproverDialogOpen, setIsApproverDialogOpen] = useState(false);
+  const [addingApprover, setAddingApprover] = useState(false);
 
   // State for user removal confirmation
   const [userToRemove, setUserToRemove] = useState<User | null>(null);
@@ -137,6 +155,9 @@ const Admin = () => {
       // Fetch management team members
       const managementTeamData = await getManagementTeamMembers() as ManagementTeamMember[];
 
+      // Fetch approvers
+      const approversData = await getApprovers() as ApproverMember[];
+
       // Get users with pending status (invites)
       const pendingUsers = usersData.filter(user => (user as any).status === 'pending');
 
@@ -144,13 +165,15 @@ const Admin = () => {
       const adminEmails = adminsData.map(admin => admin.email.toLowerCase());
       const legalEmails = legalTeamData.map(legal => legal.email.toLowerCase());
       const managementEmails = managementTeamData.map(management => management.email.toLowerCase());
+      const approverEmails = approversData.map(approver => approver.email.toLowerCase());
 
       // Create a set of emails that are already registered in the system
       const registeredEmails = new Set([
         ...usersData.map(user => user.email.toLowerCase()),
         ...adminEmails,
         ...legalEmails,
-        ...managementEmails
+        ...managementEmails,
+        ...approverEmails
       ]);
 
       // Mark pending users as invites for the UI
@@ -163,7 +186,8 @@ const Admin = () => {
       const filteredUsers = usersData.filter(user =>
         !adminEmails.includes(user.email.toLowerCase()) &&
         !legalEmails.includes(user.email.toLowerCase()) &&
-        !managementEmails.includes(user.email.toLowerCase())
+        !managementEmails.includes(user.email.toLowerCase()) &&
+        !approverEmails.includes(user.email.toLowerCase())
       );
 
       // Keep a separate list of all users for admin selection
@@ -177,6 +201,7 @@ const Admin = () => {
       setAdmins(adminsData);
       setLegalTeam(legalTeamData);
       setManagementTeam(managementTeamData);
+      setApprovers(approversData);
     } catch (error) {
       console.error('Error fetching admin data:', error);
       toast.error('Error fetching data');
@@ -359,6 +384,25 @@ const Admin = () => {
     }
   }, [managementUserSearch, isManagementDialogOpen, managementTeam, legalTeam, users]);
 
+  // Filter users for adding to approvers
+  useEffect(() => {
+    if (isApproverDialogOpen) {
+      const approverEmails = approvers.map(member => member.email.toLowerCase());
+
+      if (approverUserSearch.trim() !== '') {
+        const filtered = users.filter(user =>
+          !approverEmails.includes(user.email.toLowerCase()) &&
+          (user.email.toLowerCase().includes(approverUserSearch.toLowerCase()) ||
+           user.displayName?.toLowerCase().includes(approverUserSearch.toLowerCase()) ||
+           `${user.firstName || ''} ${user.lastName || ''}`.trim().toLowerCase().includes(approverUserSearch.toLowerCase()))
+        );
+        setFilteredApproverUsers(filtered);
+      } else {
+        setFilteredApproverUsers([]);
+      }
+    }
+  }, [approverUserSearch, isApproverDialogOpen, approvers, users]);
+
   // Function to add a management team member
   const handleAddManagementMember = async (user: User) => {
     try {
@@ -404,6 +448,48 @@ const Admin = () => {
     } catch (error) {
       console.error('Error removing management team member:', error);
       toast.error('Failed to remove management team member');
+    }
+  };
+
+  // Function to add an approver
+  const handleAddApprover = async (user: User) => {
+    try {
+      setAddingApprover(true);
+
+      // Get the display name from user
+      const displayName = user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim();
+
+      await addApprover(user.email, displayName);
+
+      // Also invite the user with the approver role
+      await inviteUser(
+        user.email,
+        'approver',
+        currentUser?.email || 'admin'
+      );
+
+      toast.success(`${user.email} is now an approver`);
+      setApproverUserSearch('');
+      setFilteredApproverUsers([]);
+      setIsApproverDialogOpen(false);
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error('Error adding approver:', error);
+      toast.error('Failed to add approver');
+    } finally {
+      setAddingApprover(false);
+    }
+  };
+
+  // Function to remove an approver
+  const handleRemoveApprover = async (id: string, email: string) => {
+    try {
+      await removeApprover(id);
+      toast.success(`Removed ${email} from approvers`);
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error('Error removing approver:', error);
+      toast.error('Failed to remove approver');
     }
   };
 
@@ -676,6 +762,37 @@ const Admin = () => {
     },
   ];
 
+  // Define columns for approvers table
+  const approverColumns: ColumnDef<ApproverMember>[] = [
+    {
+      accessorKey: 'email',
+      header: 'Email',
+    },
+    {
+      accessorKey: 'displayName',
+      header: 'Name',
+      cell: ({ row }) => row.original.displayName || '-',
+    },
+    {
+      accessorKey: 'createdAt',
+      header: 'Added On',
+      cell: ({ row }) => row.original.createdAt ? new Date(row.original.createdAt).toLocaleDateString() : '-',
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => handleRemoveApprover(row.original.id, row.original.email)}
+        >
+          <Trash2 className="h-4 w-4 text-destructive" />
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <PageTransition>
       <AuthNavbar />
@@ -735,6 +852,7 @@ const Admin = () => {
             <TabsTrigger value="admins">Admins</TabsTrigger>
             <TabsTrigger value="legalTeam">Legal Team</TabsTrigger>
             <TabsTrigger value="managementTeam">Management Team</TabsTrigger>
+            <TabsTrigger value="approvers">Approvers</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users">
@@ -1089,6 +1207,108 @@ const Admin = () => {
               <CardFooter className="border-t pt-6 flex justify-between">
                 <div className="text-sm text-muted-foreground">
                   Management team members can approve contracts and make business decisions.
+                </div>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="approvers">
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>Approvers</CardTitle>
+                    <CardDescription>
+                      Manage approvers who can approve contracts
+                    </CardDescription>
+                  </div>
+                  <Dialog open={isApproverDialogOpen} onOpenChange={(open) => {
+                    setIsApproverDialogOpen(open);
+                    if (!open) {
+                      setApproverUserSearch('');
+                      setFilteredApproverUsers([]);
+                    }
+                  }}>
+                    <DialogTrigger asChild>
+                      <Button size="sm">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Member
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add Approver</DialogTitle>
+                        <DialogDescription>
+                          Search for an existing user to add as an approver.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="approverUserSearch">Search Existing Users</Label>
+                          <div className="relative">
+                            <Input
+                              id="approverUserSearch"
+                              placeholder="Search by name or email"
+                              value={approverUserSearch}
+                              onChange={(e) => setApproverUserSearch(e.target.value)}
+                            />
+                            {filteredApproverUsers.length > 0 && (
+                              <div className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-popover border rounded-md shadow-md">
+                                {filteredApproverUsers.map(user => (
+                                  <div
+                                    key={user.id}
+                                    className="p-2 hover:bg-accent cursor-pointer flex justify-between items-center"
+                                    onClick={() => handleAddApprover(user)}
+                                  >
+                                    <div>
+                                      <div className="font-medium">
+                                        {user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'No name'}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">{user.email}</div>
+                                    </div>
+                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                      <Check className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {filteredApproverUsers.length === 0 && approverUserSearch.trim() !== '' && (
+                          <div className="text-sm flex items-center gap-2 text-muted-foreground">
+                            <AlertCircle className="h-4 w-4" />
+                            No matching users found
+                          </div>
+                        )}
+                        {approverUserSearch.trim() === '' && (
+                          <div className="text-sm text-muted-foreground">
+                            Type to search for users to add as approvers
+                          </div>
+                        )}
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsApproverDialogOpen(false)}>
+                          Cancel
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <Skeleton className="w-full h-64" />
+                ) : (
+                  <DataTable
+                    columns={approverColumns}
+                    data={approvers}
+                  />
+                )}
+              </CardContent>
+              <CardFooter className="border-t pt-6 flex justify-between">
+                <div className="text-sm text-muted-foreground">
+                  Approvers can review and approve contracts.
                 </div>
               </CardFooter>
             </Card>

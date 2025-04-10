@@ -7,7 +7,8 @@ import {
   getContracts,
   Contract,
   getUserContractStats,
-  getUserContracts
+  getUserContracts,
+  normalizeApprovers
 } from '@/lib/data';
 import { getContractsForApproval, getRespondedContracts } from '@/lib/approval-utils';
 import { fixInconsistentApprovalStates } from '@/lib/fix-approvals';
@@ -41,7 +42,7 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [isFixingApprovals, setIsFixingApprovals] = useState(false);
-  const { currentUser, isAdmin, isLegalTeam, isManagementTeam } = useAuth();
+  const { currentUser, isAdmin, isLegalTeam, isManagementTeam, isApprover } = useAuth();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -70,31 +71,68 @@ const Index = () => {
             .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
             .slice(0, 5);
           setContracts(recentContracts);
-        } else if (isLegalTeam || isManagementTeam) {
-          // Legal and management team members see only their assigned contracts
+        } else if (isLegalTeam || isManagementTeam || isApprover) {
+          // Legal, management team, and approver members see only their assigned contracts
           const contractStats = await getUserContractStats(currentUser?.email || '');
 
           // Get all contracts assigned to this user
           const userContracts = await getUserContracts(currentUser?.email || '');
+          // Normalize contracts to handle the new approvers structure
+          const normalizedContracts = userContracts.map(contract => normalizeApprovers(contract));
+
           // Get approved and rejected contracts by this user
-          const approved = userContracts.filter(c => {
-            if (isLegalTeam && c.approvers?.legal?.email === currentUser?.email) {
-              return c.approvers.legal.approved;
+          const approved = normalizedContracts.filter(c => {
+            const userEmail = currentUser?.email || '';
+
+            // Check if the user is a legal team approver who approved this contract
+            if (isLegalTeam && c.approvers?.legal) {
+              const legalApprovers = Array.isArray(c.approvers.legal) ? c.approvers.legal : [c.approvers.legal];
+              const userApprover = legalApprovers.find(a => a.email === userEmail);
+              return userApprover?.approved === true;
             }
-            if (isManagementTeam && c.approvers?.management?.email === currentUser?.email) {
-              return c.approvers.management.approved;
+
+            // Check if the user is a management team approver who approved this contract
+            if (isManagementTeam && c.approvers?.management) {
+              const managementApprovers = Array.isArray(c.approvers.management) ? c.approvers.management : [c.approvers.management];
+              const userApprover = managementApprovers.find(a => a.email === userEmail);
+              return userApprover?.approved === true;
             }
+
+            // Check if the user is an approver who approved this contract
+            if (isApprover && c.approvers?.approver) {
+              const approvers = c.approvers.approver;
+              const userApprover = approvers.find(a => a.email === userEmail);
+              return userApprover?.approved === true;
+            }
+
             return false;
           });
           setApprovedContracts(approved);
 
-          const rejected = userContracts.filter(c => {
-            if (isLegalTeam && c.approvers?.legal?.email === currentUser?.email) {
-              return c.approvers.legal.declined;
+          const rejected = normalizedContracts.filter(c => {
+            const userEmail = currentUser?.email || '';
+
+            // Check if the user is a legal team approver who declined this contract
+            if (isLegalTeam && c.approvers?.legal) {
+              const legalApprovers = Array.isArray(c.approvers.legal) ? c.approvers.legal : [c.approvers.legal];
+              const userApprover = legalApprovers.find(a => a.email === userEmail);
+              return userApprover?.declined === true;
             }
-            if (isManagementTeam && c.approvers?.management?.email === currentUser?.email) {
-              return c.approvers.management.declined;
+
+            // Check if the user is a management team approver who declined this contract
+            if (isManagementTeam && c.approvers?.management) {
+              const managementApprovers = Array.isArray(c.approvers.management) ? c.approvers.management : [c.approvers.management];
+              const userApprover = managementApprovers.find(a => a.email === userEmail);
+              return userApprover?.declined === true;
             }
+
+            // Check if the user is an approver who declined this contract
+            if (isApprover && c.approvers?.approver) {
+              const approvers = c.approvers.approver;
+              const userApprover = approvers.find(a => a.email === userEmail);
+              return userApprover?.declined === true;
+            }
+
             return false;
           });
           setRejectedContracts(rejected);

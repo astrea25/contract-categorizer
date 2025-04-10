@@ -28,6 +28,14 @@ const roleColors: Record<string, { bg: string, text: string }> = {
     bg: "bg-green-100",
     text: "text-green-800"
   },
+  "Approver": {
+    bg: "bg-purple-100",
+    text: "text-purple-800"
+  },
+  approver: {
+    bg: "bg-purple-100",
+    text: "text-purple-800"
+  },
   user: {
     bg: "bg-gray-100",
     text: "text-gray-800"
