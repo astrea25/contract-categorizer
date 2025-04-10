@@ -272,29 +272,55 @@ export const createContract = async (
 ): Promise<string> => {
   const now = Timestamp.now();
   const initialStatus = contract.status || 'draft';
-  const formattedStatus = initialStatus
-    .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
 
   // Create the initial timeline entry
   const initialTimelineEntry = {
     timestamp: now.toDate().toISOString(),
-    action: 'Contract Created',
+    action: 'Contract Created with Draft Status',
     userEmail: creator.email,
-    userName: creator.displayName || undefined,
-    details: `Initial status set to ${formattedStatus}`
+    userName: creator.displayName || creator.email.split('@')[0] || 'User', // Use email username or 'User' as fallback
+    details: 'Contract was initially created'
   };
 
+  // Create a clean contract object without any undefined values
+  const cleanContract = JSON.parse(JSON.stringify(contract));
+
+  // Ensure owner is set and not undefined
+  if (!cleanContract.owner || cleanContract.owner === 'undefined') {
+    cleanContract.owner = creator.email || 'Unassigned';
+  }
+
+  // Ensure parties have names
+  if (cleanContract.parties && Array.isArray(cleanContract.parties)) {
+    cleanContract.parties = cleanContract.parties.map(party => ({
+      ...party,
+      name: party.name || party.email?.split('@')[0] || 'User'
+    }));
+  }
+
   const newContract = {
-    ...contract,
+    ...cleanContract,
     status: initialStatus,
-    owner: creator.email,
+    owner: cleanContract.owner, // Use the cleaned owner value
     createdAt: now.toDate().toISOString(),
     updatedAt: now.toDate().toISOString(),
     archived: false,
     timeline: [initialTimelineEntry]
   };
+
+  // Initialize approvers with empty objects if not present
+  if (!newContract.approvers) {
+    newContract.approvers = {};
+  }
+
+  // Set default approver limits if not present
+  if (!newContract.approverLimits) {
+    newContract.approverLimits = {
+      legal: 2,
+      management: 5,
+      approver: 1
+    };
+  }
 
   const docRef = await addDoc(collection(db, 'contracts'), newContract);
   return docRef.id;
@@ -315,9 +341,12 @@ export const updateContract = async (
   }
   const currentContractData = currentContractSnap.data() as Contract;
 
+  // Create a clean contract updates object without any undefined values
+  const cleanContractUpdates = JSON.parse(JSON.stringify(contractUpdates));
+
   // Prepare the update data
   const updateData: Record<string, any> = {
-    ...contractUpdates,
+    ...cleanContractUpdates,
     updatedAt: now.toDate().toISOString(),
   };
 
@@ -330,7 +359,7 @@ export const updateContract = async (
       timestamp: now.toDate().toISOString(),
       action: 'Title Updated',
       userEmail: editor.email,
-      userName: editor.displayName || undefined,
+      userName: editor.displayName || editor.email.split('@')[0] || 'User', // Use email username or 'User' as fallback
       details: `Changed from "${currentContractData.title}" to "${contractUpdates.title}"`
     });
   }
@@ -339,7 +368,7 @@ export const updateContract = async (
       timestamp: now.toDate().toISOString(),
       action: 'Project Name Updated',
       userEmail: editor.email,
-      userName: editor.displayName || undefined,
+      userName: editor.displayName || editor.email.split('@')[0] || 'User', // Use email username or 'User' as fallback
       details: `Changed from "${currentContractData.projectName}" to "${contractUpdates.projectName}"`
     });
   }
@@ -348,7 +377,7 @@ export const updateContract = async (
       timestamp: now.toDate().toISOString(),
       action: 'Description Updated',
       userEmail: editor.email,
-      userName: editor.displayName || undefined
+      userName: editor.displayName || editor.email.split('@')[0] || 'User' // Use email username or 'User' as fallback
       // Details might be too long for description, omit for brevity or consider summarizing
     });
   }
@@ -357,7 +386,7 @@ export const updateContract = async (
       timestamp: now.toDate().toISOString(),
       action: 'Type Updated',
       userEmail: editor.email,
-      userName: editor.displayName || undefined,
+      userName: editor.displayName || editor.email.split('@')[0] || 'User', // Use email username or 'User' as fallback
       details: `Changed from ${contractTypeLabels[currentContractData.type]} to ${contractTypeLabels[contractUpdates.type]}`
     });
   }
@@ -370,7 +399,7 @@ export const updateContract = async (
       timestamp: now.toDate().toISOString(),
       action: `Status Changed to ${formattedStatus}`,
       userEmail: editor.email,
-      userName: editor.displayName || undefined,
+      userName: editor.displayName || editor.email.split('@')[0] || 'User', // Use email username or 'User' as fallback
       // Details are implicit in the action
     };
 
@@ -381,7 +410,7 @@ export const updateContract = async (
       timestamp: now.toDate().toISOString(),
       action: 'Start Date Updated',
       userEmail: editor.email,
-      userName: editor.displayName || undefined,
+      userName: editor.displayName || editor.email.split('@')[0] || 'User', // Use email username or 'User' as fallback
       details: `Changed from ${currentContractData.startDate} to ${contractUpdates.startDate}`
     });
   }
@@ -390,7 +419,7 @@ export const updateContract = async (
       timestamp: now.toDate().toISOString(),
       action: 'End Date Updated',
       userEmail: editor.email,
-      userName: editor.displayName || undefined,
+      userName: editor.displayName || editor.email.split('@')[0] || 'User', // Use email username or 'User' as fallback
       details: `Changed from ${currentContractData.endDate || 'Ongoing'} to ${contractUpdates.endDate || 'Ongoing'}`
     });
   }
@@ -399,7 +428,7 @@ export const updateContract = async (
       timestamp: now.toDate().toISOString(),
       action: 'Value Updated',
       userEmail: editor.email,
-      userName: editor.displayName || undefined,
+      userName: editor.displayName || editor.email.split('@')[0] || 'User', // Use email username or 'User' as fallback
       details: `Changed from ${currentContractData.value?.toLocaleString() || 'N/A'} to ${contractUpdates.value?.toLocaleString() || 'N/A'}`
     });
   }
@@ -408,7 +437,7 @@ export const updateContract = async (
       timestamp: now.toDate().toISOString(),
       action: 'Parties Updated',
       userEmail: editor.email,
-      userName: editor.displayName || undefined
+      userName: editor.displayName || editor.email.split('@')[0] || 'User' // Use email username or 'User' as fallback
       // Details could list added/removed parties if needed, complex logic omitted
     });
   }
@@ -417,7 +446,7 @@ export const updateContract = async (
       timestamp: now.toDate().toISOString(),
       action: 'Document Link Updated',
       userEmail: editor.email,
-      userName: editor.displayName || undefined
+      userName: editor.displayName || editor.email.split('@')[0] || 'User' // Use email username or 'User' as fallback
     });
   }
   // Logic for approvers update might need specific handling if approvers can be updated directly here
@@ -428,7 +457,7 @@ export const updateContract = async (
       timestamp: now.toDate().toISOString(),
       action: 'Approvers Updated',
       userEmail: editor.email,
-      userName: editor.displayName || undefined
+      userName: editor.displayName || editor.email.split('@')[0] || 'User' // Use email username or 'User' as fallback
       // Add details about which approvers changed if necessary
     });
   }
@@ -1380,7 +1409,11 @@ export const normalizeApprovers = (contract: Contract): Contract => {
     // Initialize with default limits if no approvers exist
     return {
       ...contract,
-      approvers: {},
+      approvers: {
+        legal: [],
+        management: [],
+        approver: []
+      },
       approverLimits: {
         legal: 2,
         management: 5,
@@ -1389,7 +1422,16 @@ export const normalizeApprovers = (contract: Contract): Contract => {
     };
   }
 
-  const normalizedApprovers: any = {};
+  const normalizedApprovers: {
+    legal: Array<{email: string; name: string; approved: boolean; declined?: boolean; approvedAt?: string; declinedAt?: string;}>,
+    management: Array<{email: string; name: string; approved: boolean; declined?: boolean; approvedAt?: string; declinedAt?: string;}>,
+    approver: Array<{email: string; name: string; approved: boolean; declined?: boolean; approvedAt?: string; declinedAt?: string;}>
+  } = {
+    legal: [],
+    management: [],
+    approver: []
+  };
+
   const approverLimits = contract.approverLimits || {
     legal: 2,
     management: 5,
@@ -1418,7 +1460,12 @@ export const normalizeApprovers = (contract: Contract): Contract => {
 
   // Handle approvers
   if (contract.approvers.approver) {
-    normalizedApprovers.approver = contract.approvers.approver;
+    if (!Array.isArray(contract.approvers.approver)) {
+      // Convert single object to array if needed
+      normalizedApprovers.approver = [contract.approvers.approver];
+    } else {
+      normalizedApprovers.approver = contract.approvers.approver;
+    }
   }
 
   return {
@@ -1550,7 +1597,8 @@ export const getUserContracts = async (userEmail: string, includeArchived: boole
     if (contract.owner.toLowerCase() === lowercaseEmail) return true;
 
     // Check if user is in the parties list
-    const isParty = contract.parties.some(party =>
+    const parties = contract.parties || [];
+    const isParty = parties.some(party =>
       party.email.toLowerCase() === lowercaseEmail
     );
     if (isParty) return true;
@@ -1559,24 +1607,55 @@ export const getUserContracts = async (userEmail: string, includeArchived: boole
     // First normalize the approvers structure
     const normalizedContract = normalizeApprovers(contract);
 
-    // Check if user is a legal approver
-    const isLegalApprover = normalizedContract.approvers?.legal?.some(
-      approver => approver.email.toLowerCase() === lowercaseEmail
-    );
+    // For legal approvers
+    if (normalizedContract.approvers?.legal) {
+      const legalApprovers = Array.isArray(normalizedContract.approvers.legal)
+        ? normalizedContract.approvers.legal
+        : [normalizedContract.approvers.legal];
 
-    // Check if user is a management approver
-    const isManagementApprover = normalizedContract.approvers?.management?.some(
-      approver => approver.email.toLowerCase() === lowercaseEmail
-    );
+      const userLegalApprover = legalApprovers.find(
+        approver => approver.email.toLowerCase() === lowercaseEmail
+      );
+      // Only return true if this contract is assigned to them specifically
+      if (userLegalApprover) {
+        // Only show if the contract is in legal_review status or if they've already approved/declined
+        if (contract.status === 'legal_review' || userLegalApprover.approved || userLegalApprover.declined) {
+          return true;
+        }
+      }
+    }
 
-    // Check if user is an approver
-    const isApprover = normalizedContract.approvers?.approver?.some(
-      approver => approver.email.toLowerCase() === lowercaseEmail
-    );
+    // For management approvers
+    if (normalizedContract.approvers?.management) {
+      const managementApprovers = Array.isArray(normalizedContract.approvers.management)
+        ? normalizedContract.approvers.management
+        : [normalizedContract.approvers.management];
 
-    if (isLegalApprover || isManagementApprover || isApprover) return true;
+      const userManagementApprover = managementApprovers.find(
+        approver => approver.email.toLowerCase() === lowercaseEmail
+      );
+      // Only return true if this contract is assigned to them specifically
+      if (userManagementApprover) {
+        // Only show if the contract is in management_review status or if they've already approved/declined
+        if (contract.status === 'management_review' || userManagementApprover.approved || userManagementApprover.declined) {
+          return true;
+        }
+      }
+    }
 
-    // sharedWith check removed
+    // For regular approvers
+    if (normalizedContract.approvers?.approver) {
+      const userApprover = normalizedContract.approvers.approver.find(
+        approver => approver.email.toLowerCase() === lowercaseEmail
+      );
+      // Only return true if this contract is assigned to them specifically
+      if (userApprover) {
+        // Only show if the contract is in approval status or if they've already approved/declined
+        if (contract.status === 'approval' || userApprover.approved || userApprover.declined) {
+          return true;
+        }
+      }
+    }
 
     // User is not involved with this contract
     return false;
@@ -1608,19 +1687,22 @@ export const getUserArchivedContracts = async (userEmail: string): Promise<Contr
     const normalizedContract = normalizeApprovers(contract);
 
     // Check if user is a legal approver
-    const isLegalApprover = normalizedContract.approvers?.legal?.some(
-      approver => approver.email.toLowerCase() === lowercaseEmail
-    );
+    const isLegalApprover = Array.isArray(normalizedContract.approvers?.legal) &&
+      normalizedContract.approvers.legal.some(
+        approver => approver.email.toLowerCase() === lowercaseEmail
+      );
 
     // Check if user is a management approver
-    const isManagementApprover = normalizedContract.approvers?.management?.some(
-      approver => approver.email.toLowerCase() === lowercaseEmail
-    );
+    const isManagementApprover = Array.isArray(normalizedContract.approvers?.management) &&
+      normalizedContract.approvers.management.some(
+        approver => approver.email.toLowerCase() === lowercaseEmail
+      );
 
     // Check if user is an approver
-    const isApprover = normalizedContract.approvers?.approver?.some(
-      approver => approver.email.toLowerCase() === lowercaseEmail
-    );
+    const isApprover = Array.isArray(normalizedContract.approvers?.approver) &&
+      normalizedContract.approvers.approver.some(
+        approver => approver.email.toLowerCase() === lowercaseEmail
+      );
 
     if (isLegalApprover || isManagementApprover || isApprover) return true;
 

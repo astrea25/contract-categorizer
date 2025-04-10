@@ -28,7 +28,8 @@ import {
   Folder,
   getUserContracts,
   isUserAdmin,
-  isUserLegalTeam
+  isUserLegalTeam,
+  normalizeApprovers
 } from '@/lib/data';
 import { getContractsForApproval, getApprovedContracts } from '@/lib/approval-utils';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -116,7 +117,7 @@ const Contracts = () => {
 
   useEffect(() => {
     const fetchAndFilterContracts = async () => {
-      let allContracts;
+      let allContracts: Contract[] = [];
 
       // Handle archive view separately
       if (selectedFolder === 'archive') {
@@ -137,25 +138,44 @@ const Contracts = () => {
           allContracts = [];
         }
       }
-      
+
       let filteredContracts = [...allContracts];
 
       // Check if we need to filter by approval status
       if (status === 'awaiting_response' && currentUser?.email) {
         const lowercaseEmail = currentUser.email.toLowerCase();
-        
+
         // Apply approval filtering logic directly
         filteredContracts = filteredContracts.filter(contract => {
-          if (isLegalTeam && contract.approvers?.legal?.email?.toLowerCase() === lowercaseEmail) {
-            const isApproved = contract.approvers.legal.approved === true;
-            const isDeclined = contract.approvers.legal.declined === true;
-            return !isApproved && !isDeclined;
+          // Normalize the approvers structure
+          const normalizedContract = normalizeApprovers(contract);
+
+          if (isLegalTeam) {
+            // Find if the user is a legal approver for this contract
+            const userLegalApprover = Array.isArray(normalizedContract.approvers?.legal) &&
+              normalizedContract.approvers.legal.find(
+                approver => approver.email.toLowerCase() === lowercaseEmail
+              );
+
+            if (userLegalApprover) {
+              // Only include contracts that haven't been approved/declined yet
+              return !userLegalApprover.approved && !userLegalApprover.declined;
+            }
           }
-          if (isManagementTeam && contract.approvers?.management?.email?.toLowerCase() === lowercaseEmail) {
-            const isApproved = contract.approvers.management.approved === true;
-            const isDeclined = contract.approvers.management.declined === true;
-            return !isApproved && !isDeclined;
+
+          if (isManagementTeam) {
+            // Find if the user is a management approver for this contract
+            const userManagementApprover = Array.isArray(normalizedContract.approvers?.management) &&
+              normalizedContract.approvers.management.find(
+                approver => approver.email.toLowerCase() === lowercaseEmail
+              );
+
+            if (userManagementApprover) {
+              // Only include contracts that haven't been approved/declined yet
+              return !userManagementApprover.approved && !userManagementApprover.declined;
+            }
           }
+
           return false;
         });
       }
@@ -216,13 +236,30 @@ const Contracts = () => {
     if (!currentUser?.email) return;
 
     try {
+      // Ensure owner is set and not undefined
+      const owner = newContract.owner || currentUser.email;
+
+      // Ensure parties have names
+      let parties = newContract.parties || [];
+      if (parties.length === 0) {
+        // Add default parties if none exist
+        parties = [
+          {
+            name: currentUser.displayName || currentUser.email.split('@')[0] || 'User',
+            email: currentUser.email,
+            role: 'owner'
+          },
+          { name: '', email: '', role: 'client' }
+        ];
+      }
+
       const contractToAdd = {
         title: newContract.title || 'Untitled Contract',
         projectName: newContract.projectName || 'Unassigned',
         type: newContract.type || 'service',
         status: newContract.status || 'draft',
-        owner: newContract.owner || currentUser?.email || 'Unassigned',
-        parties: newContract.parties || [],
+        owner: owner, // Use the explicitly set owner value
+        parties: parties,
         startDate: newContract.startDate || new Date().toISOString().split('T')[0],
         endDate: newContract.endDate || null,
         value: newContract.value || null,
@@ -236,7 +273,23 @@ const Contracts = () => {
         displayName: currentUser.displayName
       });
 
-      const updatedContracts = await getContracts();
+      // Fetch contracts based on user role, just like in the useEffect
+      let updatedContracts: Contract[] = [];
+      if (isAdmin) {
+        updatedContracts = await getContracts(false); // false to exclude archived
+      } else if ((isLegalTeam || isManagementTeam) && currentUser?.email) {
+        updatedContracts = await getUserContracts(currentUser.email, false); // false to exclude archived
+      } else if (currentUser?.email) {
+        updatedContracts = await getUserContracts(currentUser.email, false); // false to exclude archived
+      } else {
+        updatedContracts = [];
+      }
+
+      // Apply folder filtering if needed
+      if (selectedFolder !== 'all' && selectedFolder !== 'archive') {
+        updatedContracts = filterByFolder(updatedContracts, selectedFolder);
+      }
+
       setContracts(updatedContracts);
 
       uiToast({

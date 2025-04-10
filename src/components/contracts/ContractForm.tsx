@@ -62,10 +62,14 @@ const ContractForm = ({
       projectName: '',
       type: 'service',
       status: 'draft',
-      owner: currentUser?.email || '',
+      owner: currentUser?.email || 'Unassigned', // Ensure owner is never empty
       parties: [
-        { name: '', email: '', role: '' },
-        { name: '', email: '', role: '' }
+        {
+          name: currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User',
+          email: currentUser?.email || '',
+          role: 'owner'
+        },
+        { name: '', email: '', role: 'client' }
       ],
       startDate: new Date().toISOString().split('T')[0],
       endDate: null,
@@ -87,8 +91,12 @@ const ContractForm = ({
 
   const [parties, setParties] = useState<Party[]>(
     initialData?.parties || [
-      { name: '', email: '', role: '' },
-      { name: '', email: '', role: '' }
+      {
+        name: currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User',
+        email: currentUser?.email || '',
+        role: 'owner'
+      },
+      { name: '', email: '', role: 'client' }
     ]
   );
 
