@@ -139,8 +139,8 @@ const ApprovalBoard = ({
   const handleSelectLegalMember = (member: TeamMember) => {
     // Get the current legal approvers
     const normalizedContract = normalizeApprovers(contract);
-    const currentLegalApprovers = Array.isArray(normalizedContract.approvers?.legal) 
-      ? normalizedContract.approvers.legal 
+    const currentLegalApprovers = Array.isArray(normalizedContract.approvers?.legal)
+      ? normalizedContract.approvers.legal
       : normalizedContract.approvers?.legal ? [normalizedContract.approvers.legal] : [];
 
     // Check if we've reached the limit
@@ -211,7 +211,7 @@ const ApprovalBoard = ({
   const handleRemoveLegalApprover = (email: string) => {
     const normalizedContract = normalizeApprovers(contract);
     const currentLegalApprovers = getLegalApprovers();
-    
+
     // Filter out the approver to remove
     const updatedLegalApprovers = currentLegalApprovers.filter(approver => approver.email !== email);
     // Update the approvers
@@ -225,7 +225,7 @@ const ApprovalBoard = ({
   const handleRemoveManagementApprover = (email: string) => {
     const normalizedContract = normalizeApprovers(contract);
     const currentManagementApprovers = getManagementApprovers();
-    
+
     // Filter out the approver to remove
     const updatedManagementApprovers = currentManagementApprovers.filter(approver => approver.email !== email);
     // Update the approvers
@@ -401,8 +401,8 @@ const ApprovalBoard = ({
     // Only allow if the current user is an assigned legal approver
     const normalizedContract = normalizeApprovers(contract);
     const currentLegalApprovers = getLegalApprovers();
-    
-    const userApprover = currentLegalApprovers.find(approver => 
+
+    const userApprover = currentLegalApprovers.find(approver =>
       approver.email.toLowerCase() === currentUser.email.toLowerCase()
     );
     if (!userApprover) return;
@@ -421,11 +421,20 @@ const ApprovalBoard = ({
       return approver;
     });
 
-    // Update approvers
-    await onUpdateApprovers({
-      ...normalizedContract.approvers,
-      legal: updatedLegalApprovers
-    });
+    // Create a custom timeline entry for legal approval
+    const approvalData = {
+      approvers: {
+        ...normalizedContract.approvers,
+        legal: updatedLegalApprovers
+      },
+      _customTimelineEntry: {
+        action: `Legal Approval: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+        details: 'Approved as legal team member'
+      }
+    };
+
+    // Update approvers with custom timeline entry
+    await onUpdateApprovers(approvalData);
 
     toast({
       title: 'Contract Approved',
@@ -441,8 +450,8 @@ const ApprovalBoard = ({
     // Only allow if the current user is an assigned legal approver
     const normalizedContract = normalizeApprovers(contract);
     const currentLegalApprovers = getLegalApprovers();
-    
-    const userApprover = currentLegalApprovers.find(approver => 
+
+    const userApprover = currentLegalApprovers.find(approver =>
       approver.email.toLowerCase() === currentUser.email.toLowerCase()
     );
     if (!userApprover) return;
@@ -481,8 +490,8 @@ const ApprovalBoard = ({
     // Only allow if the current user is an assigned legal approver
     const normalizedContract = normalizeApprovers(contract);
     const currentLegalApprovers = getLegalApprovers();
-    
-    const userApprover = currentLegalApprovers.find(approver => 
+
+    const userApprover = currentLegalApprovers.find(approver =>
       approver.email.toLowerCase() === currentUser.email.toLowerCase()
     );
     if (!userApprover) return;
@@ -501,11 +510,20 @@ const ApprovalBoard = ({
       return approver;
     });
 
-    // Update approvers
-    await onUpdateApprovers({
-      ...normalizedContract.approvers,
-      legal: updatedLegalApprovers
-    });
+    // Create a custom timeline entry for legal decline
+    const approvalData = {
+      approvers: {
+        ...normalizedContract.approvers,
+        legal: updatedLegalApprovers
+      },
+      _customTimelineEntry: {
+        action: `Legal Approval Declined: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+        details: 'Declined as legal team member'
+      }
+    };
+
+    // Update approvers with custom timeline entry
+    await onUpdateApprovers(approvalData);
 
     toast({
       title: 'Approval Withdrawn',
@@ -516,15 +534,15 @@ const ApprovalBoard = ({
 
   // Function to get an array of legal approvers accounting for type differences
   const getLegalApprovers = (): Approver[] => {
-    return Array.isArray(normalizedContract.approvers?.legal) 
-      ? normalizedContract.approvers.legal as Approver[] 
+    return Array.isArray(normalizedContract.approvers?.legal)
+      ? normalizedContract.approvers.legal as Approver[]
       : normalizedContract.approvers?.legal ? [normalizedContract.approvers.legal as Approver] : [];
   };
 
   // Function to get an array of management approvers accounting for type differences
   const getManagementApprovers = (): Approver[] => {
-    return Array.isArray(normalizedContract.approvers?.management) 
-      ? normalizedContract.approvers.management as Approver[] 
+    return Array.isArray(normalizedContract.approvers?.management)
+      ? normalizedContract.approvers.management as Approver[]
       : normalizedContract.approvers?.management ? [normalizedContract.approvers.management as Approver] : [];
   };
 
@@ -535,8 +553,8 @@ const ApprovalBoard = ({
     // Only allow if the current user is an assigned management approver
     const normalizedContract = normalizeApprovers(contract);
     const currentManagementApprovers = getManagementApprovers();
-    
-    const userApprover = currentManagementApprovers.find(approver => 
+
+    const userApprover = currentManagementApprovers.find(approver =>
       approver.email.toLowerCase() === currentUser.email.toLowerCase()
     );
     if (!userApprover) return;
@@ -555,11 +573,20 @@ const ApprovalBoard = ({
       return approver;
     });
 
-    // Update approvers
-    await onUpdateApprovers({
-      ...normalizedContract.approvers,
-      management: updatedManagementApprovers
-    });
+    // Create a custom timeline entry for management approval
+    const approvalData = {
+      approvers: {
+        ...normalizedContract.approvers,
+        management: updatedManagementApprovers
+      },
+      _customTimelineEntry: {
+        action: `Management Approval: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+        details: 'Approved as management team member'
+      }
+    };
+
+    // Update approvers with custom timeline entry
+    await onUpdateApprovers(approvalData);
 
     toast({
       title: 'Contract Approved',
@@ -575,8 +602,8 @@ const ApprovalBoard = ({
     // Only allow if the current user is an assigned management approver
     const normalizedContract = normalizeApprovers(contract);
     const currentManagementApprovers = getManagementApprovers();
-    
-    const userApprover = currentManagementApprovers.find(approver => 
+
+    const userApprover = currentManagementApprovers.find(approver =>
       approver.email.toLowerCase() === currentUser.email.toLowerCase()
     );
     if (!userApprover) return;
@@ -595,11 +622,20 @@ const ApprovalBoard = ({
       return approver;
     });
 
-    // Update approvers
-    await onUpdateApprovers({
-      ...normalizedContract.approvers,
-      management: updatedManagementApprovers
-    });
+    // Create a custom timeline entry for management decline
+    const approvalData = {
+      approvers: {
+        ...normalizedContract.approvers,
+        management: updatedManagementApprovers
+      },
+      _customTimelineEntry: {
+        action: `Management Approval Declined: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+        details: 'Declined as management team member'
+      }
+    };
+
+    // Update approvers with custom timeline entry
+    await onUpdateApprovers(approvalData);
 
     toast({
       title: 'Contract Declined',
@@ -615,8 +651,8 @@ const ApprovalBoard = ({
     // Only allow if the current user is an assigned management approver
     const normalizedContract = normalizeApprovers(contract);
     const currentManagementApprovers = getManagementApprovers();
-    
-    const userApprover = currentManagementApprovers.find(approver => 
+
+    const userApprover = currentManagementApprovers.find(approver =>
       approver.email.toLowerCase() === currentUser.email.toLowerCase()
     );
     if (!userApprover) return;
@@ -652,14 +688,14 @@ const ApprovalBoard = ({
   const normalizedContractForChecks = normalizeApprovers(contract);
 
   // Check if current user is a legal approver
-  const isCurrentUserLegalApprover = currentUser?.email && 
-    getLegalApprovers().some(approver => 
+  const isCurrentUserLegalApprover = currentUser?.email &&
+    getLegalApprovers().some(approver =>
       approver.email.toLowerCase() === currentUser.email.toLowerCase()
     );
 
   // Check if current user is a management approver
-  const isCurrentUserManagementApprover = currentUser?.email && 
-    getManagementApprovers().some(approver => 
+  const isCurrentUserManagementApprover = currentUser?.email &&
+    getManagementApprovers().some(approver =>
       approver.email.toLowerCase() === currentUser.email.toLowerCase()
     );
 

@@ -210,14 +210,35 @@ const ContractDetail = () => {
     }
   };
 
-  const handleUpdateApprovers = async (approvers: Contract['approvers']) => {
+  const handleUpdateApprovers = async (approversData: any) => {
     if (!contract || !id || !currentUser?.email || !isAuthorized) return;
 
     try {
-      await updateContract(id, { approvers }, {
-        email: currentUser.email,
-        displayName: currentUser.displayName
-      });
+      // Check if we have a custom timeline entry
+      const customTimelineEntry = approversData._customTimelineEntry;
+      const approvers = approversData.approvers || approversData;
+
+      // If we have a custom timeline entry, use it
+      if (customTimelineEntry) {
+        // Create a custom update with the timeline entry
+        await updateContract(id, {
+          approvers,
+          _customTimelineEntry: {
+            ...customTimelineEntry,
+            userEmail: currentUser.email,
+            userName: currentUser.displayName || currentUser.email.split('@')[0] || 'User'
+          }
+        }, {
+          email: currentUser.email,
+          displayName: currentUser.displayName
+        });
+      } else {
+        // Regular approvers update
+        await updateContract(id, { approvers }, {
+          email: currentUser.email,
+          displayName: currentUser.displayName
+        });
+      }
 
       const updatedContract = await getContract(id);
       if (updatedContract) {
@@ -546,7 +567,8 @@ const ContractDetail = () => {
                         else statusKey = statusText.toLowerCase() as ContractStatus;
                       }
 
-                      const userIdentifier = entry.userName || entry.userEmail; // Prioritize userName
+                      // Use userName if available, otherwise use email username or full email
+                      const userIdentifier = entry.userName || (entry.userEmail ? entry.userEmail.split('@')[0] : entry.userEmail);
 
                       return (
                         <div key={index} className="flex items-start">
@@ -605,7 +627,7 @@ const ContractDetail = () => {
                         {new Date(contract.createdAt).toLocaleString()}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        By: {contract.owner || 'System'}
+                        By: {typeof contract.owner === 'string' && contract.owner.includes('@') ? contract.owner.split('@')[0] : (contract.owner || 'System')}
                       </div>
                     </div>
                   </div>
@@ -621,7 +643,7 @@ const ContractDetail = () => {
                         {new Date(contract.startDate).toLocaleDateString()}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        By: {contract.owner || 'System'}
+                        By: {typeof contract.owner === 'string' && contract.owner.includes('@') ? contract.owner.split('@')[0] : (contract.owner || 'System')}
                       </div>
                     </div>
                   </div>
@@ -637,7 +659,7 @@ const ContractDetail = () => {
                         {new Date(contract.updatedAt).toLocaleString()}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        By: {contract.owner || 'System'}
+                        By: {typeof contract.owner === 'string' && contract.owner.includes('@') ? contract.owner.split('@')[0] : (contract.owner || 'System')}
                       </div>
                     </div>
                   </div>
@@ -653,7 +675,7 @@ const ContractDetail = () => {
                           {new Date(contract.endDate).toLocaleDateString()}
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          By: {contract.owner || 'System'}
+                          By: {typeof contract.owner === 'string' && contract.owner.includes('@') ? contract.owner.split('@')[0] : (contract.owner || 'System')}
                         </div>
                       </div>
                     </div>

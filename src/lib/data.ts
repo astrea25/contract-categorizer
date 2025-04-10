@@ -449,8 +449,23 @@ export const updateContract = async (
       userName: editor.displayName || editor.email.split('@')[0] || 'User' // Use email username or 'User' as fallback
     });
   }
+  // Check if we have a custom timeline entry
+  if (contractUpdates._customTimelineEntry) {
+    // Use the custom timeline entry
+    const customEntry = contractUpdates._customTimelineEntry;
+    newTimelineEntries.push({
+      timestamp: now.toDate().toISOString(),
+      action: customEntry.action,
+      userEmail: editor.email,
+      userName: editor.displayName || editor.email.split('@')[0] || 'User', // Use email username or 'User' as fallback
+      details: customEntry.details || ''
+    });
+
+    // Remove the custom timeline entry from the updates
+    delete contractUpdates._customTimelineEntry;
+  }
   // Logic for approvers update might need specific handling if approvers can be updated directly here
-  if (contractUpdates.approvers) {
+  else if (contractUpdates.approvers) {
     // Determine changes in approvers (complex logic potentially needed)
     // For simplicity, just log that approvers were updated
     newTimelineEntries.push({
