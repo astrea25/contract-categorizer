@@ -637,9 +637,9 @@ const Index = () => {
           <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Upcoming Expirations</CardTitle>
+                <CardTitle>Contract Progress Statistics</CardTitle>
                 <CardDescription>
-                  Active contracts expiring soon
+                  Number of contracts in each stage
                 </CardDescription>
               </div>
               <Button variant="ghost" size="sm" asChild>
@@ -660,27 +660,30 @@ const Index = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {expiringContractsList.length > 0 ? (
-                    expiringContractsList.map(contract => (
-                      <div key={contract.id} className="flex justify-between items-center border-b pb-3 last:border-0">
-                        <div>
-                          <h4 className="font-medium">{contract.title}</h4>
-                          <p className="text-sm text-muted-foreground">{contract.projectName}</p>
-                        </div>
-                        <div className="text-right">
-                          {contract.endDate ? (
-                            <p className="text-sm font-medium">
-                              Expires: {new Date(contract.endDate).toLocaleDateString()}
-                            </p>
-                          ) : (
-                            <p className="text-sm font-medium">Ongoing</p>
-                          )}
-                        </div>
+                  {chartData.map((item) => (
+                    <div 
+                      key={item.name} 
+                      className="flex justify-between items-center border-b pb-3 last:border-0 cursor-pointer hover:bg-secondary/50 px-2 -mx-2 rounded transition-colors"
+                      onClick={() => handlePieClick(item)}
+                      style={{
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <h4 className="font-medium">{item.name}</h4>
                       </div>
-                    ))
-                  ) : (
+                      <div className="text-right">
+                        <p className="text-sm font-medium">{item.value} contracts</p>
+                      </div>
+                    </div>
+                  ))}
+                  {chartData.length === 0 && (
                     <p className="text-center text-muted-foreground py-4">
-                      No upcoming expirations
+                      No contracts found
                     </p>
                   )}
                 </div>
