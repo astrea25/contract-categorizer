@@ -118,16 +118,24 @@ const Contracts = () => {
     const fetchAndFilterContracts = async () => {
       let allContracts;
 
-      // Get contracts based on user role
-      if (isAdmin) {
-        allContracts = await getContracts(true);
-        allContracts = allContracts.filter(contract => !contract.archived);
-      } else if ((isLegalTeam || isManagementTeam) && currentUser?.email) {
-        allContracts = await getUserContracts(currentUser.email);
-      } else if (currentUser?.email) {
-        allContracts = await getUserContracts(currentUser.email);
+      // Handle archive view separately
+      if (selectedFolder === 'archive') {
+        if (currentUser?.email) {
+          allContracts = await getUserArchivedContracts(currentUser.email);
+        } else {
+          allContracts = await getArchivedContracts();
+        }
       } else {
-        allContracts = [];
+        // Get non-archived contracts based on user role
+        if (isAdmin) {
+          allContracts = await getContracts(false); // false to exclude archived
+        } else if ((isLegalTeam || isManagementTeam) && currentUser?.email) {
+          allContracts = await getUserContracts(currentUser.email, false); // false to exclude archived
+        } else if (currentUser?.email) {
+          allContracts = await getUserContracts(currentUser.email, false); // false to exclude archived
+        } else {
+          allContracts = [];
+        }
       }
       
       let filteredContracts = [...allContracts];
@@ -156,41 +164,17 @@ const Contracts = () => {
         filteredContracts = filteredContracts.filter(contract => contract.status === status);
       }
 
+      // Apply filter based on filter param
       if (filter) {
-        const now = new Date();
-        const thirtyDaysFromNow = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
-        const currentYear = now.getFullYear();
-
+        const currentYear = new Date().getFullYear();
         switch (filter) {
-          case 'my_approved':
-            // Filter approved contracts by current user
-            filteredContracts = filteredContracts.filter(contract => {
-              if (isLegalTeam && contract.approvers?.legal?.email?.toLowerCase() === currentUser?.email?.toLowerCase()) {
-                return contract.approvers.legal.approved === true;
-              }
-              if (isManagementTeam && contract.approvers?.management?.email?.toLowerCase() === currentUser?.email?.toLowerCase()) {
-                return contract.approvers.management.approved === true;
-              }
-              return false;
-            });
-            break;
-          case 'my_rejected':
-            // Filter rejected contracts by current user
-            filteredContracts = filteredContracts.filter(contract => {
-              if (isLegalTeam && contract.approvers?.legal?.email?.toLowerCase() === currentUser?.email?.toLowerCase()) {
-                return contract.approvers.legal.declined === true;
-              }
-              if (isManagementTeam && contract.approvers?.management?.email?.toLowerCase() === currentUser?.email?.toLowerCase()) {
-                return contract.approvers.management.declined === true;
-              }
-              return false;
-            });
-            break;
-          case 'expiringSoon':
+          case 'expiringThisMonth':
             filteredContracts = filteredContracts.filter(contract => {
               if (!contract.endDate) return false;
               const endDate = new Date(contract.endDate);
-              return endDate <= thirtyDaysFromNow && endDate >= now;
+              const now = new Date();
+              return endDate.getMonth() === now.getMonth() &&
+                     endDate.getFullYear() === now.getFullYear();
             });
             break;
           case 'expiringThisYear':
@@ -202,7 +186,6 @@ const Contracts = () => {
             break;
         }
       }
-
 
       setContracts(filteredContracts);
     };
