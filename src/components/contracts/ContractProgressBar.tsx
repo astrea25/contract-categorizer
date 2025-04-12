@@ -29,17 +29,16 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
       return false;
     }
 
-    // Special case for parallel reviews
-    if (stage === 'legal_review' && currentStatus === 'management_review') {
-      // If current stage is management_review, consider legal_review as completed
-      return true;
+    // For parallel review stages, treat each independently
+    if (stage === 'legal_review') {
+      return currentStatus === 'legal_review' || currentStatus === 'approval' || currentStatus === 'finished';
+    }
+    
+    if (stage === 'management_review') {
+      return currentStatus === 'management_review' || currentStatus === 'approval' || currentStatus === 'finished';
     }
 
-    if (stage === 'management_review' && currentStatus === 'legal_review') {
-      // If current stage is legal_review, consider management_review as completed
-      return true;
-    }
-
+    // For all other stages, use standard stageOrder comparison
     return stageValue < currentStageValue;
   };
 
@@ -50,17 +49,7 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
       return false;
     }
 
-    // Special case for parallel reviews
-    if (stage === 'legal_review' && currentStatus === 'management_review') {
-      // If current stage is management_review, also highlight legal_review
-      return true;
-    }
-
-    if (stage === 'management_review' && currentStatus === 'legal_review') {
-      // If current stage is legal_review, also highlight management_review
-      return true;
-    }
-
+    // Each stage is only current if it exactly matches the current status
     return stage === currentStatus;
   };
 
@@ -152,27 +141,9 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
   // Determine if paths are completed
   const isDraftCompleted = isStageCompleted('draft');
 
-  // Legal review path is completed if:
-  // 1. Legal review is completed OR
-  // 2. Current status is management_review, approval, or finished
-  // But not if current status is draft (reset case)
-  const isLegalReviewCompleted = currentStatus !== 'draft' && (
-    isStageCompleted('legal_review') ||
-    currentStatus === 'management_review' ||
-    currentStatus === 'approval' ||
-    currentStatus === 'finished'
-  );
-
-  // Management review path is completed if:
-  // 1. Management review is completed OR
-  // 2. Current status is legal_review, approval, or finished
-  // But not if current status is draft (reset case)
-  const isManagementReviewCompleted = currentStatus !== 'draft' && (
-    isStageCompleted('management_review') ||
-    currentStatus === 'legal_review' ||
-    currentStatus === 'approval' ||
-    currentStatus === 'finished'
-  );
+  // Use the same logic as in isStageCompleted for consistency
+  const isLegalReviewCompleted = isStageCompleted('legal_review');
+  const isManagementReviewCompleted = isStageCompleted('management_review');
 
   const isApprovalCompleted = isStageCompleted('approval');
 

@@ -342,6 +342,8 @@ const ContractDetail = () => {
   const handleUpdateApprovers = async (approversData: any) => {
     if (!contract || !id || !currentUser?.email || !isAuthorized) return;
 
+    console.log('ContractDetail - handleUpdateApprovers - Received data:', JSON.stringify(approversData, null, 2));
+
     try {
       const updateStartTime = performance.now();
       
@@ -351,6 +353,9 @@ const ContractDetail = () => {
       // Get approvers, removing _customTimelineEntry if present
       const { _customTimelineEntry, ...cleanApproversData } = approversData;
       const approvers = cleanApproversData.approvers || cleanApproversData;
+      
+      console.log('ContractDetail - handleUpdateApprovers - Status update requested:', cleanApproversData.status);
+      console.log('ContractDetail - handleUpdateApprovers - cleanApproversData:', JSON.stringify(cleanApproversData, null, 2));
       
       // Get the current contract to access its current approvers and timeline
       
@@ -395,6 +400,12 @@ const ContractDetail = () => {
         approvers: normalizedApprovers
       };
       
+      // Check if we have a status update
+      if (cleanApproversData.status) {
+        updateObject.status = cleanApproversData.status;
+        console.log('ContractDetail - handleUpdateApprovers - Setting status to:', updateObject.status);
+      }
+      
       // If we have a custom timeline entry, prepare a new timeline
       if (customTimelineEntry && currentContract.timeline) {
         // Create a new timeline entry
@@ -413,6 +424,7 @@ const ContractDetail = () => {
       // Update the contract with normalized approvers and possibly new timeline entry
       
       const dbUpdateStartTime = performance.now();
+      console.log('ContractDetail - handleUpdateApprovers - Sending update object:', JSON.stringify(updateObject, null, 2));
       
       await updateContract(id, updateObject, {
         email: currentUser.email,
@@ -420,6 +432,7 @@ const ContractDetail = () => {
       });
       
       const dbUpdateEndTime = performance.now();
+      console.log('ContractDetail - handleUpdateApprovers - Update sent successfully');
 
       // Fetch the updated contract to refresh UI
       
@@ -430,6 +443,7 @@ const ContractDetail = () => {
       const refetchEndTime = performance.now();
       
       if (updatedContract) {
+        console.log('ContractDetail - handleUpdateApprovers - Updated contract retrieved, new status:', updatedContract.status);
         setContract(updatedContract);
         toast.success('Approvers updated successfully');
       }
@@ -439,6 +453,7 @@ const ContractDetail = () => {
       
       return Promise.resolve();
     } catch (error) {
+      console.error('ContractDetail - handleUpdateApprovers - Error:', error);
       toast.error('Failed to update approvers');
       return Promise.reject(error);
     }

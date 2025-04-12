@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Check, Search, UserPlus, X, ThumbsDown } from 'lucide-react';
-import { Contract, getLegalTeamMembers, getManagementTeamMembers, getApprovers, normalizeApprovers, updateContract } from '@/lib/data';
+import { Contract, ContractStatus, getLegalTeamMembers, getManagementTeamMembers, getApprovers, normalizeApprovers, updateContract } from '@/lib/data';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/components/ui/use-toast';
 
@@ -37,9 +37,23 @@ interface TypedApprovers {
   approver?: ApproverArray;
 }
 
+// Define a type for the data that can be passed to onUpdateApprovers
+interface ApproversUpdateData {
+  approvers?: Contract['approvers'] | {
+    legal?: Approver[] | undefined;
+    management?: Approver[] | undefined;
+    approver?: Approver[] | undefined;
+  };
+  status?: ContractStatus;
+  _customTimelineEntry?: {
+    action: string;
+    details: string;
+  };
+}
+
 interface ApprovalBoardProps {
   contract: Contract;
-  onUpdateApprovers: (approvers: Contract['approvers']) => Promise<void>;
+  onUpdateApprovers: (updateData: any) => Promise<void>;
   isRequired: boolean;
 }
 
@@ -398,6 +412,8 @@ const ApprovalBoard = ({
   const handleLegalApprove = async () => {
     if (!isLegalTeam || !currentUser?.email) return;
 
+    console.log('Legal approval - Current contract status:', contract.status);
+
     // Only allow if the current user is an assigned legal approver
     const normalizedContract = normalizeApprovers(contract);
     const currentLegalApprovers = getLegalApprovers();
@@ -421,20 +437,52 @@ const ApprovalBoard = ({
       return approver;
     });
 
-    // Create a custom timeline entry for legal approval
-    const approvalData = {
-      approvers: {
-        ...normalizedContract.approvers,
-        legal: updatedLegalApprovers
-      },
-      _customTimelineEntry: {
-        action: `Legal Approval: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
-        details: 'Approved as legal team member'
-      }
+    // Check if management has already approved
+    const managementApprovers = getManagementApprovers();
+    const isManagementApproved = managementApprovers.length > 0 && 
+      managementApprovers.every(approver => approver.approved);
+    
+    console.log('Legal approval - Management approvers:', managementApprovers);
+    console.log('Legal approval - Is management approved:', isManagementApproved);
+    
+    // Build the request data for the API
+    const updateData: any = {};
+    
+    // Add approvers update
+    updateData.approvers = {
+      ...normalizedContract.approvers,
+      legal: updatedLegalApprovers
+    };
+    
+    // Add custom timeline entry
+    updateData._customTimelineEntry = {
+      action: `Legal Approval: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+      details: 'Approved as legal team member'
     };
 
-    // Update approvers with custom timeline entry
-    await onUpdateApprovers(approvalData);
+    // Implement Scenario 1: If current status is draft, move to legal_review
+    if (contract.status === 'draft') {
+      updateData.status = 'legal_review';
+      updateData._customTimelineEntry.details += ' - Status changed to Legal Review';
+      console.log('Legal approval - Setting status to legal_review');
+    }
+    
+    // If both legal and management have approved, move to fully approved status
+    if (isManagementApproved && contract.status === 'management_review') {
+      updateData.status = 'approval';
+      updateData._customTimelineEntry.details += ' - Status changed to Fully Approved (both Legal and Management have approved)';
+      console.log('Legal approval - Setting status to approval (fully approved)');
+    }
+
+    console.log('Legal approval - Final updateData:', JSON.stringify(updateData, null, 2));
+
+    // Update approvers with custom timeline entry and possibly status change
+    try {
+      await onUpdateApprovers(updateData);
+      console.log('Legal approval - onUpdateApprovers called successfully');
+    } catch (error) {
+      console.error('Legal approval - Error in onUpdateApprovers:', error);
+    }
 
     toast({
       title: 'Contract Approved',
@@ -510,20 +558,20 @@ const ApprovalBoard = ({
       return approver;
     });
 
-    // Create a custom timeline entry for legal decline
-    const approvalData = {
+    // Create a custom timeline entry for legal approval withdrawal
+    const updateData: any = {
       approvers: {
         ...normalizedContract.approvers,
         legal: updatedLegalApprovers
       },
       _customTimelineEntry: {
-        action: `Legal Approval Declined: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
-        details: 'Declined as legal team member'
+        action: `Legal Approval Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+        details: 'Withdrawn as legal team member'
       }
     };
 
     // Update approvers with custom timeline entry
-    await onUpdateApprovers(approvalData);
+    await onUpdateApprovers(updateData);
 
     toast({
       title: 'Approval Withdrawn',
@@ -550,6 +598,8 @@ const ApprovalBoard = ({
   const handleManagementApprove = async () => {
     if (!isManagementTeam || !currentUser?.email) return;
 
+    console.log('Management approval - Current contract status:', contract.status);
+
     // Only allow if the current user is an assigned management approver
     const normalizedContract = normalizeApprovers(contract);
     const currentManagementApprovers = getManagementApprovers();
@@ -573,20 +623,52 @@ const ApprovalBoard = ({
       return approver;
     });
 
-    // Create a custom timeline entry for management approval
-    const approvalData = {
-      approvers: {
-        ...normalizedContract.approvers,
-        management: updatedManagementApprovers
-      },
-      _customTimelineEntry: {
-        action: `Management Approval: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
-        details: 'Approved as management team member'
-      }
+    // Check if legal has already approved
+    const legalApprovers = getLegalApprovers();
+    const isLegalApproved = legalApprovers.length > 0 && 
+      legalApprovers.every(approver => approver.approved);
+    
+    console.log('Management approval - Legal approvers:', legalApprovers);
+    console.log('Management approval - Is legal approved:', isLegalApproved);
+    
+    // Build the request data for the API
+    const updateData: any = {};
+    
+    // Add approvers update
+    updateData.approvers = {
+      ...normalizedContract.approvers,
+      management: updatedManagementApprovers
+    };
+    
+    // Add custom timeline entry
+    updateData._customTimelineEntry = {
+      action: `Management Approval: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+      details: 'Approved as management team member'
     };
 
-    // Update approvers with custom timeline entry
-    await onUpdateApprovers(approvalData);
+    // Implement Scenario 2: If current status is draft, move to management_review
+    if (contract.status === 'draft') {
+      updateData.status = 'management_review';
+      updateData._customTimelineEntry.details += ' - Status changed to Management Review';
+      console.log('Management approval - Setting status to management_review');
+    }
+    
+    // If both legal and management have approved, move to fully approved status
+    if (isLegalApproved && contract.status === 'legal_review') {
+      updateData.status = 'approval';
+      updateData._customTimelineEntry.details += ' - Status changed to Fully Approved (both Legal and Management have approved)';
+      console.log('Management approval - Setting status to approval (fully approved)');
+    }
+
+    console.log('Management approval - Final updateData:', JSON.stringify(updateData, null, 2));
+
+    // Update approvers with custom timeline entry and possibly status change
+    try {
+      await onUpdateApprovers(updateData);
+      console.log('Management approval - onUpdateApprovers called successfully');
+    } catch (error) {
+      console.error('Management approval - Error in onUpdateApprovers:', error);
+    }
 
     toast({
       title: 'Contract Approved',
@@ -623,7 +705,7 @@ const ApprovalBoard = ({
     });
 
     // Create a custom timeline entry for management decline
-    const approvalData = {
+    const updateData: any = {
       approvers: {
         ...normalizedContract.approvers,
         management: updatedManagementApprovers
@@ -635,7 +717,7 @@ const ApprovalBoard = ({
     };
 
     // Update approvers with custom timeline entry
-    await onUpdateApprovers(approvalData);
+    await onUpdateApprovers(updateData);
 
     toast({
       title: 'Contract Declined',
