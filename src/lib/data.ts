@@ -687,7 +687,7 @@ export const isUserAdmin = async (email: string): Promise<boolean> => {
 };
 
 // Add an admin user (for testing)
-export const addAdminUser = async (email: string, currentUserEmail?: string): Promise<void> => {
+export const addAdminUser = async (email: string, currentUserEmail?: string, displayName: string = ''): Promise<void> => {
   // First check if the requester is an admin
   if (currentUserEmail) {
     const isAdmin = await isUserAdmin(currentUserEmail);
@@ -703,6 +703,7 @@ export const addAdminUser = async (email: string, currentUserEmail?: string): Pr
   if (adminSnapshot.empty) {
     await addDoc(adminRef, {
       email: email.toLowerCase(),
+      displayName: displayName,
       createdAt: new Date().toISOString()
     });
   }

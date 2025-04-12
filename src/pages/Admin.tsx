@@ -58,6 +58,8 @@ interface User {
 interface AdminUser {
   id: string;
   email: string;
+  displayName?: string;
+  createdAt?: string;
 }
 
 interface LegalTeamMember {
@@ -273,8 +275,23 @@ const Admin = () => {
   const handleAddAdmin = async (user: User) => {
     try {
       setAddingAdmin(true);
-      // Pass the current user email for authorization check
-      await addAdminUser(user.email, currentUser?.email || undefined);
+      
+      // Get the display name from user with better fallbacks
+      let displayName = user.displayName;
+      
+      // If no displayName, try to build it from first and last name
+      if (!displayName && (user.firstName || user.lastName)) {
+        displayName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+      }
+      
+      // If still no displayName, use the email username part
+      if (!displayName) {
+        displayName = user.email.split('@')[0];
+      }
+      
+      // Pass the current user email for authorization check and the display name
+      await addAdminUser(user.email, currentUser?.email || undefined, displayName);
+      
       toast.success(`${user.email} is now an admin`);
       setAdminUserSearch('');
       setNewAdminEmail('');
@@ -501,34 +518,64 @@ const Admin = () => {
     }
   };
 
-  // Function to update display names for users without one
-  const updateMissingDisplayNames = async () => {
+  // Function to update display names and other fields for admin users
+  const updateAdminFields = async () => {
     try {
-      // Find users missing display names but with first/last names
-      const usersToUpdate = users.filter(user =>
-        !user.displayName && (user.firstName || user.lastName)
-      );
+      // Find admins missing display names or createdAt
+      const adminsToUpdate = admins.filter(admin => !admin.displayName || !admin.createdAt);
 
-      if (usersToUpdate.length === 0) {
-        toast.info("No users with missing display names found");
+      if (adminsToUpdate.length === 0) {
+        toast.info("No admin users with missing fields found");
         return;
       }
 
-      // Update each user
-      for (const user of usersToUpdate) {
-        const displayName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
-        if (displayName) {
-          await updateDoc(doc(db, 'users', user.id), {
-            displayName
-          });
+      // For each admin without required fields, update them
+      for (const admin of adminsToUpdate) {
+        const updates: any = {};
+        
+        // Check for missing displayName
+        if (!admin.displayName) {
+          // Find user in allUsers with matching email
+          const matchingUser = allUsers.find(user => 
+            user.email.toLowerCase() === admin.email.toLowerCase()
+          );
+
+          if (matchingUser) {
+            let displayName = matchingUser.displayName;
+            
+            if (!displayName && (matchingUser.firstName || matchingUser.lastName)) {
+              displayName = `${matchingUser.firstName || ''} ${matchingUser.lastName || ''}`.trim();
+            }
+            
+            if (!displayName) {
+              displayName = matchingUser.email.split('@')[0];
+            }
+            
+            if (displayName) {
+              updates.displayName = displayName;
+            }
+          }
+        }
+        
+        // Check for missing createdAt
+        if (!admin.createdAt) {
+          // Use current date as fallback
+          updates.createdAt = new Date().toISOString();
+        }
+        
+        // Only update if we have changes
+        if (Object.keys(updates).length > 0) {
+          // Update the admin document
+          const adminRef = doc(db, 'admin', admin.id);
+          await updateDoc(adminRef, updates);
+          toast.success(`Updated fields for admin: ${admin.email}`);
         }
       }
 
-      toast.success(`Updated display names for ${usersToUpdate.length} users`);
       fetchData(); // Refresh data
     } catch (error) {
-      console.error('Error updating display names:', error);
-      toast.error('Failed to update display names');
+      console.error('Error updating admin fields:', error);
+      toast.error('Failed to update admin fields');
     }
   };
 
@@ -604,6 +651,37 @@ const Admin = () => {
       toast.error('Failed to remove user');
     } finally {
       setIsRemovingUser(false);
+    }
+  };
+
+  // Function to update display names for users without one
+  const updateMissingDisplayNames = async () => {
+    try {
+      // Find users missing display names but with first/last names
+      const usersToUpdate = users.filter(user =>
+        !user.displayName && (user.firstName || user.lastName)
+      );
+
+      if (usersToUpdate.length === 0) {
+        toast.info("No users with missing display names found");
+        return;
+      }
+
+      // Update each user
+      for (const user of usersToUpdate) {
+        const displayName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+        if (displayName) {
+          await updateDoc(doc(db, 'users', user.id), {
+            displayName
+          });
+        }
+      }
+
+      toast.success(`Updated display names for ${usersToUpdate.length} users`);
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error('Error updating display names:', error);
+      toast.error('Failed to update display names');
     }
   };
 
@@ -692,6 +770,16 @@ const Admin = () => {
     {
       accessorKey: 'email',
       header: 'Email',
+    },
+    {
+      accessorKey: 'displayName',
+      header: 'Name',
+      cell: ({ row }) => row.original.displayName || '-',
+    },
+    {
+      accessorKey: 'createdAt',
+      header: 'Added On',
+      cell: ({ row }) => row.original.createdAt ? new Date(row.original.createdAt).toLocaleDateString() : '-',
     },
     {
       id: 'actions',
@@ -875,7 +963,7 @@ const Admin = () => {
                 <div className="mb-4 flex flex-wrap gap-2">
                   <Button
                     variant="outline"
-                    onClick={updateMissingDisplayNames}
+                    onClick={updateAdminFields}
                     disabled={loading}
                   >
                     Fix Missing Display Names
@@ -1002,10 +1090,21 @@ const Admin = () => {
                 {loading ? (
                   <Skeleton className="w-full h-64" />
                 ) : (
-                  <DataTable
-                    columns={adminColumns}
-                    data={admins}
-                  />
+                  <>
+                    <div className="mb-4">
+                      <Button
+                        variant="outline"
+                        onClick={updateAdminFields}
+                        disabled={loading}
+                      >
+                        Fix Admin Fields
+                      </Button>
+                    </div>
+                    <DataTable
+                      columns={adminColumns}
+                      data={admins}
+                    />
+                  </>
                 )}
               </CardContent>
               <CardFooter className="border-t pt-6 flex justify-between">
