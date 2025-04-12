@@ -27,7 +27,7 @@ import {
   removeUser,
   markUserDeletedInAuth
 } from '@/lib/data';
-import { AlertCircle, Check, Plus, Trash2, X } from 'lucide-react';
+import { AlertCircle, Check, Plus, Trash2, X, Settings } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,6 +43,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Link } from 'react-router-dom';
 
 // Types
 interface User {
@@ -925,6 +926,15 @@ const Admin = () => {
         <div className="flex-1 w-full">
           <div className="container mx-auto py-8 space-y-6">
             <h1 className="text-3xl font-bold">Admin Panel</h1>
+            
+            <div className="flex flex-wrap items-center gap-4 mb-6">
+              <Button asChild variant="outline">
+                <Link to="/system-settings">
+                  <Settings className="h-4 w-4 mr-2" />
+                  System Settings
+                </Link>
+              </Button>
+            </div>
             
             <Tabs
               defaultValue="users"

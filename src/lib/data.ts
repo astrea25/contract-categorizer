@@ -2297,3 +2297,105 @@ export const markUserDeletedInAuth = async (email: string, adminEmail: string = 
     throw error;
   }
 };
+
+// System Settings
+export interface SystemSettings {
+  archiveRetentionDays: number; // Number of days to keep archived contracts before deletion
+  autoDeleteEnabled: boolean;   // Whether automatic deletion is enabled
+  lastUpdated?: string;        // Timestamp of last update
+  updatedBy?: string;          // Email of user who last updated settings
+}
+
+// Default system settings
+export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
+  archiveRetentionDays: 30,
+  autoDeleteEnabled: true
+};
+
+// Get system settings
+export const getSystemSettings = async (): Promise<SystemSettings> => {
+  const settingsDoc = doc(db, 'systemSettings', 'general');
+  
+  try {
+    const settingsSnapshot = await getDoc(settingsDoc);
+    
+    if (!settingsSnapshot.exists()) {
+      // If settings don't exist, create them with defaults
+      await setDoc(settingsDoc, DEFAULT_SYSTEM_SETTINGS);
+      return DEFAULT_SYSTEM_SETTINGS;
+    }
+    
+    return settingsSnapshot.data() as SystemSettings;
+  } catch (error) {
+    console.error('Error fetching system settings:', error);
+    return DEFAULT_SYSTEM_SETTINGS;
+  }
+};
+
+// Update system settings
+export const updateSystemSettings = async (
+  settings: Partial<SystemSettings>,
+  updater: { email: string; displayName?: string | null }
+): Promise<void> => {
+  // First check if the updater is an admin
+  const isAdmin = await isUserAdmin(updater.email);
+  if (!isAdmin) {
+    throw new Error('Unauthorized: Only administrators can update system settings');
+  }
+  
+  const settingsDoc = doc(db, 'systemSettings', 'general');
+  const now = new Date().toISOString();
+  
+  try {
+    const currentSettings = await getSystemSettings();
+    
+    const updatedSettings = {
+      ...currentSettings,
+      ...settings,
+      lastUpdated: now,
+      updatedBy: updater.email
+    };
+    
+    await setDoc(settingsDoc, updatedSettings);
+  } catch (error) {
+    console.error('Error updating system settings:', error);
+    throw error;
+  }
+};
+
+// Function to process automatic deletion of archived contracts
+export const processAutomaticContractDeletion = async (): Promise<number> => {
+  try {
+    // Get system settings
+    const settings = await getSystemSettings();
+    
+    // If auto-delete is disabled, do nothing
+    if (!settings.autoDeleteEnabled) {
+      return 0;
+    }
+    
+    // Get all archived contracts
+    const archivedContracts = await getArchivedContracts();
+    const now = new Date();
+    let deletedCount = 0;
+    
+    // Process each archived contract
+    for (const contract of archivedContracts) {
+      if (!contract.archivedAt) continue;
+      
+      const archivedDate = new Date(contract.archivedAt);
+      const daysSinceArchived = Math.floor((now.getTime() - archivedDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // If the contract has been archived longer than the retention period, delete it
+      if (daysSinceArchived >= settings.archiveRetentionDays) {
+        await deleteContract(contract.id);
+        deletedCount++;
+      }
+    }
+    
+    return deletedCount;
+  } catch (error) {
+    console.error('Error processing automatic contract deletion:', error);
+    return 0;
+  }
+};

@@ -18,6 +18,7 @@ import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import MakeAdmin from "./pages/MakeAdmin";
 import Profile from "./pages/Profile";
+import SystemSettings from "./pages/SystemSettings";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,7 @@ const App = () => (
 
             <Route element={<AdminRoute />}>
               <Route path="/admin" element={<Admin />} />
+              <Route path="/system-settings" element={<SystemSettings />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
