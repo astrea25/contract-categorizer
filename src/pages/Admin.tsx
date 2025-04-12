@@ -24,7 +24,8 @@ import {
   inviteUser,
   addAdminUser,
   removeAdminUser,
-  removeUser
+  removeUser,
+  markUserDeletedInAuth
 } from '@/lib/data';
 import { AlertCircle, Check, Plus, Trash2, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -138,6 +139,9 @@ const Admin = () => {
   // State for user removal confirmation
   const [userToRemove, setUserToRemove] = useState<User | null>(null);
   const [isRemovingUser, setIsRemovingUser] = useState(false);
+
+  // State for Firebase Auth deletion confirmation
+  const [confirmDeleteEmail, setConfirmDeleteEmail] = useState('');
 
   const fetchData = async () => {
     try {
@@ -639,8 +643,8 @@ const Admin = () => {
         // Pass the admin's email for logging and potential server-side operations
         await removeUser(userToRemove.id, currentUser?.email || 'admin');
 
-        toast.success(`User ${userToRemove.email} has been completely removed`, {
-          description: "The user has been removed from both the database and Firebase Authentication. You will be logged out."
+        toast.success(`User ${userToRemove.email} has been removed from the database`, {
+          description: "Note: The user has been removed from Firestore, but you'll see a popup with instructions for manually removing them from Firebase Authentication."
         });
       }
 
@@ -682,6 +686,31 @@ const Admin = () => {
     } catch (error) {
       console.error('Error updating display names:', error);
       toast.error('Failed to update display names');
+    }
+  };
+
+  // Function to handle Firebase Auth deletion confirmation
+  const handleConfirmFirebaseAuthDeletion = async () => {
+    if (!confirmDeleteEmail) {
+      toast.error('Please enter a valid email');
+      return;
+    }
+
+    try {
+      // Import the markUserDeletedInAuth function
+      const { markUserDeletedInAuth } = await import('@/lib/data');
+      
+      // Mark the user as deleted in Firebase Auth
+      await markUserDeletedInAuth(confirmDeleteEmail, currentUser?.email || 'admin');
+      
+      toast.success(`User ${confirmDeleteEmail} marked as deleted in Firebase Auth`, {
+        description: "The system has recorded that you've manually deleted this user from Firebase Authentication."
+      });
+      
+      setConfirmDeleteEmail('');
+    } catch (error) {
+      console.error('Error confirming Firebase Auth deletion:', error);
+      toast.error('Failed to confirm Firebase Auth deletion');
     }
   };
 
@@ -890,592 +919,601 @@ const Admin = () => {
   ];
 
   return (
-    <PageTransition>
+    <div className="flex flex-col min-h-screen bg-background">
       <AuthNavbar />
-      <div className="container mx-auto p-4 sm:p-6">
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight mb-2">Admin Dashboard</h1>
-          <p className="text-muted-foreground">
-            Manage users and application settings
-          </p>
-        </header>
+      <PageTransition>
+        <div className="flex-1 w-full">
+          <div className="container mx-auto py-8 space-y-6">
+            <h1 className="text-3xl font-bold">Admin Panel</h1>
+            
+            <Tabs
+              defaultValue="users"
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="w-full"
+            >
+              <TabsList className="mb-6">
+                <TabsTrigger value="users">Users</TabsTrigger>
+                <TabsTrigger value="admins">Admins</TabsTrigger>
+                <TabsTrigger value="legalTeam">Legal Team</TabsTrigger>
+                <TabsTrigger value="managementTeam">Management Team</TabsTrigger>
+                <TabsTrigger value="approvers">Approvers</TabsTrigger>
+              </TabsList>
 
-        <div className="mb-6 flex justify-end space-x-2">
-          <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add User
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create User Account</DialogTitle>
-                <DialogDescription>
-                  Create a new user account. An email with login credentials will be sent to the user.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="user@example.com"
-                    value={newUserEmail}
-                    onChange={(e) => setNewUserEmail(e.target.value)}
-                  />
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  <p>A new account will be created with the default password '12345678'. The user will receive an email with login instructions.</p>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleInviteUser} disabled={inviting}>
-                  {inviting ? 'Creating...' : 'Create Account'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        <Tabs defaultValue="users" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6">
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="admins">Admins</TabsTrigger>
-            <TabsTrigger value="legalTeam">Legal Team</TabsTrigger>
-            <TabsTrigger value="managementTeam">Management Team</TabsTrigger>
-            <TabsTrigger value="approvers">Approvers</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="users">
-            <Card>
-              <CardHeader>
-                <CardTitle>Users</CardTitle>
-                <CardDescription>
-                  List of all regular users in the application (excluding admins and legal team)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-4 flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={updateAdminFields}
-                    disabled={loading}
-                  >
-                    Fix Missing Display Names
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={syncAuthDisplayNames}
-                    disabled={loading}
-                  >
-                    Sync Auth Display Name
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={debugUserData}
-                    disabled={loading}
-                  >
-                    Debug User Data
-                  </Button>
-                </div>
-                {loading ? (
-                  <Skeleton className="w-full h-64" />
-                ) : (
-                  <DataTable
-                    columns={userColumns}
-                    data={users}
-                  />
-                )}
-              </CardContent>
-              <CardFooter className="border-t pt-6 flex flex-col gap-2">
-                <div className="text-sm text-muted-foreground">
-                  This section shows both registered users and pending invitations. Regular users can be removed using the delete icon.
-                  This application is invitation-only - new users must be invited via the "Invite User" button before they can sign up.
-                </div>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="admins">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle>Administrators</CardTitle>
+              <TabsContent value="users">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Users</CardTitle>
                     <CardDescription>
-                      Users with full access to the application
+                      List of all regular users in the application (excluding admins and legal team)
                     </CardDescription>
-                  </div>
-                  <Dialog open={isAdminDialogOpen} onOpenChange={(open) => {
-                    setIsAdminDialogOpen(open);
-                    if (!open) {
-                      setAdminUserSearch('');
-                      setNewAdminEmail('');
-                      setFilteredAdminUsers([]);
-                    }
-                  }}>
-                    <DialogTrigger asChild>
-                      <Button size="sm">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Admin
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add Administrator</DialogTitle>
-                        <DialogDescription>
-                          Search for an existing user to promote to administrator role.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="adminUserSearch">Search Existing Users</Label>
-                          <div className="relative">
-                            <Input
-                              id="adminUserSearch"
-                              placeholder="Search by name or email"
-                              value={adminUserSearch}
-                              onChange={(e) => setAdminUserSearch(e.target.value)}
-                            />
-                            {filteredAdminUsers.length > 0 && (
-                              <div className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-popover border rounded-md shadow-md">
-                                {filteredAdminUsers.map(user => (
-                                  <div
-                                    key={user.id}
-                                    className="p-2 hover:bg-accent cursor-pointer flex justify-between items-center"
-                                    onClick={() => handleAddAdmin(user)}
-                                  >
-                                    <div>
-                                      <div className="font-medium">
-                                        {user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'No name'}
-                                      </div>
-                                      <div className="text-xs text-muted-foreground">{user.email}</div>
-                                    </div>
-                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                                      <Check className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        {filteredAdminUsers.length === 0 && adminUserSearch.trim() !== '' && (
-                          <div className="text-sm flex items-center gap-2 text-muted-foreground">
-                            <AlertCircle className="h-4 w-4" />
-                            No matching users found
-                          </div>
-                        )}
-                        {adminUserSearch.trim() === '' && (
-                          <div className="text-sm text-muted-foreground">
-                            Type to search for users to add as administrators
-                          </div>
-                        )}
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsAdminDialogOpen(false)}>
-                          Cancel
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <Skeleton className="w-full h-64" />
-                ) : (
-                  <>
-                    <div className="mb-4">
+                  </CardHeader>
+                  <CardContent>
+                    <div className="mb-4 flex flex-wrap gap-2">
                       <Button
                         variant="outline"
                         onClick={updateAdminFields}
                         disabled={loading}
                       >
-                        Fix Admin Fields
+                        Fix Missing Display Names
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={syncAuthDisplayNames}
+                        disabled={loading}
+                      >
+                        Sync Auth Display Name
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={debugUserData}
+                        disabled={loading}
+                      >
+                        Debug User Data
                       </Button>
                     </div>
-                    <DataTable
-                      columns={adminColumns}
-                      data={admins}
-                    />
-                  </>
-                )}
-              </CardContent>
-              <CardFooter className="border-t pt-6 flex justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Administrators have full access to all features and settings.
-                </div>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="legalTeam">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle>Legal Team</CardTitle>
-                    <CardDescription>
-                      Manage legal team members who review contracts
-                    </CardDescription>
-                  </div>
-                  <Dialog open={isLegalDialogOpen} onOpenChange={(open) => {
-                    setIsLegalDialogOpen(open);
-                    if (!open) {
-                      setLegalUserSearch('');
-                      setFilteredLegalUsers([]);
-                    }
-                  }}>
-                    <DialogTrigger asChild>
-                      <Button size="sm">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Member
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add Legal Team Member</DialogTitle>
-                        <DialogDescription>
-                          Search for an existing user to add to the legal team.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="legalUserSearch">Search Existing Users</Label>
-                          <div className="relative">
-                            <Input
-                              id="legalUserSearch"
-                              placeholder="Search by name or email"
-                              value={legalUserSearch}
-                              onChange={(e) => setLegalUserSearch(e.target.value)}
-                            />
-                            {filteredLegalUsers.length > 0 && (
-                              <div className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-popover border rounded-md shadow-md">
-                                {filteredLegalUsers.map(user => (
-                                  <div
-                                    key={user.id}
-                                    className="p-2 hover:bg-accent cursor-pointer flex justify-between items-center"
-                                    onClick={() => handleAddLegalMember(user)}
-                                  >
-                                    <div>
-                                      <div className="font-medium">
-                                        {user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'No name'}
-                                      </div>
-                                      <div className="text-xs text-muted-foreground">{user.email}</div>
-                                    </div>
-                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                                      <Check className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                ))}
+                    {loading ? (
+                      <Skeleton className="w-full h-64" />
+                    ) : (
+                      <>
+                        {/* Admin Guide - Firebase Auth Deletion Instructions */}
+                        <Card className="mb-6 border-amber-200 bg-amber-50">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-lg flex items-center gap-2">
+                              <AlertCircle className="h-5 w-5 text-amber-600" />
+                              <span>Firebase Auth User Deletion Guide</span>
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-sm mb-2">
+                              When deleting users from the system, please note that you'll need to manually delete them from Firebase Authentication:
+                            </p>
+                            <ol className="list-decimal list-inside text-sm space-y-1 pl-2">
+                              <li>Go to the <a href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Firebase Console</a></li>
+                              <li>Select your project</li>
+                              <li>Navigate to Authentication → Users</li>
+                              <li>Find the user by email address</li>
+                              <li>Click the three dots menu (⋮) next to the user</li>
+                              <li>Select "Delete account"</li>
+                            </ol>
+                            <p className="text-sm mt-3 italic">This step is necessary because client-side applications cannot directly delete users from Firebase Authentication for security reasons.</p>
+                            <div className="mt-4 pt-4 border-t border-amber-200">
+                              <p className="text-sm font-medium mb-2">After manually deleting a user in Firebase Auth, confirm deletion here:</p>
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  placeholder="Enter user email"
+                                  className="max-w-xs"
+                                  value={confirmDeleteEmail || ''}
+                                  onChange={(e) => setConfirmDeleteEmail(e.target.value)}
+                                />
+                                <Button 
+                                  size="sm" 
+                                  onClick={handleConfirmFirebaseAuthDeletion}
+                                  disabled={!confirmDeleteEmail}
+                                >
+                                  Mark as Deleted
+                                </Button>
                               </div>
-                            )}
-                          </div>
-                        </div>
-                        {filteredLegalUsers.length === 0 && legalUserSearch.trim() !== '' && (
-                          <div className="text-sm flex items-center gap-2 text-muted-foreground">
-                            <AlertCircle className="h-4 w-4" />
-                            No matching users found
-                          </div>
-                        )}
-                        {legalUserSearch.trim() === '' && (
-                          <div className="text-sm text-muted-foreground">
-                            Type to search for users to add to the legal team
-                          </div>
-                        )}
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsLegalDialogOpen(false)}>
-                          Cancel
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <Skeleton className="w-full h-64" />
-                ) : (
-                  <DataTable
-                    columns={legalColumns}
-                    data={legalTeam}
-                  />
-                )}
-              </CardContent>
-              <CardFooter className="border-t pt-6 flex justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Legal team members can review contracts and provide feedback.
-                </div>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="managementTeam">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle>Management Team</CardTitle>
-                    <CardDescription>
-                      Manage management team members who approve contracts
-                    </CardDescription>
-                  </div>
-                  <Dialog open={isManagementDialogOpen} onOpenChange={(open) => {
-                    setIsManagementDialogOpen(open);
-                    if (!open) {
-                      setManagementUserSearch('');
-                      setFilteredManagementUsers([]);
-                    }
-                  }}>
-                    <DialogTrigger asChild>
-                      <Button size="sm">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Member
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add Management Team Member</DialogTitle>
-                        <DialogDescription>
-                          Search for an existing user to add to the management team.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="managementUserSearch">Search Existing Users</Label>
-                          <div className="relative">
-                            <Input
-                              id="managementUserSearch"
-                              placeholder="Search by name or email"
-                              value={managementUserSearch}
-                              onChange={(e) => setManagementUserSearch(e.target.value)}
-                            />
-                            {filteredManagementUsers.length > 0 && (
-                              <div className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-popover border rounded-md shadow-md">
-                                {filteredManagementUsers.map(user => (
-                                  <div
-                                    key={user.id}
-                                    className="p-2 hover:bg-accent cursor-pointer flex justify-between items-center"
-                                    onClick={() => handleAddManagementMember(user)}
-                                  >
-                                    <div>
-                                      <div className="font-medium">
-                                        {user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'No name'}
-                                      </div>
-                                      <div className="text-xs text-muted-foreground">{user.email}</div>
-                                    </div>
-                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                                      <Check className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        {filteredManagementUsers.length === 0 && managementUserSearch.trim() !== '' && (
-                          <div className="text-sm flex items-center gap-2 text-muted-foreground">
-                            <AlertCircle className="h-4 w-4" />
-                            No matching users found
-                          </div>
-                        )}
-                        {managementUserSearch.trim() === '' && (
-                          <div className="text-sm text-muted-foreground">
-                            Type to search for users to add to the management team
-                          </div>
-                        )}
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsManagementDialogOpen(false)}>
-                          Cancel
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <Skeleton className="w-full h-64" />
-                ) : (
-                  <DataTable
-                    columns={managementColumns}
-                    data={managementTeam}
-                  />
-                )}
-              </CardContent>
-              <CardFooter className="border-t pt-6 flex justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Management team members can approve contracts and make business decisions.
-                </div>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="approvers">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle>Approvers</CardTitle>
-                    <CardDescription>
-                      Manage approvers who can approve contracts
-                    </CardDescription>
-                  </div>
-                  <Dialog open={isApproverDialogOpen} onOpenChange={(open) => {
-                    setIsApproverDialogOpen(open);
-                    if (!open) {
-                      setApproverUserSearch('');
-                      setFilteredApproverUsers([]);
-                    }
-                  }}>
-                    <DialogTrigger asChild>
-                      <Button size="sm">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Member
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add Approver</DialogTitle>
-                        <DialogDescription>
-                          Search for an existing user to add as an approver.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="approverUserSearch">Search Existing Users</Label>
-                          <div className="relative">
-                            <Input
-                              id="approverUserSearch"
-                              placeholder="Search by name or email"
-                              value={approverUserSearch}
-                              onChange={(e) => setApproverUserSearch(e.target.value)}
-                            />
-                            {filteredApproverUsers.length > 0 && (
-                              <div className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-popover border rounded-md shadow-md">
-                                {filteredApproverUsers.map(user => (
-                                  <div
-                                    key={user.id}
-                                    className="p-2 hover:bg-accent cursor-pointer flex justify-between items-center"
-                                    onClick={() => handleAddApprover(user)}
-                                  >
-                                    <div>
-                                      <div className="font-medium">
-                                        {user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'No name'}
-                                      </div>
-                                      <div className="text-xs text-muted-foreground">{user.email}</div>
-                                    </div>
-                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                                      <Check className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        {filteredApproverUsers.length === 0 && approverUserSearch.trim() !== '' && (
-                          <div className="text-sm flex items-center gap-2 text-muted-foreground">
-                            <AlertCircle className="h-4 w-4" />
-                            No matching users found
-                          </div>
-                        )}
-                        {approverUserSearch.trim() === '' && (
-                          <div className="text-sm text-muted-foreground">
-                            Type to search for users to add as approvers
-                          </div>
-                        )}
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsApproverDialogOpen(false)}>
-                          Cancel
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <Skeleton className="w-full h-64" />
-                ) : (
-                  <DataTable
-                    columns={approverColumns}
-                    data={approvers}
-                  />
-                )}
-              </CardContent>
-              <CardFooter className="border-t pt-6 flex justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Approvers can review and approve contracts.
-                </div>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-        </Tabs>
-
-        {/* User removal confirmation dialog */}
-        <AlertDialog open={!!userToRemove} onOpenChange={(open) => !open && setUserToRemove(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                {userToRemove?.isPendingInvite ? 'Cancel Invitation' : 'Confirm User Removal'}
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                {userToRemove?.isPendingInvite ? (
-                  <>
-                    Are you sure you want to cancel the invitation for <span className="font-semibold">{userToRemove?.email}</span>?
-                    This will prevent this person from being able to sign up for the application.
-                  </>
-                ) : (
-                  <>
-                    Are you sure you want to remove <span className="font-semibold">{userToRemove?.email}</span>?
-                    This will permanently delete the user's data from the database and prevent them from accessing the application.
-                    <p className="mt-3 text-green-600 text-sm">
-                      <strong>Note:</strong> This will remove the user from both the database and Firebase Authentication.
-                      The user will no longer be able to sign in after this operation.
-                    </p>
-                    <div className="mt-3 p-3 border border-amber-200 bg-amber-50 rounded-md">
-                      <p className="text-amber-700 text-sm font-medium">Warning</p>
-                      <p className="text-amber-700 text-sm mt-1">
-                        This operation will delete the user's Firebase Authentication account, which will log you out.
-                      </p>
-                      <p className="text-amber-700 text-sm mt-1">
-                        You will need to log back in after the operation is complete.
-                      </p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                        
+                        <DataTable
+                          columns={userColumns}
+                          data={users}
+                        />
+                      </>
+                    )}
+                  </CardContent>
+                  <CardFooter className="border-t pt-6 flex flex-col gap-2">
+                    <div className="text-sm text-muted-foreground">
+                      This section shows both registered users and pending invitations. Regular users can be removed using the delete icon.
+                      This application is invitation-only - new users must be invited via the "Invite User" button before they can sign up.
                     </div>
+                  </CardFooter>
+                </Card>
+              </TabsContent>
 
-                  </>
-                )}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleRemoveUser}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                disabled={isRemovingUser}
-              >
-                {isRemovingUser
-                  ? 'Processing...'
-                  : userToRemove?.isPendingInvite
-                    ? 'Cancel Invitation'
-                    : 'Remove User'
-                }
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-    </PageTransition>
+              <TabsContent value="admins">
+                <Card>
+                  <CardHeader>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <CardTitle>Administrators</CardTitle>
+                        <CardDescription>
+                          Users with full access to the application
+                        </CardDescription>
+                      </div>
+                      <Dialog open={isAdminDialogOpen} onOpenChange={(open) => {
+                        setIsAdminDialogOpen(open);
+                        if (!open) {
+                          setAdminUserSearch('');
+                          setNewAdminEmail('');
+                          setFilteredAdminUsers([]);
+                        }
+                      }}>
+                        <DialogTrigger asChild>
+                          <Button size="sm">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Admin
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Add Administrator</DialogTitle>
+                            <DialogDescription>
+                              Search for an existing user to promote to administrator role.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="grid gap-4 py-4">
+                            <div className="grid gap-2">
+                              <Label htmlFor="adminUserSearch">Search Existing Users</Label>
+                              <div className="relative">
+                                <Input
+                                  id="adminUserSearch"
+                                  placeholder="Search by name or email"
+                                  value={adminUserSearch}
+                                  onChange={(e) => setAdminUserSearch(e.target.value)}
+                                />
+                                {filteredAdminUsers.length > 0 && (
+                                  <div className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-popover border rounded-md shadow-md">
+                                    {filteredAdminUsers.map(user => (
+                                      <div
+                                        key={user.id}
+                                        className="p-2 hover:bg-accent cursor-pointer flex justify-between items-center"
+                                        onClick={() => handleAddAdmin(user)}
+                                      >
+                                        <div>
+                                          <div className="font-medium">
+                                            {user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'No name'}
+                                          </div>
+                                          <div className="text-xs text-muted-foreground">{user.email}</div>
+                                        </div>
+                                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                          <Check className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            {filteredAdminUsers.length === 0 && adminUserSearch.trim() !== '' && (
+                              <div className="text-sm flex items-center gap-2 text-muted-foreground">
+                                <AlertCircle className="h-4 w-4" />
+                                No matching users found
+                              </div>
+                            )}
+                            {adminUserSearch.trim() === '' && (
+                              <div className="text-sm text-muted-foreground">
+                                Type to search for users to add as administrators
+                              </div>
+                            )}
+                          </div>
+                          <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsAdminDialogOpen(false)}>
+                              Cancel
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {loading ? (
+                      <Skeleton className="w-full h-64" />
+                    ) : (
+                      <>
+                        <div className="mb-4">
+                          <Button
+                            variant="outline"
+                            onClick={updateAdminFields}
+                            disabled={loading}
+                          >
+                            Fix Admin Fields
+                          </Button>
+                        </div>
+                        <DataTable
+                          columns={adminColumns}
+                          data={admins}
+                        />
+                      </>
+                    )}
+                  </CardContent>
+                  <CardFooter className="border-t pt-6 flex justify-between">
+                    <div className="text-sm text-muted-foreground">
+                      Administrators have full access to all features and settings.
+                    </div>
+                  </CardFooter>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="legalTeam">
+                <Card>
+                  <CardHeader>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <CardTitle>Legal Team</CardTitle>
+                        <CardDescription>
+                          Manage legal team members who review contracts
+                        </CardDescription>
+                      </div>
+                      <Dialog open={isLegalDialogOpen} onOpenChange={(open) => {
+                        setIsLegalDialogOpen(open);
+                        if (!open) {
+                          setLegalUserSearch('');
+                          setFilteredLegalUsers([]);
+                        }
+                      }}>
+                        <DialogTrigger asChild>
+                          <Button size="sm">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Member
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Add Legal Team Member</DialogTitle>
+                            <DialogDescription>
+                              Search for an existing user to add to the legal team.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="grid gap-4 py-4">
+                            <div className="grid gap-2">
+                              <Label htmlFor="legalUserSearch">Search Existing Users</Label>
+                              <div className="relative">
+                                <Input
+                                  id="legalUserSearch"
+                                  placeholder="Search by name or email"
+                                  value={legalUserSearch}
+                                  onChange={(e) => setLegalUserSearch(e.target.value)}
+                                />
+                                {filteredLegalUsers.length > 0 && (
+                                  <div className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-popover border rounded-md shadow-md">
+                                    {filteredLegalUsers.map(user => (
+                                      <div
+                                        key={user.id}
+                                        className="p-2 hover:bg-accent cursor-pointer flex justify-between items-center"
+                                        onClick={() => handleAddLegalMember(user)}
+                                      >
+                                        <div>
+                                          <div className="font-medium">
+                                            {user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'No name'}
+                                          </div>
+                                          <div className="text-xs text-muted-foreground">{user.email}</div>
+                                        </div>
+                                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                          <Check className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            {filteredLegalUsers.length === 0 && legalUserSearch.trim() !== '' && (
+                              <div className="text-sm flex items-center gap-2 text-muted-foreground">
+                                <AlertCircle className="h-4 w-4" />
+                                No matching users found
+                              </div>
+                            )}
+                            {legalUserSearch.trim() === '' && (
+                              <div className="text-sm text-muted-foreground">
+                                Type to search for users to add to the legal team
+                              </div>
+                            )}
+                          </div>
+                          <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsLegalDialogOpen(false)}>
+                              Cancel
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {loading ? (
+                      <Skeleton className="w-full h-64" />
+                    ) : (
+                      <DataTable
+                        columns={legalColumns}
+                        data={legalTeam}
+                      />
+                    )}
+                  </CardContent>
+                  <CardFooter className="border-t pt-6 flex justify-between">
+                    <div className="text-sm text-muted-foreground">
+                      Legal team members can review contracts and provide feedback.
+                    </div>
+                  </CardFooter>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="managementTeam">
+                <Card>
+                  <CardHeader>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <CardTitle>Management Team</CardTitle>
+                        <CardDescription>
+                          Manage management team members who approve contracts
+                        </CardDescription>
+                      </div>
+                      <Dialog open={isManagementDialogOpen} onOpenChange={(open) => {
+                        setIsManagementDialogOpen(open);
+                        if (!open) {
+                          setManagementUserSearch('');
+                          setFilteredManagementUsers([]);
+                        }
+                      }}>
+                        <DialogTrigger asChild>
+                          <Button size="sm">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Member
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Add Management Team Member</DialogTitle>
+                            <DialogDescription>
+                              Search for an existing user to add to the management team.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="grid gap-4 py-4">
+                            <div className="grid gap-2">
+                              <Label htmlFor="managementUserSearch">Search Existing Users</Label>
+                              <div className="relative">
+                                <Input
+                                  id="managementUserSearch"
+                                  placeholder="Search by name or email"
+                                  value={managementUserSearch}
+                                  onChange={(e) => setManagementUserSearch(e.target.value)}
+                                />
+                                {filteredManagementUsers.length > 0 && (
+                                  <div className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-popover border rounded-md shadow-md">
+                                    {filteredManagementUsers.map(user => (
+                                      <div
+                                        key={user.id}
+                                        className="p-2 hover:bg-accent cursor-pointer flex justify-between items-center"
+                                        onClick={() => handleAddManagementMember(user)}
+                                      >
+                                        <div>
+                                          <div className="font-medium">
+                                            {user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'No name'}
+                                          </div>
+                                          <div className="text-xs text-muted-foreground">{user.email}</div>
+                                        </div>
+                                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                          <Check className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            {filteredManagementUsers.length === 0 && managementUserSearch.trim() !== '' && (
+                              <div className="text-sm flex items-center gap-2 text-muted-foreground">
+                                <AlertCircle className="h-4 w-4" />
+                                No matching users found
+                              </div>
+                            )}
+                            {managementUserSearch.trim() === '' && (
+                              <div className="text-sm text-muted-foreground">
+                                Type to search for users to add to the management team
+                              </div>
+                            )}
+                          </div>
+                          <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsManagementDialogOpen(false)}>
+                              Cancel
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {loading ? (
+                      <Skeleton className="w-full h-64" />
+                    ) : (
+                      <DataTable
+                        columns={managementColumns}
+                        data={managementTeam}
+                      />
+                    )}
+                  </CardContent>
+                  <CardFooter className="border-t pt-6 flex justify-between">
+                    <div className="text-sm text-muted-foreground">
+                      Management team members can approve contracts and make business decisions.
+                    </div>
+                  </CardFooter>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="approvers">
+                <Card>
+                  <CardHeader>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <CardTitle>Approvers</CardTitle>
+                        <CardDescription>
+                          Manage approvers who can approve contracts
+                        </CardDescription>
+                      </div>
+                      <Dialog open={isApproverDialogOpen} onOpenChange={(open) => {
+                        setIsApproverDialogOpen(open);
+                        if (!open) {
+                          setApproverUserSearch('');
+                          setFilteredApproverUsers([]);
+                        }
+                      }}>
+                        <DialogTrigger asChild>
+                          <Button size="sm">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Member
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Add Approver</DialogTitle>
+                            <DialogDescription>
+                              Search for an existing user to add as an approver.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="grid gap-4 py-4">
+                            <div className="grid gap-2">
+                              <Label htmlFor="approverUserSearch">Search Existing Users</Label>
+                              <div className="relative">
+                                <Input
+                                  id="approverUserSearch"
+                                  placeholder="Search by name or email"
+                                  value={approverUserSearch}
+                                  onChange={(e) => setApproverUserSearch(e.target.value)}
+                                />
+                                {filteredApproverUsers.length > 0 && (
+                                  <div className="absolute z-10 w-full mt-1 max-h-60 overflow-auto bg-popover border rounded-md shadow-md">
+                                    {filteredApproverUsers.map(user => (
+                                      <div
+                                        key={user.id}
+                                        className="p-2 hover:bg-accent cursor-pointer flex justify-between items-center"
+                                        onClick={() => handleAddApprover(user)}
+                                      >
+                                        <div>
+                                          <div className="font-medium">
+                                            {user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'No name'}
+                                          </div>
+                                          <div className="text-xs text-muted-foreground">{user.email}</div>
+                                        </div>
+                                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                          <Check className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            {filteredApproverUsers.length === 0 && approverUserSearch.trim() !== '' && (
+                              <div className="text-sm flex items-center gap-2 text-muted-foreground">
+                                <AlertCircle className="h-4 w-4" />
+                                No matching users found
+                              </div>
+                            )}
+                            {approverUserSearch.trim() === '' && (
+                              <div className="text-sm text-muted-foreground">
+                                Type to search for users to add as approvers
+                              </div>
+                            )}
+                          </div>
+                          <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsApproverDialogOpen(false)}>
+                              Cancel
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {loading ? (
+                      <Skeleton className="w-full h-64" />
+                    ) : (
+                      <DataTable
+                        columns={approverColumns}
+                        data={approvers}
+                      />
+                    )}
+                  </CardContent>
+                  <CardFooter className="border-t pt-6 flex justify-between">
+                    <div className="text-sm text-muted-foreground">
+                      Approvers can review and approve contracts.
+                    </div>
+                  </CardFooter>
+                </Card>
+              </TabsContent>
+            </Tabs>
+
+            {/* User removal confirmation dialog */}
+            <AlertDialog open={!!userToRemove} onOpenChange={(open) => !open && setUserToRemove(null)}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    {userToRemove?.isPendingInvite ? 'Cancel Invitation' : 'Confirm User Removal'}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {userToRemove?.isPendingInvite ? (
+                      <>
+                        Are you sure you want to cancel the invitation for <span className="font-semibold">{userToRemove?.email}</span>?
+                        This will prevent this person from being able to sign up for the application.
+                      </>
+                    ) : (
+                      <>
+                        Are you sure you want to remove <span className="font-semibold">{userToRemove?.email}</span>?
+                        This will permanently delete the user's data from the database and prevent them from accessing the application.
+                        <p className="mt-3 text-green-600 text-sm">
+                          <strong>Note:</strong> This will remove the user from both the database and Firebase Authentication.
+                          The user will no longer be able to sign in after this operation.
+                        </p>
+                        <div className="mt-3 p-3 border border-amber-200 bg-amber-50 rounded-md">
+                          <p className="text-amber-700 text-sm font-medium">Important: Two-Step Process</p>
+                          <p className="text-amber-700 text-sm mt-1">
+                            1. This operation will remove the user from the database only.
+                          </p>
+                          <p className="text-amber-700 text-sm mt-1">
+                            2. You will need to manually delete the user from Firebase Authentication
+                            through the Firebase Console as a separate step.
+                          </p>
+                          <p className="text-amber-700 text-sm mt-1">
+                            Please refer to the Firebase Auth Deletion Guide in the Users tab for detailed instructions.
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleRemoveUser}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    disabled={isRemovingUser}
+                  >
+                    {isRemovingUser
+                      ? 'Processing...'
+                      : userToRemove?.isPendingInvite
+                        ? 'Cancel Invitation'
+                        : 'Remove User'
+                    }
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
+      </PageTransition>
+    </div>
   );
 };
 

@@ -12,7 +12,14 @@ import {
   orderBy,
   Timestamp,
   setDoc,
-  writeBatch
+  writeBatch,
+  serverTimestamp,
+  DocumentSnapshot,
+  limit,
+  arrayUnion,
+  arrayRemove,
+  FieldPath,
+  QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { getAuth, deleteUser, updateProfile } from "firebase/auth";
 import { auth as firebaseAuth } from "./firebase";
@@ -1628,14 +1635,37 @@ export const removeUser = async (id: string, adminEmail: string = ''): Promise<v
     // Delete the user from users collection
     await deleteDoc(userRef);
 
-    // Delete the user from Firebase Authentication
-    // WARNING: This will log out the current user
+    // Attempt to delete the user from Firebase Authentication
     try {
       const { deleteAuthUser } = await import('./delete-auth-user');
       await deleteAuthUser(email);
+      
+      // Add a log entry in the deleted_users collection for audit
+      const deletedUsersRef = collection(db, 'deleted_users');
+      await addDoc(deletedUsersRef, {
+        email,
+        userId,
+        deletedAt: new Date().toISOString(),
+        deletedBy: adminEmail,
+        firestore_deleted: true,
+        auth_deleted_manually: false, // This will need to be manually updated by admin
+      });
+      
     } catch (error) {
-      console.error('Error deleting user from Firebase Authentication:', error);
+      console.error('Error in Firebase Auth deletion process:', error);
       // Continue even if this fails, as the user data has been removed from Firestore
+      
+      // Still create a deletion record for audit
+      const deletedUsersRef = collection(db, 'deleted_users');
+      await addDoc(deletedUsersRef, {
+        email,
+        userId,
+        deletedAt: new Date().toISOString(),
+        deletedBy: adminEmail,
+        firestore_deleted: true,
+        auth_deleted_manually: false,
+        deletion_error: (error as Error).message,
+      });
     }
   } else {
     // If user doesn't exist, just exit
@@ -2236,6 +2266,34 @@ export const initializeUserRolesCollection = async (currentUserEmail?: string): 
     // Commit the batch
     await batch.commit();
   } catch (error) {
+    throw error;
+  }
+};
+
+// Mark a user as manually deleted in Firebase Auth
+export const markUserDeletedInAuth = async (email: string, adminEmail: string = ''): Promise<void> => {
+  try {
+    // Find the user in the deleted_users collection
+    const deletedUsersRef = collection(db, 'deleted_users');
+    const q = query(deletedUsersRef, where('email', '==', email.toLowerCase()));
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+      console.warn(`User with email ${email} not found in deleted_users collection`);
+      return;
+    }
+    
+    // Update the document to mark auth as manually deleted
+    const userDoc = querySnapshot.docs[0];
+    await updateDoc(doc(db, 'deleted_users', userDoc.id), {
+      auth_deleted_manually: true,
+      auth_deleted_at: new Date().toISOString(),
+      auth_deleted_by: adminEmail
+    });
+    
+    console.log(`User ${email} marked as deleted in Firebase Auth`);
+  } catch (error) {
+    console.error('Error marking user as deleted in Firebase Auth:', error);
     throw error;
   }
 };
