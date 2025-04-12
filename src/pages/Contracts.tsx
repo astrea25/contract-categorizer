@@ -149,53 +149,16 @@ const Contracts = () => {
 
         // Check if we need to filter by approval status
         if (status === 'awaiting_response' && currentUser?.email) {
-          const lowercaseEmail = currentUser.email.toLowerCase();
-
-          // Apply approval filtering logic directly
-          filteredContracts = filteredContracts.filter(contract => {
-            // Normalize the approvers structure
-            const normalizedContract = normalizeApprovers(contract);
-
-            if (isLegalTeam) {
-              // Find if the user is a legal approver for this contract
-              const userLegalApprover = Array.isArray(normalizedContract.approvers?.legal) &&
-                normalizedContract.approvers.legal.find(
-                  approver => approver.email.toLowerCase() === lowercaseEmail
-                );
-
-              if (userLegalApprover) {
-                // Only include contracts that haven't been approved/declined yet
-                return !userLegalApprover.approved && !userLegalApprover.declined;
-              }
-            }
-
-            if (isManagementTeam) {
-              // Find if the user is a management approver for this contract
-              const userManagementApprover = Array.isArray(normalizedContract.approvers?.management) &&
-                normalizedContract.approvers.management.find(
-                  approver => approver.email.toLowerCase() === lowercaseEmail
-                );
-
-              if (userManagementApprover) {
-                // Only include contracts that haven't been approved/declined yet
-                return !userManagementApprover.approved && !userManagementApprover.declined;
-              }
-            }
-            
-            if (isApprover) {
-              // Find if the user is a regular approver for this contract
-              const userApprover = normalizedContract.approvers?.approver?.find(
-                approver => approver.email.toLowerCase() === lowercaseEmail
-              );
-
-              if (userApprover) {
-                // Only include contracts that haven't been approved/declined yet
-                return !userApprover.approved && !userApprover.declined;
-              }
-            }
-
-            return false;
-          });
+          // Use the utility function to get contracts awaiting response
+          const contractsAwaitingResponse = await getContractsForApproval(
+            currentUser.email,
+            isLegalTeam,
+            isManagementTeam,
+            isApprover
+          );
+          
+          // Use these contracts instead of filtering the existing ones
+          filteredContracts = contractsAwaitingResponse;
         }
         // Apply regular status filter for other statuses
         else if (status) {
