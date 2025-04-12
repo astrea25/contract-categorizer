@@ -22,7 +22,8 @@ import {
   statusColors,
   archiveContract,
   unarchiveContract,
-  deleteContract
+  deleteContract,
+  normalizeApprovers
 } from '@/lib/data';
 import { ArrowLeft, CalendarClock, Edit, FileText, Users, Wallet, ShieldAlert, Archive, Trash2, ArchiveRestore } from 'lucide-react';
 import { formatDistance } from 'date-fns';
@@ -247,20 +248,89 @@ const ContractDetail = () => {
     }
   };
 
-  const handleStatusChange = async (newStatus: ContractStatus) => {
+  const handleStatusChange = async (newStatus: ContractStatus): Promise<void> => {
     if (!contract || !id || !currentUser?.email || !isAuthorized) return;
 
     try {
       setUpdatingStatus(true);
-      await updateContract(id, { status: newStatus }, {
-        email: currentUser.email,
-        displayName: currentUser.displayName
-      });
+      
+      // Check if we need to reset approvals when changing to draft status
+      if (newStatus === 'draft' && 
+          (contract.status === 'approval' || contract.status === 'legal_review' || contract.status === 'management_review')) {
+        
+        // Import the normalizeApprovers function to properly handle approver structure
+        const { normalizeApprovers } = await import('@/lib/data');
+        
+        // Normalize the contract to ensure consistent approvers structure
+        const normalizedContract = normalizeApprovers(contract);
+        
+        // Create a deep copy of the approvers
+        const approvers = JSON.parse(JSON.stringify(normalizedContract.approvers || {}));
+        
+        // Reset legal approvals
+        if (approvers.legal && approvers.legal.length > 0) {
+          approvers.legal = approvers.legal.map((approver: any) => ({
+            ...approver,
+            approved: false,
+            declined: false,
+            approvedAt: null,
+            declinedAt: null
+          }));
+        }
+        
+        // Reset management approvals
+        if (approvers.management && approvers.management.length > 0) {
+          approvers.management = approvers.management.map((approver: any) => ({
+            ...approver,
+            approved: false,
+            declined: false,
+            approvedAt: null,
+            declinedAt: null
+          }));
+        }
+        
+        // Reset approver approvals
+        if (approvers.approver && approvers.approver.length > 0) {
+          approvers.approver = approvers.approver.map((approver: any) => ({
+            ...approver,
+            approved: false,
+            declined: false,
+            approvedAt: null,
+            declinedAt: null
+          }));
+        }
+        
+        // Update contract with reset approvals and new status
+        await updateContract(id, { 
+          status: newStatus,
+          approvers,
+          _customTimelineEntry: {
+            action: 'Approvals Reset',
+            details: 'All approvals reset due to status change to Draft'
+          }
+        }, {
+          email: currentUser.email,
+          displayName: currentUser.displayName
+        });
+      } else {
+        // Just update the status without resetting approvals
+        await updateContract(id, { status: newStatus }, {
+          email: currentUser.email,
+          displayName: currentUser.displayName
+        });
+      }
 
       const updatedContract = await getContract(id);
       if (updatedContract) {
         setContract(updatedContract);
-        toast.success(`Status updated to ${newStatus.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}`);
+        
+        // Show a specific toast message when approvals have been reset
+        if (newStatus === 'draft' && 
+            (contract.status === 'approval' || contract.status === 'legal_review' || contract.status === 'management_review')) {
+          toast.success(`Status updated to Draft and all approvals have been reset`);
+        } else {
+          toast.success(`Status updated to ${newStatus.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}`);
+        }
       }
     } catch (error) {
       toast.error('Failed to update status');
