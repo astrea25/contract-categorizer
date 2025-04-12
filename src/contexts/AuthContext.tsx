@@ -7,31 +7,38 @@ import {
   updateProfile
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { isUserAllowed, registerUser, isUserAdmin, isUserLegalTeam, isUserManagementTeam, isUserApprover } from "@/lib/data";
+import { registerUser, isUserAdmin, isUserLegalTeam, isUserManagementTeam, isUserApprover, getUserRoles } from "@/lib/data";
 
 interface AuthContextType {
   currentUser: User | null;
   loading: boolean;
+  roleCheckLoading: boolean;
   isAdmin: boolean;
   isLegalTeam: boolean;
   isManagementTeam: boolean;
   isApprover: boolean;
   userRole: string;
   signInWithEmail: (email: string, password: string) => Promise<void>;
-  // signUpWithEmail removed
-  // signInWithGoogle removed
   signOut: () => Promise<void>;
   error: string | null;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext = createContext<AuthContextType>({
+  currentUser: null,
+  loading: true,
+  roleCheckLoading: false,
+  isAdmin: false,
+  isLegalTeam: false,
+  isManagementTeam: false,
+  isApprover: false,
+  userRole: "",
+  signInWithEmail: async () => {},
+  signOut: async () => {},
+  error: null
+});
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
+  return useContext(AuthContext);
 };
 
 // Define a user state interface to hold all user-related state
@@ -58,9 +65,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Use a single state object for all user-related state
   const [userState, setUserState] = useState<UserState>(initialUserState);
   const [loading, setLoading] = useState(true);
+  const [roleCheckLoading, setRoleCheckLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // signInWithGoogle function removed
 
   const signInWithEmail = async (email: string, password: string) => {
     try {
@@ -98,44 +104,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      const isAllowed = await isUserAllowed(result.user.email || '');
-
-      if (!isAllowed) {
-        await firebaseSignOut(auth);
-        setError('You are not authorized to access this application. Please request an invitation from an administrator.');
-        return;
-      }
-
-      // Check user roles and update state
+      // Check user roles and update state directly - skip the isUserAllowed check
       if (result.user) {
+        setRoleCheckLoading(true);
         const newUserState = await checkUserRoles(result.user);
         setUserState(newUserState);
-      }
-
-      // If we used the default password, show a message to change it
-      if (usedDefaultPassword) {
-        setError('You have signed in with the default password. Please change your password for security reasons.');
-      } else {
+        setRoleCheckLoading(false);
+        
         setError(null);
+
+        // Show message about default password if it was used
+        if (usedDefaultPassword) {
+          // For simplicity, we'll rely on the existing toast system in the app
+        }
       }
     } catch (error: any) {
-      setError('Failed to sign in. Please try again.');
+      let message = 'Failed to sign in.';
+      
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        message = 'Invalid email or password.';
+      } else if (error.code === 'auth/too-many-requests') {
+        message = 'Too many unsuccessful login attempts. Please try again later.';
+      } else if (error.code === 'auth/user-disabled') {
+        message = 'This account has been disabled. Please contact support.';
+      }
+      
+      setError(message);
     }
   };
 
-  // signUpWithEmail function removed
-
-  // Function to check user roles
   const checkUserRoles = async (user: User): Promise<UserState> => {
-    try {
-      // Check roles
-      const admin = await isUserAdmin(user.email || '');
-      const legal = await isUserLegalTeam(user.email || '');
-      const management = await isUserManagementTeam(user.email || '');
-      const approver = await isUserApprover(user.email || '');
-
+    if (!user || !user.email) {
+      return {
+        currentUser: user,
+        isAdmin: false,
+        isLegalTeam: false,
+        isManagementTeam: false,
+        isApprover: false,
+        userRole: "user"
+      };
+    }
+    
+    const email = user.email.toLowerCase();
+    const roleCheckStartTime = performance.now();
+    
+    // Use single API call to fetch all roles at once - much faster than separate calls
+    const roles = await getUserRoles(email);
+    
+    // If roles is null, fall back to parallel checks (though this should be rare)
+    if (roles === null) {
+      
+      // Run all role checks in parallel as a fallback
+      const [admin, legal, management, approver] = await Promise.all([
+        isUserAdmin(email),
+        isUserLegalTeam(email),
+        isUserManagementTeam(email),
+        isUserApprover(email)
+      ]);
+      
+      
       // Determine primary display role (for UI purposes)
-      // A user can be both admin and legal/management team member
       let role = "user";
       if (admin) {
         role = "admin";
@@ -146,9 +174,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else if (approver) {
         role = "Approver";
       }
-
-      // Return the new user state with all role flags
-      // This allows a user to have multiple roles (admin + legal or admin + management)
+              
       return {
         currentUser: user,
         isAdmin: admin,
@@ -157,26 +183,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isApprover: approver,
         userRole: role
       };
-    } catch (error) {
-      console.error("Error checking user roles:", error);
-      // Return default state with the current user
-      return {
-        currentUser: user,
-        isAdmin: false,
-        isLegalTeam: false,
-        isManagementTeam: false,
-        userRole: "user"
-      };
     }
+    
+    // If we got consolidated roles, use them
+    let role = "user";
+    if (roles.isAdmin) {
+      role = "admin";
+    } else if (roles.isLegalTeam) {
+      role = "Legal Team";
+    } else if (roles.isManagementTeam) {
+      role = "Management Team";
+    } else if (roles.isApprover) {
+      role = "Approver";
+    }
+    
+    const roleCheckEndTime = performance.now();
+    const totalRoleCheckTime = roleCheckEndTime - roleCheckStartTime;
+    
+    return {
+      currentUser: user,
+      isAdmin: roles.isAdmin,
+      isLegalTeam: roles.isLegalTeam,
+      isManagementTeam: roles.isManagementTeam,
+      isApprover: roles.isApprover,
+      userRole: role
+    };
   };
 
   const signOut = async () => {
     try {
       await firebaseSignOut(auth);
-      setError(null);
-      // Reset user state on sign out
       setUserState(initialUserState);
+      setError(null);
     } catch (error) {
+      console.error('Error signing out:', error);
       setError('Failed to sign out. Please try again.');
     }
   };
@@ -185,6 +225,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       // Set the user immediately to improve initial load time
       if (user) {
+        const authStateChangeTime = performance.now();
+        
         // Set basic user state immediately
         setUserState({
           currentUser: user,
@@ -195,67 +237,75 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           userRole: "user"
         });
         setLoading(false);
+        setRoleCheckLoading(true);
 
-        // Then check permissions and roles asynchronously
+        // Then check roles asynchronously - skip the permission check
         (async () => {
           try {
-            // Check if user is allowed to access the application
-            const isAllowed = await isUserAllowed(user.email || '');
+            const roleCheckStartTime = performance.now();
+            
+            // Check user roles and update state
+            const newUserState = await checkUserRoles(user);
+            
+            const roleCheckEndTime = performance.now();
+            const roleAssignmentTime = roleCheckEndTime - roleCheckStartTime;
+            
+            setUserState(newUserState);
+            setRoleCheckLoading(false);
+            setError(null);
 
-            if (!isAllowed) {
-              await firebaseSignOut(auth);
-              setError('You are not authorized to access this application. Please request an invitation from an administrator.');
-              setUserState(initialUserState); // Reset to initial state
-            } else {
-              // Check user roles and update state
-              const newUserState = await checkUserRoles(user);
-              setUserState(newUserState);
-              setError(null);
-
-              // Only register user data if they are already allowed to access the system
-              // Extract name from display name if available
-              const displayName = user.displayName || '';
-              const nameArray = displayName.split(' ');
-              const firstName = nameArray[0] || '';
-              const lastName = nameArray.slice(1).join(' ') || '';
-
-              // Register or update user data
-              await registerUser(
-                user.uid,
-                user.email || '',
-                firstName,
-                lastName,
-                displayName
-              );
-            }
+            // Register or update user data
+            const registrationStartTime = performance.now();
+            
+            // Extract name from display name if available
+            const displayName = user.displayName || '';
+            const nameArray = displayName.split(' ');
+            const firstName = nameArray[0] || '';
+            const lastName = nameArray.slice(1).join(' ') || '';
+            
+            // Register or update user data
+            await registerUser(
+              user.uid,
+              user.email || '',
+              firstName,
+              lastName,
+              displayName
+            );
+                        
           } catch (error) {
             console.error("Error in auth state change:", error);
+            setRoleCheckLoading(false);
           }
         })();
       } else {
         setUserState(initialUserState); // Reset to initial state
         setLoading(false);
+        setRoleCheckLoading(false);
       }
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
-  const value = {
-    currentUser: userState.currentUser,
-    loading,
-    isAdmin: userState.isAdmin,
-    isLegalTeam: userState.isLegalTeam,
-    isManagementTeam: userState.isManagementTeam,
-    userRole: userState.userRole,
-    signInWithEmail,
-    signOut,
-    error
-  };
-
   return (
-    <AuthContext.Provider value={value}>
-      {!loading && children}
+    <AuthContext.Provider
+      value={{
+        currentUser: userState.currentUser,
+        loading,
+        roleCheckLoading,
+        isAdmin: userState.isAdmin,
+        isLegalTeam: userState.isLegalTeam,
+        isManagementTeam: userState.isManagementTeam,
+        isApprover: userState.isApprover,
+        userRole: userState.userRole,
+        signInWithEmail,
+        signOut,
+        error
+      }}
+    >
+      {children}
     </AuthContext.Provider>
   );
 };

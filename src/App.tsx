@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { PrivateRoute } from "@/components/auth/PrivateRoute";
 import { AdminRoute } from "@/components/auth/AdminRoute";
+import RoleLoadingOverlay from "@/components/ui/role-loading-overlay";
 import Index from "./pages/Index";
 import Contracts from "./pages/Contracts";
 import ContractDetail from "./pages/ContractDetail";
@@ -26,6 +27,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <RoleLoadingOverlay />
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />

@@ -46,6 +46,44 @@ const ContractDetail = () => {
   const [showAllTimelineEntries, setShowAllTimelineEntries] = useState(false);
   const DEFAULT_TIMELINE_ENTRIES = 3;
 
+  // Helper function to check if a user is an approver for a contract
+  const isUserApprover = (contractData: Contract, userEmail: string): boolean => {
+    if (!contractData.approvers || !userEmail) return false;
+    
+    const normalizedEmail = userEmail.toLowerCase();
+    
+    // Check legal approvers (can be array or object)
+    if (contractData.approvers.legal) {
+      if (Array.isArray(contractData.approvers.legal)) {
+        if (contractData.approvers.legal.some(a => a.email.toLowerCase() === normalizedEmail)) {
+          return true;
+        }
+      } else if (contractData.approvers.legal.email.toLowerCase() === normalizedEmail) {
+        return true;
+      }
+    }
+    
+    // Check management approvers (can be array or object)
+    if (contractData.approvers.management) {
+      if (Array.isArray(contractData.approvers.management)) {
+        if (contractData.approvers.management.some(a => a.email.toLowerCase() === normalizedEmail)) {
+          return true;
+        }
+      } else if (contractData.approvers.management.email.toLowerCase() === normalizedEmail) {
+        return true;
+      }
+    }
+    
+    // Check other approvers (always array)
+    if (contractData.approvers.approver && Array.isArray(contractData.approvers.approver)) {
+      if (contractData.approvers.approver.some(a => a.email.toLowerCase() === normalizedEmail)) {
+        return true;
+      }
+    }
+    
+    return false;
+  };
+
   useEffect(() => {
     const checkUserAndFetchContract = async () => {
       if (!id || !currentUser?.email) {
@@ -54,16 +92,25 @@ const ContractDetail = () => {
         return;
       }
 
+      const authStartTime = performance.now();
+      
       setLoading(true);
       setError(null);
 
       try {
         // Fetch the contract data
+        const contractFetchStartTime = performance.now();
+        
         const contractData = await getContract(id);
+        
+        const contractFetchEndTime = performance.now();
 
         if (contractData) {
           setContract(contractData);
           setError(null);
+
+          // Start tracking role assignment time
+          const roleAssignmentStartTime = performance.now();
 
           // If admin, legal team, or management team, authorize immediately
           if (isAdmin || isLegalTeam || isManagementTeam) {
@@ -82,20 +129,19 @@ const ContractDetail = () => {
             )) {
               setIsAuthorized(true);
             }
-            // Check if user is an approver (legal or management)
-            else if (
-              (contractData.approvers?.legal?.email?.toLowerCase() === userEmail) ||
-              (contractData.approvers?.management?.email?.toLowerCase() === userEmail)
-            ) {
+            // Check if user is an approver using our helper function
+            else if (isUserApprover(contractData, userEmail)) {
               setIsAuthorized(true);
             }
-            // sharedWith check removed
             // Otherwise, user is not authorized
             else {
               setIsAuthorized(false);
               setError('You are not authorized to view this contract');
             }
           }
+          
+          const roleAssignmentEndTime = performance.now();
+          const roleAssignmentDuration = roleAssignmentEndTime - roleAssignmentStartTime;
         } else {
           setError('Contract not found');
         }
@@ -103,6 +149,8 @@ const ContractDetail = () => {
         setError('Failed to load contract details');
       } finally {
         setLoading(false);
+        const authEndTime = performance.now();
+        const totalAuthTime = authEndTime - authStartTime;
       }
     };
 
@@ -225,37 +273,100 @@ const ContractDetail = () => {
     if (!contract || !id || !currentUser?.email || !isAuthorized) return;
 
     try {
+      const updateStartTime = performance.now();
+      
       // Check if we have a custom timeline entry
       const customTimelineEntry = approversData._customTimelineEntry;
-      const approvers = approversData.approvers || approversData;
-
-      // If we have a custom timeline entry, use it
-      if (customTimelineEntry) {
-        // Create a custom update with the timeline entry
-        await updateContract(id, {
-          approvers,
-          _customTimelineEntry: {
-            ...customTimelineEntry,
-            userEmail: currentUser.email,
-            userName: currentUser.displayName || currentUser.email.split('@')[0] || 'User'
-          }
-        }, {
-          email: currentUser.email,
-          displayName: currentUser.displayName
-        });
-      } else {
-        // Regular approvers update
-        await updateContract(id, { approvers }, {
-          email: currentUser.email,
-          displayName: currentUser.displayName
-        });
+      
+      // Get approvers, removing _customTimelineEntry if present
+      const { _customTimelineEntry, ...cleanApproversData } = approversData;
+      const approvers = cleanApproversData.approvers || cleanApproversData;
+      
+      // Get the current contract to access its current approvers and timeline
+      
+      const fetchStartTime = performance.now();
+      
+      const currentContract = await getContract(id);
+      
+      const fetchEndTime = performance.now();
+      
+      if (!currentContract) {
+        throw new Error('Could not fetch current contract');
       }
+      
+      // Normalize approvers structure - ensure arrays for multi-approver support
+      
+      const normalizeStartTime = performance.now();
+      
+      const normalizedApprovers: Contract['approvers'] = { 
+        ...(currentContract.approvers || {}), 
+        ...approvers 
+      };
+      
+      // Ensure legal approvers are in array format
+      if (normalizedApprovers.legal && !Array.isArray(normalizedApprovers.legal)) {
+        normalizedApprovers.legal = [normalizedApprovers.legal];
+      }
+      
+      // Ensure management approvers are in array format
+      if (normalizedApprovers.management && !Array.isArray(normalizedApprovers.management)) {
+        normalizedApprovers.management = [normalizedApprovers.management];
+      }
+      
+      // Ensure approver is always an array (it should be already, but just in case)
+      if (normalizedApprovers.approver && !Array.isArray(normalizedApprovers.approver)) {
+        normalizedApprovers.approver = [normalizedApprovers.approver];
+      }
+      
+      const normalizeEndTime = performance.now();
+      
+      // Create update object
+      const updateObject: any = {
+        approvers: normalizedApprovers
+      };
+      
+      // If we have a custom timeline entry, prepare a new timeline
+      if (customTimelineEntry && currentContract.timeline) {
+        // Create a new timeline entry
+        const newTimelineEntry = {
+          timestamp: new Date().toISOString(),
+          action: customTimelineEntry.action,
+          userEmail: currentUser.email,
+          userName: currentUser.displayName || currentUser.email.split('@')[0] || 'User',
+          details: customTimelineEntry.details || ''
+        };
+        
+        // Add the new timeline entry to the existing timeline
+        updateObject.timeline = [...currentContract.timeline, newTimelineEntry];
+      }
+      
+      // Update the contract with normalized approvers and possibly new timeline entry
+      
+      const dbUpdateStartTime = performance.now();
+      
+      await updateContract(id, updateObject, {
+        email: currentUser.email,
+        displayName: currentUser.displayName
+      });
+      
+      const dbUpdateEndTime = performance.now();
 
+      // Fetch the updated contract to refresh UI
+      
+      const refetchStartTime = performance.now();
+      
       const updatedContract = await getContract(id);
+      
+      const refetchEndTime = performance.now();
+      
       if (updatedContract) {
         setContract(updatedContract);
         toast.success('Approvers updated successfully');
       }
+      
+      const updateEndTime = performance.now();
+      const totalUpdateTime = updateEndTime - updateStartTime;
+      
       return Promise.resolve();
     } catch (error) {
       toast.error('Failed to update approvers');

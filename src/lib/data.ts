@@ -11,11 +11,13 @@ import {
   where,
   orderBy,
   Timestamp,
-  setDoc
+  setDoc,
+  writeBatch
 } from 'firebase/firestore';
 import { getAuth, deleteUser, updateProfile } from "firebase/auth";
 import { auth as firebaseAuth } from "./firebase";
 import { createUserAccountViaAPI } from "./auth-api";
+import { FirebaseError } from "firebase/app";
 
 export interface ContractStats {
   totalContracts: number;
@@ -210,8 +212,6 @@ export const getArchivedContracts = async (): Promise<Contract[]> => {
   const contractsCollection = collection(db, 'contracts');
   
   try {
-    console.log('Fetching archived contracts...');
-    
     // Use query to get only archived contracts
     const contractsQuery = query(
       contractsCollection,
@@ -219,22 +219,15 @@ export const getArchivedContracts = async (): Promise<Contract[]> => {
     );
     
     const contractsSnapshot = await getDocs(contractsQuery);
-    console.log('Found archived contracts:', contractsSnapshot.size);
     
     if (contractsSnapshot.empty) {
-      console.log('No archived contracts found in the database');
-      
       // Double-check with a full query to see if there are any archived contracts at all
       const allContractsSnapshot = await getDocs(contractsCollection);
       const allContractsWithArchived = allContractsSnapshot.docs.filter(doc => 
         doc.data().archived === true
       );
       
-      console.log('Manual check found archived contracts:', allContractsWithArchived.length);
-      
       if (allContractsWithArchived.length > 0) {
-        console.log('There are archived contracts but the query is not finding them. Using manual filtering.');
-        
         // Return manually filtered documents if the query isn't working
         return allContractsWithArchived.map(doc => {
           const data = doc.data();
@@ -256,7 +249,6 @@ export const getArchivedContracts = async (): Promise<Contract[]> => {
     
     const contracts = contractsSnapshot.docs.map(doc => {
       const data = doc.data();
-      console.log('Contract data:', { id: doc.id, archived: data.archived });
       return {
         id: doc.id,
         ...data,
@@ -269,10 +261,8 @@ export const getArchivedContracts = async (): Promise<Contract[]> => {
       } as Contract;
     });
 
-    console.log('Processed archived contracts:', contracts.length);
     return contracts;
   } catch (error) {
-    console.error('Error fetching archived contracts:', error);
     throw error;
   }
 };
@@ -313,6 +303,16 @@ export const getContract = async (id: string): Promise<Contract | null> => {
     throw error;
   }
 };
+
+// Define a custom interface for contract updates that includes _customTimelineEntry
+interface ContractUpdateWithCustomTimeline extends Partial<Omit<Contract, 'id' | 'createdAt'>> {
+  _customTimelineEntry?: {
+    action: string;
+    details?: string;
+    userEmail?: string;
+    userName?: string;
+  };
+}
 
 export const createContract = async (
   contract: Omit<Contract, 'id' | 'createdAt' | 'updatedAt'>,
@@ -376,7 +376,7 @@ export const createContract = async (
 
 export const updateContract = async (
   id: string,
-  contractUpdates: Partial<Omit<Contract, 'id' | 'createdAt'>>,
+  contractUpdates: ContractUpdateWithCustomTimeline,
   editor: { email: string; displayName?: string | null }
 ): Promise<void> => {
   const contractDoc = doc(db, 'contracts', id);
@@ -554,7 +554,6 @@ const arePartiesDifferent = (newParties: any[], oldParties: any[]): boolean => {
   try {
     return JSON.stringify(sortParties(newParties)) !== JSON.stringify(sortParties(oldParties));
   } catch (e) {
-    console.error("Error comparing parties:", e);
     return true; // Assume different if error occurs
   }
 };
@@ -572,12 +571,9 @@ export const archiveContract = async (
   const now = Timestamp.now();
 
   try {
-    console.log('Archiving contract:', id);
-    
     // Fetch current timeline
     const currentContractSnap = await getDoc(contractDoc);
     const currentTimeline = currentContractSnap.data()?.timeline || [];
-    console.log('Current contract data:', currentContractSnap.data());
 
     // Create archive timeline entry
     const archiveTimelineEntry = {
@@ -595,11 +591,8 @@ export const archiveContract = async (
       timeline: [...currentTimeline, archiveTimelineEntry]
     };
 
-    console.log('Updating contract with:', updateData);
     await updateDoc(contractDoc, updateData);
-    console.log('Contract archived successfully');
   } catch (error) {
-    console.error('Error archiving contract:', error);
     throw error;
   }
 };
@@ -675,15 +668,34 @@ export const isUserAllowed = async (email: string): Promise<boolean> => {
 export const isUserAdmin = async (email: string): Promise<boolean> => {
   if (!email) return false;
 
-  const adminRef = collection(db, 'admin');
-  const adminQuery = query(adminRef, where('email', '==', email.toLowerCase()));
-  const adminSnapshot = await getDocs(adminQuery);
+  const roleStartTime = performance.now();
 
-  return !adminSnapshot.empty;
+  try {
+    // Try to get the consolidated roles first
+    const roles = await getUserRoles(email);
+    if (roles !== null) {
+      const roleEndTime = performance.now();
+      return roles.isAdmin;
+    }
+
+    // Fallback to original function if consolidated approach fails
+    return await isUserAdminOriginal(email);
+  } catch (error) {
+    // Fallback to original function if consolidated approach fails
+    return await isUserAdminOriginal(email);
+  }
 };
 
 // Add an admin user (for testing)
-export const addAdminUser = async (email: string): Promise<void> => {
+export const addAdminUser = async (email: string, currentUserEmail?: string): Promise<void> => {
+  // First check if the requester is an admin
+  if (currentUserEmail) {
+    const isAdmin = await isUserAdmin(currentUserEmail);
+    if (!isAdmin) {
+      throw new Error('Unauthorized: Only administrators can add admin users');
+    }
+  }
+
   const adminRef = collection(db, 'admin');
   const adminQuery = query(adminRef, where('email', '==', email.toLowerCase()));
   const adminSnapshot = await getDocs(adminQuery);
@@ -697,7 +709,15 @@ export const addAdminUser = async (email: string): Promise<void> => {
 };
 
 // Remove an admin user
-export const removeAdminUser = async (id: string): Promise<void> => {
+export const removeAdminUser = async (id: string, currentUserEmail?: string): Promise<void> => {
+  // First check if the requester is an admin
+  if (currentUserEmail) {
+    const isAdmin = await isUserAdmin(currentUserEmail);
+    if (!isAdmin) {
+      throw new Error('Unauthorized: Only administrators can remove admin users');
+    }
+  }
+
   const adminRef = doc(db, 'admin', id);
   await deleteDoc(adminRef);
 };
@@ -1365,11 +1385,22 @@ Sent by Contract Management System – WWF Contracts
 export const isUserLegalTeam = async (email: string): Promise<boolean> => {
   if (!email) return false;
 
-  const legalTeamRef = collection(db, 'legalTeam');
-  const legalTeamQuery = query(legalTeamRef, where('email', '==', email.toLowerCase()));
-  const legalTeamSnapshot = await getDocs(legalTeamQuery);
+  const roleStartTime = performance.now();
 
-  return !legalTeamSnapshot.empty;
+  try {
+    // Try to get the consolidated roles first
+    const roles = await getUserRoles(email);
+    if (roles !== null) {
+      const roleEndTime = performance.now();
+      return roles.isLegalTeam;
+    }
+
+    // Fallback to original function if consolidated approach fails
+    return await isUserLegalTeamOriginal(email);
+  } catch (error) {
+    // Fallback to original function if consolidated approach fails
+    return await isUserLegalTeamOriginal(email);
+  }
 };
 
 // Get the legal team role
@@ -1392,11 +1423,22 @@ export const getLegalTeamMemberRole = async (email: string): Promise<string | nu
 export const isUserManagementTeam = async (email: string): Promise<boolean> => {
   if (!email) return false;
 
-  const managementTeamRef = collection(db, 'managementTeam');
-  const managementTeamQuery = query(managementTeamRef, where('email', '==', email.toLowerCase()));
-  const managementTeamSnapshot = await getDocs(managementTeamQuery);
+  const roleStartTime = performance.now();
 
-  return !managementTeamSnapshot.empty;
+  try {
+    // Try to get the consolidated roles first
+    const roles = await getUserRoles(email);
+    if (roles !== null) {
+      const roleEndTime = performance.now();
+      return roles.isManagementTeam;
+    }
+
+    // Fallback to original function if consolidated approach fails
+    return await isUserManagementTeamOriginal(email);
+  } catch (error) {
+    // Fallback to original function if consolidated approach fails
+    return await isUserManagementTeamOriginal(email);
+  }
 };
 
 // Get the management team role
@@ -1419,11 +1461,22 @@ export const getManagementTeamMemberRole = async (email: string): Promise<string
 export const isUserApprover = async (email: string): Promise<boolean> => {
   if (!email) return false;
 
-  const approversRef = collection(db, 'approvers');
-  const approverQuery = query(approversRef, where('email', '==', email.toLowerCase()));
-  const approverSnapshot = await getDocs(approverQuery);
+  const roleStartTime = performance.now();
 
-  return !approverSnapshot.empty;
+  try {
+    // Try to get the consolidated roles first
+    const roles = await getUserRoles(email);
+    if (roles !== null) {
+      const roleEndTime = performance.now();
+      return roles.isApprover;
+    }
+
+    // Fallback to original function if consolidated approach fails
+    return await isUserApproverOriginal(email);
+  } catch (error) {
+    // Fallback to original function if consolidated approach fails
+    return await isUserApproverOriginal(email);
+  }
 };
 
 // Add a user to the approvers
@@ -1740,14 +1793,11 @@ export const getUserContracts = async (userEmail: string, includeArchived: boole
 // Function to get archived contracts for a user
 export const getUserArchivedContracts = async (userEmail: string): Promise<Contract[]> => {
   if (!userEmail) return [];
-
-  console.log('Getting archived contracts for user:', userEmail);
   
   // Check if user is admin
   const isAdmin = await isUserAdmin(userEmail);
   if (isAdmin) {
     // Admins can see all archived contracts
-    console.log('User is admin, returning all archived contracts');
     return getArchivedContracts();
   }
   
@@ -1756,13 +1806,11 @@ export const getUserArchivedContracts = async (userEmail: string): Promise<Contr
   
   // Get all archived contracts
   const archivedContracts = await getArchivedContracts();
-  console.log('Total archived contracts before filtering:', archivedContracts.length);
 
   // Filter contracts to only include those where the user is involved
   const userArchivedContracts = archivedContracts.filter(contract => {
     // Check if user is the owner
     if (contract.owner.toLowerCase() === lowercaseEmail) {
-      console.log('User is owner of contract:', contract.id);
       return true;
     }
 
@@ -1771,7 +1819,6 @@ export const getUserArchivedContracts = async (userEmail: string): Promise<Contr
       party.email.toLowerCase() === lowercaseEmail
     );
     if (isParty) {
-      console.log('User is party in contract:', contract.id);
       return true;
     }
 
@@ -1798,7 +1845,6 @@ export const getUserArchivedContracts = async (userEmail: string): Promise<Contr
       );
 
     if (isLegalApprover || isManagementApprover || isApprover) {
-      console.log('User is approver in contract:', contract.id);
       return true;
     }
 
@@ -1806,7 +1852,6 @@ export const getUserArchivedContracts = async (userEmail: string): Promise<Contr
     return false;
   });
   
-  console.log('Filtered archived contracts for user:', userArchivedContracts.length);
   return userArchivedContracts;
 };
 
@@ -1889,6 +1934,286 @@ export const getUserContractStats = async (userEmail: string): Promise<ContractS
     };
 
     return stats;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Add a new getUserRoles function that gets all roles in a single query
+export const getUserRoles = async (email: string): Promise<{
+  isAdmin: boolean;
+  isLegalTeam: boolean;
+  isManagementTeam: boolean;
+  isApprover: boolean;
+} | null> => {
+  if (!email) return null;
+
+  try {
+    // Start timing the query
+    const startTime = performance.now();
+
+    // IMPORTANT: Direct document retrieval by ID (email) instead of querying
+    const userRolesRef = doc(db, 'userRoles', email.toLowerCase());
+    const userRoleDoc = await getDoc(userRolesRef);
+
+    const endTime = performance.now();
+
+    if (!userRoleDoc.exists()) {
+      // If no consolidated roles exist, try to migrate from old role system
+      const migratedRoles = await migrateUserRoles(email);
+      return migratedRoles;
+    }
+
+    // Extract role data from the document
+    const roleData = userRoleDoc.data();
+    
+    return {
+      isAdmin: roleData.isAdmin || false,
+      isLegalTeam: roleData.isLegalTeam || false,
+      isManagementTeam: roleData.isManagementTeam || false,
+      isApprover: roleData.isApprover || false
+    };
+  } catch (error) {
+    return null;
+  }
+};
+
+// Function to update a user's roles in the consolidated userRoles collection
+export const updateUserRoles = async (
+  email: string, 
+  roles: {
+    isAdmin?: boolean;
+    isLegalTeam?: boolean;
+    isManagementTeam?: boolean;
+    isApprover?: boolean;
+  }
+): Promise<void> => {
+  if (!email) return;
+
+  try {
+    const normalizedEmail = email.toLowerCase();
+    const userRolesRef = doc(db, 'userRoles', normalizedEmail);
+    const userRoleDoc = await getDoc(userRolesRef);
+
+    const now = new Date().toISOString();
+    const userData = {
+      email: normalizedEmail,
+      ...roles,
+      updatedAt: now
+    };
+
+    if (!userRoleDoc.exists()) {
+      // Create a new document with email as the document ID
+      await setDoc(userRolesRef, {
+        ...userData,
+        createdAt: now
+      });
+    } else {
+      // Update the existing document
+      await updateDoc(userRolesRef, userData);
+    }
+  } catch (error) {
+    console.error("Error updating user roles:", error);
+    throw error;
+  }
+};
+
+// Function to migrate a user's roles from separate collections to the consolidated format
+export const migrateUserRoles = async (email: string): Promise<{
+  isAdmin: boolean;
+  isLegalTeam: boolean;
+  isManagementTeam: boolean;
+  isApprover: boolean;
+}> => {
+  if (!email) {
+    return {
+      isAdmin: false,
+      isLegalTeam: false,
+      isManagementTeam: false,
+      isApprover: false
+    };
+  }
+
+  const migrationStartTime = performance.now();
+
+  // Check old roles using the original functions
+  const [admin, legal, management, approver] = await Promise.all([
+    isUserAdminOriginal(email),
+    isUserLegalTeamOriginal(email),
+    isUserManagementTeamOriginal(email),
+    isUserApproverOriginal(email)
+  ]);
+
+  const roles = {
+    isAdmin: admin,
+    isLegalTeam: legal,
+    isManagementTeam: management,
+    isApprover: approver
+  };
+
+  // Save these roles to the new collection
+  try {
+    await updateUserRoles(email, roles);
+  } catch (error) {
+    // Continue even if saving fails - we still want to return the roles we found
+  }
+
+  const migrationEndTime = performance.now();
+
+  return roles;
+};
+
+// Rename the original functions to avoid recursion when we redefine them
+export const isUserAdminOriginal = isUserAdmin;
+export const isUserLegalTeamOriginal = isUserLegalTeam;
+export const isUserManagementTeamOriginal = isUserManagementTeam;
+export const isUserApproverOriginal = isUserApprover;
+
+// Add this function after the migrateUserRoles function
+export const initializeUserRolesCollection = async (currentUserEmail?: string): Promise<void> => {
+  try {
+    // First check if the requester is an admin
+    if (currentUserEmail) {
+      const isAdmin = await isUserAdmin(currentUserEmail);
+      if (!isAdmin) {
+        throw new Error('Unauthorized: Only administrators can initialize user roles');
+      }
+    }
+    
+    // Check if the collection already exists and has documents
+    const userRolesRef = collection(db, 'userRoles');
+    const userRolesSnapshot = await getDocs(userRolesRef);
+    
+    if (!userRolesSnapshot.empty) {
+      // Delete existing documents
+      const batch = writeBatch(db);
+      userRolesSnapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      await batch.commit();
+    }
+    
+    // Get all users from each role collection
+    const adminRef = collection(db, 'admin');
+    const legalTeamRef = collection(db, 'legalTeam');
+    const managementTeamRef = collection(db, 'managementTeam');
+    const approversRef = collection(db, 'approvers');
+    
+    // Fetch all documents from each collection
+    const adminSnapshot = await getDocs(adminRef);
+    const legalTeamSnapshot = await getDocs(legalTeamRef);
+    const managementTeamSnapshot = await getDocs(managementTeamRef);
+    const approversSnapshot = await getDocs(approversRef);
+    
+    // Create a map of email to roles
+    const userRolesMap = new Map<string, {
+      isAdmin: boolean;
+      isLegalTeam: boolean;
+      isManagementTeam: boolean;
+      isApprover: boolean;
+      email: string;
+    }>();
+    
+    // Process admin users
+    adminSnapshot.forEach(doc => {
+      const data = doc.data();
+      const email = data.email?.toLowerCase();
+      if (!email) {
+        return;
+      }
+      
+      const existingRoles = userRolesMap.get(email) || {
+        isAdmin: false,
+        isLegalTeam: false,
+        isManagementTeam: false,
+        isApprover: false,
+        email
+      };
+      
+      existingRoles.isAdmin = true;
+      userRolesMap.set(email, existingRoles);
+    });
+    
+    // Process legal team users
+    legalTeamSnapshot.forEach(doc => {
+      const data = doc.data();
+      const email = data.email?.toLowerCase();
+      if (!email) {
+        return;
+      }
+      
+      const existingRoles = userRolesMap.get(email) || {
+        isAdmin: false,
+        isLegalTeam: false,
+        isManagementTeam: false,
+        isApprover: false,
+        email
+      };
+      
+      existingRoles.isLegalTeam = true;
+      userRolesMap.set(email, existingRoles);
+    });
+    
+    // Process management team users
+    managementTeamSnapshot.forEach(doc => {
+      const data = doc.data();
+      const email = data.email?.toLowerCase();
+      if (!email) {
+        return;
+      }
+      
+      const existingRoles = userRolesMap.get(email) || {
+        isAdmin: false,
+        isLegalTeam: false,
+        isManagementTeam: false,
+        isApprover: false,
+        email
+      };
+      
+      existingRoles.isManagementTeam = true;
+      userRolesMap.set(email, existingRoles);
+    });
+    
+    // Process approvers
+    approversSnapshot.forEach(doc => {
+      const data = doc.data();
+      const email = data.email?.toLowerCase();
+      if (!email) {
+        return;
+      }
+      
+      const existingRoles = userRolesMap.get(email) || {
+        isAdmin: false,
+        isLegalTeam: false,
+        isManagementTeam: false,
+        isApprover: false,
+        email
+      };
+      
+      existingRoles.isApprover = true;
+      userRolesMap.set(email, existingRoles);
+    });
+    
+    if (userRolesMap.size === 0) {
+      return;
+    }
+    
+    // Batch write all user roles to the new collection
+    const batch = writeBatch(db);
+    const now = new Date().toISOString();
+    
+    userRolesMap.forEach((roles) => {
+      // Use email as document ID
+      const userRoleDocRef = doc(db, 'userRoles', roles.email);
+      batch.set(userRoleDocRef, {
+        ...roles,
+        createdAt: now,
+        updatedAt: now
+      });
+    });
+    
+    // Commit the batch
+    await batch.commit();
   } catch (error) {
     throw error;
   }

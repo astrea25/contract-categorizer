@@ -122,14 +122,12 @@ const Contracts = () => {
 
         // Handle archive view separately
         if (selectedFolder === 'archive') {
-          console.log('Fetching archived contracts for folder view');
           if (currentUser?.email) {
             // Pass true to a new parameter that will tell the function to check if user is admin
             allContracts = await getUserArchivedContracts(currentUser.email);
           } else {
             allContracts = await getArchivedContracts();
           }
-          console.log('Fetched archived contracts count:', allContracts.length);
           
           // Directly set the contracts without filtering
           setContracts(allContracts);
@@ -424,12 +422,9 @@ const Contracts = () => {
   // Apply filters and sorting
   const filteredAndSortedContracts = useMemo(() => {
     let result = [...contracts];
-
-    console.log('Starting filtering with', result.length, 'contracts and selectedFolder:', selectedFolder);
     
     // For archive folder, skip all filtering except sorting
     if (selectedFolder === 'archive') {
-      console.log('Archive folder selected, skipping filtering, applying only sorting');
       // Only apply sorting
       return sortContracts(result, sort);
     }
@@ -465,8 +460,6 @@ const Contracts = () => {
         );
       }
     }
-
-    console.log('After filtering, contracts count:', result.length, 'Selected folder:', selectedFolder);
     
     // Always apply sorting
     return sortContracts(result, sort);
@@ -489,15 +482,6 @@ const Contracts = () => {
     filters.party !== '' ||
     filters.dateRange.from !== null ||
     filters.dateRange.to !== null;
-
-  // Add debug logging
-  useEffect(() => {
-    console.log('Contracts data:', {
-      selectedFolder,
-      contractsCount: contracts.length,
-      filteredContractsCount: filteredAndSortedContracts.length
-    });
-  }, [contracts, filteredAndSortedContracts, selectedFolder]);
 
   return (
     <>

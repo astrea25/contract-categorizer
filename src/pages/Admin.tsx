@@ -93,7 +93,15 @@ const Admin = () => {
   const [approvers, setApprovers] = useState<ApproverMember[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>('users');
-  const { currentUser } = useAuth();
+  const { currentUser, isAdmin } = useAuth();
+
+  // Redirect non-admin users
+  useEffect(() => {
+    if (!loading && currentUser && !isAdmin) {
+      // If user is logged in but not an admin, redirect to home
+      window.location.href = '/';
+    }
+  }, [currentUser, isAdmin, loading]);
 
   // State for user invitation form
   const [newUserEmail, setNewUserEmail] = useState('');
@@ -265,7 +273,8 @@ const Admin = () => {
   const handleAddAdmin = async (user: User) => {
     try {
       setAddingAdmin(true);
-      await addAdminUser(user.email);
+      // Pass the current user email for authorization check
+      await addAdminUser(user.email, currentUser?.email || undefined);
       toast.success(`${user.email} is now an admin`);
       setAdminUserSearch('');
       setNewAdminEmail('');
@@ -274,7 +283,7 @@ const Admin = () => {
       fetchData(); // Refresh data
     } catch (error) {
       console.error('Error adding admin:', error);
-      toast.error('Failed to add admin user');
+      toast.error(`Failed to add admin user: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setAddingAdmin(false);
     }
@@ -283,16 +292,15 @@ const Admin = () => {
   // Function to remove an admin
   const handleRemoveAdmin = async (id: string, email: string) => {
     try {
-      await removeAdminUser(id);
+      // Pass the current user email for authorization check
+      await removeAdminUser(id, currentUser?.email || undefined);
       toast.success(`Removed ${email} from administrators`);
       fetchData(); // Refresh data
     } catch (error) {
       console.error('Error removing admin:', error);
-      toast.error('Failed to remove admin user');
+      toast.error(`Failed to remove admin user: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
-
-
 
   // Filter users for adding to legal team
   useEffect(() => {
@@ -804,7 +812,7 @@ const Admin = () => {
           </p>
         </header>
 
-        <div className="mb-6 flex justify-end">
+        <div className="mb-6 flex justify-end space-x-2">
           <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
             <DialogTrigger asChild>
               <Button>
