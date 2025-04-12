@@ -28,7 +28,7 @@ export interface ContractStats {
   expiringThisYear: number;
 }
 
-export type ContractStatus = 'requested' | 'draft' | 'legal_review' | 'management_review' | 'approval' | 'finished';
+export type ContractStatus = 'requested' | 'draft' | 'legal_review' | 'management_review' | 'approval' | 'finished' | 'legal_declined' | 'management_declined';
 export type ContractType = 'service' | 'employment' | 'licensing' | 'nda' | 'partnership';
 
 export interface Folder {
@@ -151,6 +151,16 @@ export const statusColors: Record<ContractStatus, { bg: string; text: string; bo
     bg: 'bg-orange-50',
     text: 'text-orange-800',
     border: 'border-orange-200'
+  },
+  legal_declined: {
+    bg: 'bg-red-50',
+    text: 'text-red-800',
+    border: 'border-red-200'
+  },
+  management_declined: {
+    bg: 'bg-red-50',
+    text: 'text-red-800',
+    border: 'border-red-200'
   },
   approval: {
     bg: 'bg-yellow-50',

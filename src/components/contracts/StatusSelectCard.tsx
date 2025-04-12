@@ -33,19 +33,47 @@ const StatusSelectCard = ({ status, onStatusChange, isUpdating, contract }: Stat
     { value: 'draft', label: 'Draft' },
     { value: 'legal_review', label: 'Legal Review' },
     { value: 'management_review', label: 'Management Review' },
+    { value: 'legal_declined', label: 'Legal Declined' },
+    { value: 'management_declined', label: 'Management Declined' },
     { value: 'approval', label: 'Approval' },
     { value: 'finished', label: 'Finished' },
   ];
 
   // Check if both legal and management have approved the contract
-  const areBothApproved =
-    contract.approvers?.legal?.approved &&
-    contract.approvers?.management?.approved;
+  const areBothApproved = 
+    contract.approvers && (() => {
+      const legalApproved = contract.approvers.legal 
+        ? Array.isArray(contract.approvers.legal)
+          ? contract.approvers.legal.every(a => a.approved)
+          : contract.approvers.legal.approved
+        : false;
+        
+      const managementApproved = contract.approvers.management
+        ? Array.isArray(contract.approvers.management)
+          ? contract.approvers.management.every(a => a.approved)
+          : contract.approvers.management.approved
+        : false;
+        
+      return legalApproved && managementApproved;
+    })();
 
   // Check if either legal or management have declined the contract
-  const isEitherDeclined =
-    contract.approvers?.legal?.declined ||
-    contract.approvers?.management?.declined;
+  const isEitherDeclined = 
+    contract.approvers && (() => {
+      const legalDeclined = contract.approvers.legal
+        ? Array.isArray(contract.approvers.legal)
+          ? contract.approvers.legal.some(a => a.declined)
+          : contract.approvers.legal.declined
+        : false;
+        
+      const managementDeclined = contract.approvers.management
+        ? Array.isArray(contract.approvers.management)
+          ? contract.approvers.management.some(a => a.declined)
+          : contract.approvers.management.declined
+        : false;
+        
+      return legalDeclined || managementDeclined;
+    })();
 
   const handleStatusChange = async (value: string) => {
     const newStatus = value as ContractStatus;

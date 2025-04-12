@@ -7,7 +7,14 @@ interface ContractStatusBadgeProps {
 }
 
 const ContractStatusBadge = ({ status, className }: ContractStatusBadgeProps) => {
-  const { bg, text, border } = statusColors[status];
+  // Add a safety check to handle undefined values
+  const colors = statusColors[status] || {
+    bg: 'bg-gray-100',
+    text: 'text-gray-800', 
+    border: 'border-gray-200'
+  };
+  
+  const { bg, text, border } = colors;
   
   // Format status: replace underscores with spaces and capitalize each word
   const formattedStatus = status

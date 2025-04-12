@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,7 @@ import {
   deleteContract,
   normalizeApprovers
 } from '@/lib/data';
-import { ArrowLeft, CalendarClock, Edit, FileText, Users, Wallet, ShieldAlert, Archive, Trash2, ArchiveRestore } from 'lucide-react';
+import { ArrowLeft, CalendarClock, Edit, FileText, Users, Wallet, ShieldAlert, Archive, Trash2, ArchiveRestore, RefreshCw } from 'lucide-react';
 import { formatDistance } from 'date-fns';
 import { toast } from 'sonner';
 import PageTransition from '@/components/layout/PageTransition';
@@ -46,6 +46,11 @@ const ContractDetail = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showAllTimelineEntries, setShowAllTimelineEntries] = useState(false);
   const DEFAULT_TIMELINE_ENTRIES = 3;
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const lastUpdatedTimestamp = useRef<number>(Date.now());
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const POLL_INTERVAL_MS = 10000;
 
   // Helper function to check if a user is an approver for a contract
   const isUserApprover = (contractData: Contract, userEmail: string): boolean => {
@@ -84,6 +89,42 @@ const ContractDetail = () => {
     
     return false;
   };
+
+  const fetchContractData = async () => {
+    if (!id || !currentUser?.email || !isAuthorized) return;
+    
+    try {
+      setIsRefreshing(true);
+      const contractData = await getContract(id);
+      if (contractData) {
+        if (JSON.stringify(contractData) !== JSON.stringify(contract)) {
+          setContract(contractData);
+          lastUpdatedTimestamp.current = Date.now();
+          toast.info('Contract data was refreshed with the latest changes', {
+            duration: 2000,
+            position: 'bottom-right'
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching contract updates:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (contract && isAuthorized && !loading) {
+      pollingIntervalRef.current = setInterval(fetchContractData, POLL_INTERVAL_MS);
+    }
+    
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [contract, isAuthorized, loading, id]);
 
   useEffect(() => {
     const checkUserAndFetchContract = async () => {
@@ -256,7 +297,11 @@ const ContractDetail = () => {
       
       // Check if we need to reset approvals when changing to draft status
       if (newStatus === 'draft' && 
-          (contract.status === 'approval' || contract.status === 'legal_review' || contract.status === 'management_review')) {
+          (contract.status === 'approval' || 
+           contract.status === 'legal_review' || 
+           contract.status === 'management_review' ||
+           contract.status === 'legal_declined' ||
+           contract.status === 'management_declined')) {
         
         // Import the normalizeApprovers function to properly handle approver structure
         const { normalizeApprovers } = await import('@/lib/data');
@@ -326,7 +371,11 @@ const ContractDetail = () => {
         
         // Show a specific toast message when approvals have been reset
         if (newStatus === 'draft' && 
-            (contract.status === 'approval' || contract.status === 'legal_review' || contract.status === 'management_review')) {
+            (contract.status === 'approval' || 
+             contract.status === 'legal_review' || 
+             contract.status === 'management_review' ||
+             contract.status === 'legal_declined' ||
+             contract.status === 'management_declined')) {
           toast.success(`Status updated to Draft and all approvals have been reset`);
         } else {
           toast.success(`Status updated to ${newStatus.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}`);
@@ -358,9 +407,9 @@ const ContractDetail = () => {
       console.log('ContractDetail - handleUpdateApprovers - cleanApproversData:', JSON.stringify(cleanApproversData, null, 2));
       
       // Get the current contract to access its current approvers and timeline
-      
       const fetchStartTime = performance.now();
       
+      // Fetch the latest contract data to ensure we're working with the most up-to-date version
       const currentContract = await getContract(id);
       
       const fetchEndTime = performance.now();
@@ -369,8 +418,17 @@ const ContractDetail = () => {
         throw new Error('Could not fetch current contract');
       }
       
-      // Normalize approvers structure - ensure arrays for multi-approver support
+      // Check if the contract has been updated by someone else since we loaded it
+      if (currentContract.updatedAt !== contract.updatedAt) {
+        // The contract was updated since we loaded it - let's refresh our local state
+        setContract(currentContract);
+        lastUpdatedTimestamp.current = Date.now();
+        
+        // Still proceed with the update, but notify the user of potential changes
+        toast.info('Contract was updated by another user. Your changes will still be applied.');
+      }
       
+      // Normalize approvers structure - ensure arrays for multi-approver support
       const normalizeStartTime = performance.now();
       
       const normalizedApprovers: Contract['approvers'] = { 
@@ -422,7 +480,6 @@ const ContractDetail = () => {
       }
       
       // Update the contract with normalized approvers and possibly new timeline entry
-      
       const dbUpdateStartTime = performance.now();
       console.log('ContractDetail - handleUpdateApprovers - Sending update object:', JSON.stringify(updateObject, null, 2));
       
@@ -435,7 +492,6 @@ const ContractDetail = () => {
       console.log('ContractDetail - handleUpdateApprovers - Update sent successfully');
 
       // Fetch the updated contract to refresh UI
-      
       const refetchStartTime = performance.now();
       
       const updatedContract = await getContract(id);
@@ -445,6 +501,7 @@ const ContractDetail = () => {
       if (updatedContract) {
         console.log('ContractDetail - handleUpdateApprovers - Updated contract retrieved, new status:', updatedContract.status);
         setContract(updatedContract);
+        lastUpdatedTimestamp.current = Date.now(); // Update the timestamp
         toast.success('Approvers updated successfully');
       }
       
@@ -542,6 +599,23 @@ const ContractDetail = () => {
             </Button>
 
             <div className="flex gap-2 self-end">
+              {isRefreshing && (
+                <div className="flex items-center text-sm text-muted-foreground mr-2">
+                  <RefreshCw size={14} className="animate-spin mr-1" />
+                  <span>Refreshing...</span>
+                </div>
+              )}
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={fetchContractData} 
+                className="mr-2"
+                disabled={isRefreshing}
+              >
+                <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
+                <span className="ml-1">Refresh</span>
+              </Button>
+
               {contract.archived ? (
                 // Show restore and permanent delete options for archived contracts
                 <>
@@ -771,6 +845,8 @@ const ContractDetail = () => {
                         // Convert the formatted status back to the status key
                         if (statusText === 'Legal Review') statusKey = 'legal_review';
                         else if (statusText === 'Management Review') statusKey = 'management_review';
+                        else if (statusText === 'Legal Declined') statusKey = 'legal_declined';
+                        else if (statusText === 'Management Declined') statusKey = 'management_declined';
                         else statusKey = statusText.toLowerCase() as ContractStatus;
                       }
 
@@ -785,15 +861,17 @@ const ContractDetail = () => {
                               statusKey === 'draft' ? 'bg-gray-800' :
                               statusKey === 'legal_review' ? 'bg-purple-800' :
                               statusKey === 'management_review' ? 'bg-orange-800' :
+                              statusKey === 'legal_declined' ? 'bg-red-800' :
+                              statusKey === 'management_declined' ? 'bg-red-800' :
                               statusKey === 'approval' ? 'bg-yellow-800' :
                               statusKey === 'finished' ? 'bg-green-800' : 'bg-primary'
                               : 'bg-primary'}`}></div>
                             {index < displayedTimeline.length - 1 && (
-                              <div className={`w-0.5 h-full ${isStatusChange && statusKey ? statusColors[statusKey].bg : 'bg-border'}`}></div>
+                              <div className={`w-0.5 h-full ${isStatusChange && statusKey && statusColors[statusKey] ? statusColors[statusKey].bg : 'bg-border'}`}></div>
                             )}
                           </div>
                           <div className="pt-0">
-                            <div className={`font-medium ${isStatusChange && statusKey ? statusColors[statusKey].text : ''}`}>
+                            <div className={`font-medium ${isStatusChange && statusKey && statusColors[statusKey] ? statusColors[statusKey].text : ''}`}>
                               {entry.action}{entry.details ? formatTimelineDetails(entry.details, isStatusChange) : ''}
                             </div>
                             <div className="text-sm text-muted-foreground">

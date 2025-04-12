@@ -16,6 +16,8 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
       'draft': 1,
       'legal_review': 2,
       'management_review': 2, // Same level as legal_review
+      'legal_declined': 2, // Same level as legal_review
+      'management_declined': 2, // Same level as management_review
       'approval': 3,
       'finished': 4
     };
@@ -29,13 +31,14 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
       return false;
     }
 
-    // For parallel review stages, treat each independently
-    if (stage === 'legal_review') {
-      return currentStatus === 'legal_review' || currentStatus === 'approval' || currentStatus === 'finished';
-    }
-    
-    if (stage === 'management_review') {
-      return currentStatus === 'management_review' || currentStatus === 'approval' || currentStatus === 'finished';
+    // Special handling for review stages to be treated as a group
+    if (stage === 'legal_review' || stage === 'management_review') {
+      return currentStatus === 'legal_review' || 
+             currentStatus === 'management_review' ||
+             currentStatus === 'legal_declined' ||
+             currentStatus === 'management_declined' ||
+             currentStatus === 'approval' || 
+             currentStatus === 'finished';
     }
 
     // For all other stages, use standard stageOrder comparison
@@ -49,40 +52,75 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
       return false;
     }
 
+    // Special handling for review stages to be treated as a group
+    if (stage === 'legal_review' || stage === 'management_review') {
+      return currentStatus === 'legal_review' || 
+             currentStatus === 'management_review' ||
+             currentStatus === 'legal_declined' ||
+             currentStatus === 'management_declined';
+    }
+
     // Each stage is only current if it exactly matches the current status
     return stage === currentStatus;
   };
 
-  // Helper function to render a stage node
-  const renderStageNode = (status: ContractStatus, label: string, isCompleted: boolean, isCurrent: boolean) => (
-    <div className="flex flex-col items-center relative">
-      <div
-        className={`flex items-center justify-center w-14 h-14 rounded-full z-10 border
-          ${isCompleted || isCurrent
-            ? 'bg-blue-500 text-white border-blue-500'
-            : status === 'finished'
-              ? 'bg-white text-blue-500 border-blue-500 border-2'
-              : 'bg-white text-muted-foreground border-gray-300'
-          }`}
-      >
-        {isCompleted || isCurrent ? (
-          <CheckCircle className="w-6 h-6" />
-        ) : (
-          <Circle className="w-6 h-6" />
-        )}
-      </div>
+  // Helper function to determine if a stage is declined
+  const isStageDeclined = (stage: ContractStatus) => {
+    // Both review stages should show declined if either one is declined
+    if (stage === 'legal_review' || stage === 'management_review') {
+      return currentStatus === 'legal_declined' || currentStatus === 'management_declined';
+    }
+    
+    return false;
+  };
 
-      <span
-        className={`absolute top-16 text-xs whitespace-nowrap text-center
-          ${isCompleted || isCurrent
-            ? 'text-blue-500 font-medium'
-            : 'text-muted-foreground'
-          }`}
-      >
-        {label}
-      </span>
-    </div>
-  );
+  // Helper function to render a stage node
+  const renderStageNode = (status: ContractStatus, label: string, isCompleted: boolean, isCurrent: boolean) => {
+    // Check if the stage is declined
+    let isDeclined = false;
+    
+    // Special handling for review stages - both should appear declined if either is declined
+    if (status === 'legal_review' || status === 'management_review') {
+      isDeclined = isReviewDeclined;
+    } else {
+      // For other stages, use the standard check
+      isDeclined = isStageDeclined(status);
+    }
+    
+    return (
+      <div className="flex flex-col items-center relative">
+        <div
+          className={`flex items-center justify-center w-14 h-14 rounded-full z-10 border
+            ${isDeclined
+              ? 'bg-red-500 text-white border-red-500' // Declined stage
+              : isCompleted || isCurrent
+                ? 'bg-blue-500 text-white border-blue-500' // Completed or current stage
+                : status === 'finished'
+                  ? 'bg-white text-blue-500 border-blue-500 border-2' // Special case for finished
+                  : 'bg-white text-muted-foreground border-gray-300' // Default state
+            }`}
+        >
+          {isCompleted || isCurrent || isDeclined ? (
+            <CheckCircle className="w-6 h-6" />
+          ) : (
+            <Circle className="w-6 h-6" />
+          )}
+        </div>
+
+        <span
+          className={`absolute top-16 text-xs whitespace-nowrap text-center
+            ${isDeclined
+              ? 'text-red-500 font-medium' // Text for declined stages
+              : isCompleted || isCurrent
+                ? 'text-blue-500 font-medium' // Text for completed/current
+                : 'text-muted-foreground' // Default text
+            }`}
+        >
+          {label}
+        </span>
+      </div>
+    );
+  };
 
   // Helper function to render a horizontal connecting line
   const renderHorizontalLine = (isCompleted: boolean) => (
@@ -95,6 +133,9 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
   const renderDiagonalLine = (type: 'top-diverge' | 'bottom-diverge' | 'top-converge' | 'bottom-converge', isCompleted: boolean) => {
     // Different paths for different line types
     let path;
+    
+    // Check if review stages are declined, apply to both diagonal lines
+    const isDeclined = isReviewDeclined;
 
     // For better visual connection, we'll use the actual coordinates where we want the lines to connect
     const leftX = 0;
@@ -129,7 +170,7 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
         <svg viewBox="0 0 100 100" className="w-full h-full">
           <path
             d={path}
-            stroke={isCompleted ? '#3b82f6' : '#d1d5db'}
+            stroke={isDeclined ? '#ef4444' : isCompleted ? '#3b82f6' : '#d1d5db'}
             strokeWidth="2"
             fill="none"
           />
@@ -141,9 +182,11 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
   // Determine if paths are completed
   const isDraftCompleted = isStageCompleted('draft');
 
-  // Use the same logic as in isStageCompleted for consistency
-  const isLegalReviewCompleted = isStageCompleted('legal_review');
-  const isManagementReviewCompleted = isStageCompleted('management_review');
+  // For visual consistency in the progress bar, treat both review paths as a single unit
+  const isReviewCompleted = currentStatus === 'approval' || currentStatus === 'finished';
+  const isReviewDeclined = currentStatus === 'legal_declined' || currentStatus === 'management_declined';
+  const isReviewCurrent = currentStatus === 'legal_review' || currentStatus === 'management_review' || 
+                         currentStatus === 'legal_declined' || currentStatus === 'management_declined';
 
   const isApprovalCompleted = isStageCompleted('approval');
 
@@ -194,8 +237,8 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
                 {renderStageNode(
                   'legal_review',
                   'Legal Review',
-                  isStageCompleted('legal_review'),
-                  isStageCurrent('legal_review')
+                  isReviewCompleted || isReviewCurrent,
+                  isReviewCurrent && !isReviewDeclined
                 )}
               </div>
 
@@ -204,8 +247,8 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
                 {renderStageNode(
                   'management_review',
                   'Management Review',
-                  isStageCompleted('management_review'),
-                  isStageCurrent('management_review')
+                  isReviewCompleted || isReviewCurrent,
+                  isReviewCurrent && !isReviewDeclined
                 )}
               </div>
             </div>
@@ -214,12 +257,12 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
             <div className="flex flex-col items-center">
               <div className="flex items-center">
                 {/* Diagonal line from Legal Review to Approval */}
-                {renderDiagonalLine('top-converge', isLegalReviewCompleted)}
+                {renderDiagonalLine('top-converge', isReviewCompleted)}
               </div>
 
               <div className="flex items-center">
                 {/* Diagonal line from Management Review to Approval */}
-                {renderDiagonalLine('bottom-converge', isManagementReviewCompleted)}
+                {renderDiagonalLine('bottom-converge', isReviewCompleted)}
               </div>
             </div>
 

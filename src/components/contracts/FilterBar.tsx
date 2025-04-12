@@ -158,6 +158,8 @@ const FilterBar = ({ onFilterChange, currentSort, onSortChange, className }: Fil
               <SelectItem value="draft">Draft</SelectItem>
               <SelectItem value="legal_review">Legal Review</SelectItem>
               <SelectItem value="management_review">Management Review</SelectItem>
+              <SelectItem value="legal_declined">Legal Declined</SelectItem>
+              <SelectItem value="management_declined">Management Declined</SelectItem>
               <SelectItem value="approval">Approval</SelectItem>
               <SelectItem value="finished">Finished</SelectItem>
             </SelectContent>
