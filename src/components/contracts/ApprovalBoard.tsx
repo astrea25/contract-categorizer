@@ -558,6 +558,11 @@ const ApprovalBoard = ({
       return approver;
     });
 
+    // Check if management has approved
+    const managementApprovers = getManagementApprovers();
+    const isManagementApproved = managementApprovers.length > 0 && 
+      managementApprovers.every(approver => approver.approved);
+
     // Create a custom timeline entry for legal approval withdrawal
     const updateData: any = {
       approvers: {
@@ -569,6 +574,28 @@ const ApprovalBoard = ({
         details: 'Withdrawn as legal team member'
       }
     };
+
+    // Update contract status based on withdrawal
+    // If we're in approval status, means both legal and management had approved
+    if (contract.status === 'approval') {
+      // If management is still approved, go back to management_review status
+      if (isManagementApproved) {
+        updateData.status = 'management_review';
+        updateData._customTimelineEntry.details += ' - Status changed to Management Review';
+        console.log('Legal withdrawal - Setting status back to management_review');
+      } else {
+        // If neither is approved, go back to draft
+        updateData.status = 'draft';
+        updateData._customTimelineEntry.details += ' - Status changed to Draft';
+        console.log('Legal withdrawal - Setting status back to draft');
+      }
+    } 
+    // If we're in legal_review status, go back to draft
+    else if (contract.status === 'legal_review') {
+      updateData.status = 'draft';
+      updateData._customTimelineEntry.details += ' - Status changed to Draft';
+      console.log('Legal withdrawal - Setting status back to draft');
+    }
 
     // Update approvers with custom timeline entry
     await onUpdateApprovers(updateData);
@@ -753,11 +780,47 @@ const ApprovalBoard = ({
       return approver;
     });
 
+    // Check if legal has approved
+    const legalApprovers = getLegalApprovers();
+    const isLegalApproved = legalApprovers.length > 0 && 
+      legalApprovers.every(approver => approver.approved);
+
+    // Create update data
+    const updateData: any = {
+      approvers: {
+        ...normalizedContract.approvers,
+        management: updatedManagementApprovers
+      },
+      _customTimelineEntry: {
+        action: `Management Approval Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+        details: 'Withdrawn as management team member'
+      }
+    };
+
+    // Update contract status based on withdrawal
+    // If we're in approval status, means both legal and management had approved
+    if (contract.status === 'approval') {
+      // If legal is still approved, go back to legal_review status
+      if (isLegalApproved) {
+        updateData.status = 'legal_review';
+        updateData._customTimelineEntry.details += ' - Status changed to Legal Review';
+        console.log('Management withdrawal - Setting status back to legal_review');
+      } else {
+        // If neither is approved, go back to draft
+        updateData.status = 'draft';
+        updateData._customTimelineEntry.details += ' - Status changed to Draft';
+        console.log('Management withdrawal - Setting status back to draft');
+      }
+    } 
+    // If we're in management_review status, go back to draft
+    else if (contract.status === 'management_review') {
+      updateData.status = 'draft';
+      updateData._customTimelineEntry.details += ' - Status changed to Draft';
+      console.log('Management withdrawal - Setting status back to draft');
+    }
+
     // Update approvers
-    await onUpdateApprovers({
-      ...normalizedContract.approvers,
-      management: updatedManagementApprovers
-    });
+    await onUpdateApprovers(updateData);
 
     toast({
       title: 'Approval Withdrawn',
