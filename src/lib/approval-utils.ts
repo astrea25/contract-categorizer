@@ -1,4 +1,21 @@
-import { Contract, getContracts } from './data';
+import { Contract, getContracts, normalizeApprovers } from './data';
+
+// Type definition for approver
+interface Approver {
+  email: string;
+  name: string;
+  approved: boolean;
+  declined?: boolean;
+  approvedAt?: string | null;
+  declinedAt?: string | null;
+}
+
+// Define a type for normalized approvers
+interface NormalizedApprovers {
+  legal: Approver[];
+  management: Approver[];
+  approver: Approver[];
+}
 
 /**
  * Gets contracts assigned to a specific user for approval
@@ -6,12 +23,14 @@ import { Contract, getContracts } from './data';
  * @param userEmail The email of the user
  * @param isLegalTeam Whether the user is a legal team member
  * @param isManagementTeam Whether the user is a management team member
+ * @param isApprover Whether the user is an approver
  * @returns An array of contracts assigned to the user for approval
  */
 export const getContractsForApproval = async (
   userEmail: string,
   isLegalTeam: boolean,
-  isManagementTeam: boolean
+  isManagementTeam: boolean,
+  isApprover: boolean = false
 ): Promise<Contract[]> => {
   if (!userEmail) return [];
 
@@ -21,29 +40,58 @@ export const getContractsForApproval = async (
 
   // Filter contracts based on user role and approval assignment
   const filteredContracts = allContracts.filter(contract => {
+    // First normalize the approvers structure to ensure we always work with arrays
+    const normalizedContract = normalizeApprovers(contract);
+    const approvers = normalizedContract.approvers as NormalizedApprovers;
 
     // For legal team members
-    if (isLegalTeam &&
-        contract.approvers?.legal?.email?.toLowerCase() === lowercaseEmail) {
-
-      // If declined is undefined, treat it as false
-      const isDeclined = contract.approvers.legal.declined === true;
-      const isApproved = contract.approvers.legal.approved === true;
-      const shouldShow = !isApproved && !isDeclined;
-
-      return shouldShow;
+    if (isLegalTeam && approvers?.legal) {
+      // Find if the user is a legal approver for this contract
+      const userLegalApprover = approvers.legal.find(
+        approver => approver.email.toLowerCase() === lowercaseEmail
+      );
+      
+      if (userLegalApprover) {
+        // If declined is undefined, treat it as false
+        const isDeclined = userLegalApprover.declined === true;
+        const isApproved = userLegalApprover.approved === true;
+        const shouldShow = !isApproved && !isDeclined;
+        
+        if (shouldShow) return true;
+      }
     }
 
     // For management team members
-    if (isManagementTeam &&
-        contract.approvers?.management?.email?.toLowerCase() === lowercaseEmail) {
+    if (isManagementTeam && approvers?.management) {
+      // Find if the user is a management approver for this contract
+      const userManagementApprover = approvers.management.find(
+        approver => approver.email.toLowerCase() === lowercaseEmail
+      );
+      
+      if (userManagementApprover) {
+        // If declined is undefined, treat it as false
+        const isDeclined = userManagementApprover.declined === true;
+        const isApproved = userManagementApprover.approved === true;
+        const shouldShow = !isApproved && !isDeclined;
+        
+        if (shouldShow) return true;
+      }
+    }
 
-      // If declined is undefined, treat it as false
-      const isDeclined = contract.approvers.management.declined === true;
-      const isApproved = contract.approvers.management.approved === true;
-      const shouldShow = !isApproved && !isDeclined;
-
-      return shouldShow;
+    // For regular approvers
+    if (isApprover && approvers?.approver) {
+      const userApprover = approvers.approver.find(
+        approver => approver.email.toLowerCase() === lowercaseEmail
+      );
+      
+      if (userApprover) {
+        // If declined is undefined, treat it as false
+        const isDeclined = userApprover.declined === true;
+        const isApproved = userApprover.approved === true;
+        const shouldShow = !isApproved && !isDeclined;
+        
+        if (shouldShow) return true;
+      }
     }
 
     return false;
@@ -58,12 +106,14 @@ export const getContractsForApproval = async (
  * @param userEmail The email of the user
  * @param isLegalTeam Whether the user is a legal team member
  * @param isManagementTeam Whether the user is a management team member
+ * @param isApprover Whether the user is an approver
  * @returns An array of contracts approved by the user
  */
 export const getApprovedContracts = async (
   userEmail: string,
   isLegalTeam: boolean,
-  isManagementTeam: boolean
+  isManagementTeam: boolean,
+  isApprover: boolean = false
 ): Promise<Contract[]> => {
   if (!userEmail) return [];
 
@@ -73,18 +123,35 @@ export const getApprovedContracts = async (
 
   // Filter contracts based on user role and approval status
   return allContracts.filter(contract => {
+    // First normalize the approvers structure
+    const normalizedContract = normalizeApprovers(contract);
+    const approvers = normalizedContract.approvers as NormalizedApprovers;
+
     // For legal team members
-    if (isLegalTeam &&
-        contract.approvers?.legal?.email.toLowerCase() === lowercaseEmail &&
-        contract.approvers.legal.approved) {
-      return true;
+    if (isLegalTeam && approvers?.legal) {
+      const userLegalApprover = approvers.legal.find(
+        approver => approver.email.toLowerCase() === lowercaseEmail && approver.approved
+      );
+      
+      if (userLegalApprover) return true;
     }
 
     // For management team members
-    if (isManagementTeam &&
-        contract.approvers?.management?.email.toLowerCase() === lowercaseEmail &&
-        contract.approvers.management.approved) {
-      return true;
+    if (isManagementTeam && approvers?.management) {
+      const userManagementApprover = approvers.management.find(
+        approver => approver.email.toLowerCase() === lowercaseEmail && approver.approved
+      );
+      
+      if (userManagementApprover) return true;
+    }
+
+    // For regular approvers
+    if (isApprover && approvers?.approver) {
+      const userApprover = approvers.approver.find(
+        approver => approver.email.toLowerCase() === lowercaseEmail && approver.approved
+      );
+      
+      if (userApprover) return true;
     }
 
     return false;
@@ -98,40 +165,57 @@ export const getApprovedContracts = async (
  * @param userEmail The email of the user
  * @param isLegalTeam Whether the user is a legal team member
  * @param isManagementTeam Whether the user is a management team member
+ * @param isApprover Whether the user is an approver
  * @returns True if the contract needs approval from the user, false otherwise
  */
 export const needsApprovalFrom = (
   contract: Contract,
   userEmail: string,
   isLegalTeam: boolean,
-  isManagementTeam: boolean
+  isManagementTeam: boolean,
+  isApprover: boolean = false
 ): boolean => {
   if (!userEmail) return false;
 
   const lowercaseEmail = userEmail.toLowerCase();
+  // First normalize the approvers structure
+  const normalizedContract = normalizeApprovers(contract);
+  const approvers = normalizedContract.approvers as NormalizedApprovers;
 
-  // Check if the user is assigned as a legal approver and hasn't approved yet
-  if (isLegalTeam &&
-      contract.approvers?.legal?.email.toLowerCase() === lowercaseEmail &&
-      !contract.approvers.legal.approved) {
-    return true;
+  // For legal team members
+  if (isLegalTeam && approvers?.legal) {
+    const userLegalApprover = approvers.legal.find(
+      approver => approver.email.toLowerCase() === lowercaseEmail && !approver.approved
+    );
+    
+    if (userLegalApprover) return true;
   }
 
-  // Check if the user is assigned as a management approver and hasn't approved yet
-  if (isManagementTeam &&
-      contract.approvers?.management?.email.toLowerCase() === lowercaseEmail &&
-      !contract.approvers.management.approved) {
-    return true;
+  // For management team members
+  if (isManagementTeam && approvers?.management) {
+    const userManagementApprover = approvers.management.find(
+      approver => approver.email.toLowerCase() === lowercaseEmail && !approver.approved
+    );
+    
+    if (userManagementApprover) return true;
+  }
+  
+  // For regular approvers
+  if (isApprover && approvers?.approver) {
+    const userApprover = approvers.approver.find(
+      approver => approver.email.toLowerCase() === lowercaseEmail && !approver.approved
+    );
+    
+    if (userApprover) return true;
   }
 
   return false;
 };
 
 /**
- * Adds a "Disapprove" button to the ApprovalBoard component
+ * Updates disapproval status for a contract
  *
  * @param contract The contract to update
- * @param approvers The current approvers object
  * @param isLegalTeam Whether the user is a legal team member
  * @param isManagementTeam Whether the user is a management team member
  * @param userEmail The email of the user
@@ -146,31 +230,39 @@ export const disapproveContract = (
   if (!userEmail || !contract.approvers) return contract.approvers;
 
   const lowercaseEmail = userEmail.toLowerCase();
-  const approvers = { ...contract.approvers };
+  const normalizedContract = normalizeApprovers(contract);
+  const approvers = normalizedContract.approvers as NormalizedApprovers;
+  const result = { ...approvers };
 
   // Update legal approval status
-  if (isLegalTeam &&
-      approvers.legal?.email.toLowerCase() === lowercaseEmail &&
-      approvers.legal.approved) {
-    approvers.legal = {
-      ...approvers.legal,
-      approved: false,
-      approvedAt: undefined
-    };
+  if (isLegalTeam && result.legal) {
+    result.legal = result.legal.map(approver => {
+      if (approver.email.toLowerCase() === lowercaseEmail && approver.approved) {
+        return {
+          ...approver,
+          approved: false,
+          approvedAt: undefined
+        };
+      }
+      return approver;
+    });
   }
 
   // Update management approval status
-  if (isManagementTeam &&
-      approvers.management?.email.toLowerCase() === lowercaseEmail &&
-      approvers.management.approved) {
-    approvers.management = {
-      ...approvers.management,
-      approved: false,
-      approvedAt: undefined
-    };
+  if (isManagementTeam && result.management) {
+    result.management = result.management.map(approver => {
+      if (approver.email.toLowerCase() === lowercaseEmail && approver.approved) {
+        return {
+          ...approver,
+          approved: false,
+          approvedAt: undefined
+        };
+      }
+      return approver;
+    });
   }
 
-  return approvers;
+  return result;
 };
 
 /**
@@ -179,12 +271,14 @@ export const disapproveContract = (
  * @param userEmail The email of the user
  * @param isLegalTeam Whether the user is a legal team member
  * @param isManagementTeam Whether the user is a management team member
+ * @param isApprover Whether the user is an approver
  * @returns An array of contracts that the user has already responded to
  */
 export const getRespondedContracts = async (
   userEmail: string,
   isLegalTeam: boolean,
-  isManagementTeam: boolean
+  isManagementTeam: boolean,
+  isApprover: boolean = false
 ): Promise<Contract[]> => {
   if (!userEmail) return [];
 
@@ -194,18 +288,38 @@ export const getRespondedContracts = async (
 
   // Filter contracts based on user role and response status
   return allContracts.filter(contract => {
+    // First normalize the approvers structure
+    const normalizedContract = normalizeApprovers(contract);
+    const approvers = normalizedContract.approvers as NormalizedApprovers;
+
     // For legal team members
-    if (isLegalTeam &&
-        contract.approvers?.legal?.email.toLowerCase() === lowercaseEmail &&
-        (contract.approvers.legal.approved || contract.approvers.legal.declined)) {
-      return true;
+    if (isLegalTeam && approvers?.legal) {
+      const userLegalApprover = approvers.legal.find(
+        approver => approver.email.toLowerCase() === lowercaseEmail && 
+                   (approver.approved || approver.declined)
+      );
+      
+      if (userLegalApprover) return true;
     }
 
     // For management team members
-    if (isManagementTeam &&
-        contract.approvers?.management?.email.toLowerCase() === lowercaseEmail &&
-        (contract.approvers.management.approved || contract.approvers.management.declined)) {
-      return true;
+    if (isManagementTeam && approvers?.management) {
+      const userManagementApprover = approvers.management.find(
+        approver => approver.email.toLowerCase() === lowercaseEmail && 
+                   (approver.approved || approver.declined)
+      );
+      
+      if (userManagementApprover) return true;
+    }
+
+    // For regular approvers
+    if (isApprover && approvers?.approver) {
+      const userApprover = approvers.approver.find(
+        approver => approver.email.toLowerCase() === lowercaseEmail && 
+                   (approver.approved || approver.declined)
+      );
+      
+      if (userApprover) return true;
     }
 
     return false;

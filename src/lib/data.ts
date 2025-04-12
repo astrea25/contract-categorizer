@@ -1745,12 +1745,9 @@ export const getUserContracts = async (userEmail: string, includeArchived: boole
       const userLegalApprover = legalApprovers.find(
         approver => approver.email.toLowerCase() === lowercaseEmail
       );
-      // Only return true if this contract is assigned to them specifically
+      // If they are assigned as an approver, always show the contract
       if (userLegalApprover) {
-        // Only show if the contract is in legal_review status or if they've already approved/declined
-        if (contract.status === 'legal_review' || userLegalApprover.approved || userLegalApprover.declined) {
-          return true;
-        }
+        return true;
       }
     }
 
@@ -1763,12 +1760,9 @@ export const getUserContracts = async (userEmail: string, includeArchived: boole
       const userManagementApprover = managementApprovers.find(
         approver => approver.email.toLowerCase() === lowercaseEmail
       );
-      // Only return true if this contract is assigned to them specifically
+      // If they are assigned as an approver, always show the contract
       if (userManagementApprover) {
-        // Only show if the contract is in management_review status or if they've already approved/declined
-        if (contract.status === 'management_review' || userManagementApprover.approved || userManagementApprover.declined) {
-          return true;
-        }
+        return true;
       }
     }
 
@@ -1777,12 +1771,9 @@ export const getUserContracts = async (userEmail: string, includeArchived: boole
       const userApprover = normalizedContract.approvers.approver.find(
         approver => approver.email.toLowerCase() === lowercaseEmail
       );
-      // Only return true if this contract is assigned to them specifically
+      // If they are assigned as an approver, always show the contract
       if (userApprover) {
-        // Only show if the contract is in approval status or if they've already approved/declined
-        if (contract.status === 'approval' || userApprover.approved || userApprover.declined) {
-          return true;
-        }
+        return true;
       }
     }
 
@@ -1828,25 +1819,44 @@ export const getUserArchivedContracts = async (userEmail: string): Promise<Contr
     const normalizedContract = normalizeApprovers(contract);
 
     // Check if user is a legal approver
-    const isLegalApprover = Array.isArray(normalizedContract.approvers?.legal) &&
-      normalizedContract.approvers.legal.some(
+    if (normalizedContract.approvers?.legal) {
+      const legalApprovers = Array.isArray(normalizedContract.approvers.legal)
+        ? normalizedContract.approvers.legal
+        : [normalizedContract.approvers.legal];
+        
+      const userLegalApprover = legalApprovers.find(
         approver => approver.email.toLowerCase() === lowercaseEmail
       );
+      
+      if (userLegalApprover) {
+        return true;
+      }
+    }
 
     // Check if user is a management approver
-    const isManagementApprover = Array.isArray(normalizedContract.approvers?.management) &&
-      normalizedContract.approvers.management.some(
+    if (normalizedContract.approvers?.management) {
+      const managementApprovers = Array.isArray(normalizedContract.approvers.management)
+        ? normalizedContract.approvers.management
+        : [normalizedContract.approvers.management];
+        
+      const userManagementApprover = managementApprovers.find(
         approver => approver.email.toLowerCase() === lowercaseEmail
       );
+      
+      if (userManagementApprover) {
+        return true;
+      }
+    }
 
     // Check if user is an approver
-    const isApprover = Array.isArray(normalizedContract.approvers?.approver) &&
-      normalizedContract.approvers.approver.some(
+    if (normalizedContract.approvers?.approver) {
+      const userApprover = normalizedContract.approvers.approver.find(
         approver => approver.email.toLowerCase() === lowercaseEmail
       );
-
-    if (isLegalApprover || isManagementApprover || isApprover) {
-      return true;
+      
+      if (userApprover) {
+        return true;
+      }
     }
 
     // User is not involved with this contract

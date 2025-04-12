@@ -100,7 +100,7 @@ const Index = () => {
 
             // Check if the user is an approver who approved this contract
             if (isApprover && c.approvers?.approver) {
-              const approvers = c.approvers.approver;
+              const approvers = Array.isArray(c.approvers.approver) ? c.approvers.approver : [c.approvers.approver];
               const userApprover = approvers.find(a => a.email === userEmail);
               return userApprover?.approved === true;
             }
@@ -128,7 +128,7 @@ const Index = () => {
 
             // Check if the user is an approver who declined this contract
             if (isApprover && c.approvers?.approver) {
-              const approvers = c.approvers.approver;
+              const approvers = Array.isArray(c.approvers.approver) ? c.approvers.approver : [c.approvers.approver];
               const userApprover = approvers.find(a => a.email === userEmail);
               return userApprover?.declined === true;
             }
@@ -141,14 +141,16 @@ const Index = () => {
           const contractsForApproval = await getContractsForApproval(
             currentUser?.email || '',
             isLegalTeam,
-            isManagementTeam
+            isManagementTeam,
+            isApprover
           );
 
           // Get contracts that the user has already responded to
           const respondedContracts = await getRespondedContracts(
             currentUser?.email || '',
             isLegalTeam,
-            isManagementTeam
+            isManagementTeam,
+            isApprover
           );
 
 

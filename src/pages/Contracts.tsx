@@ -71,7 +71,7 @@ const Contracts = () => {
   const status = searchParams.get('status');
   const filter = searchParams.get('filter');
 
-  const { currentUser, isAdmin, isLegalTeam, isManagementTeam } = useAuth();
+  const { currentUser, isAdmin, isLegalTeam, isManagementTeam, isApprover } = useAuth();
 
   // Load folders when component mounts
   useEffect(() => {
@@ -181,6 +181,18 @@ const Contracts = () => {
                 return !userManagementApprover.approved && !userManagementApprover.declined;
               }
             }
+            
+            if (isApprover) {
+              // Find if the user is a regular approver for this contract
+              const userApprover = normalizedContract.approvers?.approver?.find(
+                approver => approver.email.toLowerCase() === lowercaseEmail
+              );
+
+              if (userApprover) {
+                // Only include contracts that haven't been approved/declined yet
+                return !userApprover.approved && !userApprover.declined;
+              }
+            }
 
             return false;
           });
@@ -222,7 +234,7 @@ const Contracts = () => {
     };
 
     fetchAndFilterContracts();
-  }, [status, filter, currentUser, isAdmin, isLegalTeam, isManagementTeam, selectedFolder]);
+  }, [status, filter, currentUser, isAdmin, isLegalTeam, isManagementTeam, isApprover, selectedFolder]);
 
   const handleFilterChange = (newFilters: typeof filters) => {
     setFilters(newFilters);
