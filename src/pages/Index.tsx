@@ -738,7 +738,7 @@ const Index = () => {
                         <TableRow key={contract.id}>
                           <TableCell>
                             <Link
-                              to={`/contracts/${contract.id}`}
+                              to={`/contract/${contract.id}`}
                               className="font-medium hover:underline text-primary"
                             >
                               {contract.title}
