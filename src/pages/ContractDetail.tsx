@@ -163,6 +163,12 @@ const ContractDetail = () => {
   const handleDeleteContract = async () => {
     if (!contract || !id || !currentUser?.email || !isAuthorized) return;
 
+    // Prevent deletion of non-archived contracts
+    if (!contract.archived) {
+      toast.error('Contract must be archived before deletion');
+      return;
+    }
+
     try {
       setIsDeleting(true);
 
@@ -185,7 +191,12 @@ const ContractDetail = () => {
   };
 
   const openDeleteDialog = () => {
-    setShowDeleteDialog(true);
+    // Only allow opening delete dialog for archived contracts
+    if (contract?.archived) {
+      setShowDeleteDialog(true);
+    } else {
+      toast.error('Contract must be archived before deletion');
+    }
   };
 
   const handleStatusChange = async (newStatus: ContractStatus) => {
@@ -733,11 +744,9 @@ const ContractDetail = () => {
       <ConfirmationDialog
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
-        title={contract.archived ? "Permanently Delete Contract" : "Delete Contract"}
-        description={contract.archived
-          ? "Are you sure you want to permanently delete this archived contract? This action cannot be undone and all contract data will be permanently lost."
-          : "Are you sure you want to delete this contract? This action cannot be undone and all contract data will be permanently lost."}
-        confirmText={contract.archived ? "Permanently Delete" : "Delete"}
+        title="Permanently Delete Contract"
+        description="Are you sure you want to permanently delete this archived contract? This action cannot be undone and all contract data will be permanently lost."
+        confirmText="Permanently Delete"
         onConfirm={handleDeleteContract}
         isLoading={isDeleting}
         confirmVariant="destructive"

@@ -117,101 +117,114 @@ const Contracts = () => {
 
   useEffect(() => {
     const fetchAndFilterContracts = async () => {
-      let allContracts: Contract[] = [];
+      try {
+        let allContracts: Contract[] = [];
 
-      // Handle archive view separately
-      if (selectedFolder === 'archive') {
-        if (currentUser?.email) {
-          allContracts = await getUserArchivedContracts(currentUser.email);
-        } else {
-          allContracts = await getArchivedContracts();
-        }
-      } else {
-        // Get non-archived contracts based on user role
-        if (isAdmin) {
-          allContracts = await getContracts(false); // false to exclude archived
-        } else if ((isLegalTeam || isManagementTeam) && currentUser?.email) {
-          allContracts = await getUserContracts(currentUser.email, false); // false to exclude archived
-        } else if (currentUser?.email) {
-          allContracts = await getUserContracts(currentUser.email, false); // false to exclude archived
-        } else {
-          allContracts = [];
-        }
-      }
-
-      let filteredContracts = [...allContracts];
-
-      // Check if we need to filter by approval status
-      if (status === 'awaiting_response' && currentUser?.email) {
-        const lowercaseEmail = currentUser.email.toLowerCase();
-
-        // Apply approval filtering logic directly
-        filteredContracts = filteredContracts.filter(contract => {
-          // Normalize the approvers structure
-          const normalizedContract = normalizeApprovers(contract);
-
-          if (isLegalTeam) {
-            // Find if the user is a legal approver for this contract
-            const userLegalApprover = Array.isArray(normalizedContract.approvers?.legal) &&
-              normalizedContract.approvers.legal.find(
-                approver => approver.email.toLowerCase() === lowercaseEmail
-              );
-
-            if (userLegalApprover) {
-              // Only include contracts that haven't been approved/declined yet
-              return !userLegalApprover.approved && !userLegalApprover.declined;
-            }
+        // Handle archive view separately
+        if (selectedFolder === 'archive') {
+          console.log('Fetching archived contracts for folder view');
+          if (currentUser?.email) {
+            // Pass true to a new parameter that will tell the function to check if user is admin
+            allContracts = await getUserArchivedContracts(currentUser.email);
+          } else {
+            allContracts = await getArchivedContracts();
           }
-
-          if (isManagementTeam) {
-            // Find if the user is a management approver for this contract
-            const userManagementApprover = Array.isArray(normalizedContract.approvers?.management) &&
-              normalizedContract.approvers.management.find(
-                approver => approver.email.toLowerCase() === lowercaseEmail
-              );
-
-            if (userManagementApprover) {
-              // Only include contracts that haven't been approved/declined yet
-              return !userManagementApprover.approved && !userManagementApprover.declined;
-            }
+          console.log('Fetched archived contracts count:', allContracts.length);
+          
+          // Directly set the contracts without filtering
+          setContracts(allContracts);
+          return; // Skip further processing for archive folder
+        } else {
+          // Get non-archived contracts based on user role
+          if (isAdmin) {
+            allContracts = await getContracts(false); // false to exclude archived
+          } else if ((isLegalTeam || isManagementTeam) && currentUser?.email) {
+            allContracts = await getUserContracts(currentUser.email, false); // false to exclude archived
+          } else if (currentUser?.email) {
+            allContracts = await getUserContracts(currentUser.email, false); // false to exclude archived
+          } else {
+            allContracts = [];
           }
-
-          return false;
-        });
-      }
-      // Apply regular status filter for other statuses
-      else if (status) {
-        filteredContracts = filteredContracts.filter(contract => contract.status === status);
-      }
-
-      // Apply filter based on filter param
-      if (filter) {
-        const currentYear = new Date().getFullYear();
-        switch (filter) {
-          case 'expiringThisMonth':
-            filteredContracts = filteredContracts.filter(contract => {
-              if (!contract.endDate) return false;
-              const endDate = new Date(contract.endDate);
-              const now = new Date();
-              return endDate.getMonth() === now.getMonth() &&
-                     endDate.getFullYear() === now.getFullYear();
-            });
-            break;
-          case 'expiringThisYear':
-            filteredContracts = filteredContracts.filter(contract => {
-              if (!contract.endDate) return false;
-              const endDate = new Date(contract.endDate);
-              return endDate.getFullYear() === currentYear;
-            });
-            break;
         }
-      }
 
-      setContracts(filteredContracts);
+        let filteredContracts = [...allContracts];
+
+        // Check if we need to filter by approval status
+        if (status === 'awaiting_response' && currentUser?.email) {
+          const lowercaseEmail = currentUser.email.toLowerCase();
+
+          // Apply approval filtering logic directly
+          filteredContracts = filteredContracts.filter(contract => {
+            // Normalize the approvers structure
+            const normalizedContract = normalizeApprovers(contract);
+
+            if (isLegalTeam) {
+              // Find if the user is a legal approver for this contract
+              const userLegalApprover = Array.isArray(normalizedContract.approvers?.legal) &&
+                normalizedContract.approvers.legal.find(
+                  approver => approver.email.toLowerCase() === lowercaseEmail
+                );
+
+              if (userLegalApprover) {
+                // Only include contracts that haven't been approved/declined yet
+                return !userLegalApprover.approved && !userLegalApprover.declined;
+              }
+            }
+
+            if (isManagementTeam) {
+              // Find if the user is a management approver for this contract
+              const userManagementApprover = Array.isArray(normalizedContract.approvers?.management) &&
+                normalizedContract.approvers.management.find(
+                  approver => approver.email.toLowerCase() === lowercaseEmail
+                );
+
+              if (userManagementApprover) {
+                // Only include contracts that haven't been approved/declined yet
+                return !userManagementApprover.approved && !userManagementApprover.declined;
+              }
+            }
+
+            return false;
+          });
+        }
+        // Apply regular status filter for other statuses
+        else if (status) {
+          filteredContracts = filteredContracts.filter(contract => contract.status === status);
+        }
+
+        // Apply filter based on filter param
+        if (filter) {
+          const currentYear = new Date().getFullYear();
+          switch (filter) {
+            case 'expiringThisMonth':
+              filteredContracts = filteredContracts.filter(contract => {
+                if (!contract.endDate) return false;
+                const endDate = new Date(contract.endDate);
+                const now = new Date();
+                return endDate.getMonth() === now.getMonth() &&
+                       endDate.getFullYear() === now.getFullYear();
+              });
+              break;
+            case 'expiringThisYear':
+              filteredContracts = filteredContracts.filter(contract => {
+                if (!contract.endDate) return false;
+                const endDate = new Date(contract.endDate);
+                return endDate.getFullYear() === currentYear;
+              });
+              break;
+          }
+        }
+
+        setContracts(filteredContracts);
+      } catch (error) {
+        console.error('Error fetching contracts:', error);
+        toast.error('Failed to load contracts');
+        setContracts([]);
+      }
     };
 
     fetchAndFilterContracts();
-  }, [status, filter, currentUser, isAdmin, isLegalTeam, selectedFolder]);
+  }, [status, filter, currentUser, isAdmin, isLegalTeam, isManagementTeam, selectedFolder]);
 
   const handleFilterChange = (newFilters: typeof filters) => {
     setFilters(newFilters);
@@ -412,10 +425,19 @@ const Contracts = () => {
   const filteredAndSortedContracts = useMemo(() => {
     let result = [...contracts];
 
+    console.log('Starting filtering with', result.length, 'contracts and selectedFolder:', selectedFolder);
+    
+    // For archive folder, skip all filtering except sorting
+    if (selectedFolder === 'archive') {
+      console.log('Archive folder selected, skipping filtering, applying only sorting');
+      // Only apply sorting
+      return sortContracts(result, sort);
+    }
+    
     // Skip filtering when in approval folder since contracts are pre-filtered
     if (selectedFolder !== 'approval') {
       // Filter by folder first
-      if (selectedFolder !== 'all' && selectedFolder !== 'archive' && selectedFolder) {
+      if (selectedFolder !== 'all' && selectedFolder) {
         // When viewing a specific folder, admins should see all contracts in that folder
         // including archived ones
         result = filterByFolder(result, selectedFolder);
@@ -444,6 +466,8 @@ const Contracts = () => {
       }
     }
 
+    console.log('After filtering, contracts count:', result.length, 'Selected folder:', selectedFolder);
+    
     // Always apply sorting
     return sortContracts(result, sort);
   }, [contracts, filters, selectedFolder, sort]);
@@ -465,6 +489,15 @@ const Contracts = () => {
     filters.party !== '' ||
     filters.dateRange.from !== null ||
     filters.dateRange.to !== null;
+
+  // Add debug logging
+  useEffect(() => {
+    console.log('Contracts data:', {
+      selectedFolder,
+      contractsCount: contracts.length,
+      filteredContractsCount: filteredAndSortedContracts.length
+    });
+  }, [contracts, filteredAndSortedContracts, selectedFolder]);
 
   return (
     <>

@@ -62,7 +62,6 @@ const DroppableFolder = ({
       {icon || <Folder className={`h-4 w-4 mr-2 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />}
       <div className="flex-1">
         <span className={`font-medium ${isSelected ? 'text-primary' : ''}`}>{name}</span>
-        {count > 0 && <span className="text-xs text-muted-foreground ml-2">({count})</span>}
       </div>
       <ChevronRight className={`h-4 w-4 ml-auto ${isSelected ? 'text-primary' : ''}`} />
     </div>

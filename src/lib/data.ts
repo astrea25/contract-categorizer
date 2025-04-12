@@ -208,25 +208,73 @@ export const getContracts = async (includeArchived: boolean = false): Promise<Co
 
 export const getArchivedContracts = async (): Promise<Contract[]> => {
   const contractsCollection = collection(db, 'contracts');
-  const contractsQuery = query(
-    contractsCollection,
-    where('archived', '==', true)
-  );
+  
+  try {
+    console.log('Fetching archived contracts...');
+    
+    // Use query to get only archived contracts
+    const contractsQuery = query(
+      contractsCollection,
+      where('archived', '==', true)
+    );
+    
+    const contractsSnapshot = await getDocs(contractsQuery);
+    console.log('Found archived contracts:', contractsSnapshot.size);
+    
+    if (contractsSnapshot.empty) {
+      console.log('No archived contracts found in the database');
+      
+      // Double-check with a full query to see if there are any archived contracts at all
+      const allContractsSnapshot = await getDocs(contractsCollection);
+      const allContractsWithArchived = allContractsSnapshot.docs.filter(doc => 
+        doc.data().archived === true
+      );
+      
+      console.log('Manual check found archived contracts:', allContractsWithArchived.length);
+      
+      if (allContractsWithArchived.length > 0) {
+        console.log('There are archived contracts but the query is not finding them. Using manual filtering.');
+        
+        // Return manually filtered documents if the query isn't working
+        return allContractsWithArchived.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate().toISOString() : data.createdAt) : null,
+            updatedAt: data.updatedAt ? (data.updatedAt.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt) : null,
+            archivedAt: data.archivedAt ? (data.archivedAt.toDate ? data.archivedAt.toDate().toISOString() : data.archivedAt) : null,
+            startDate: data.startDate,
+            endDate: data.endDate,
+            documentLink: data.documentLink,
+          } as Contract;
+        });
+      }
+      
+      return [];
+    }
+    
+    const contracts = contractsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      console.log('Contract data:', { id: doc.id, archived: data.archived });
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate().toISOString() : data.createdAt) : null,
+        updatedAt: data.updatedAt ? (data.updatedAt.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt) : null,
+        archivedAt: data.archivedAt ? (data.archivedAt.toDate ? data.archivedAt.toDate().toISOString() : data.archivedAt) : null,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        documentLink: data.documentLink,
+      } as Contract;
+    });
 
-  const contractsSnapshot = await getDocs(contractsQuery);
-  return contractsSnapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      ...data,
-      createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate().toISOString() : data.createdAt) : null,
-      updatedAt: data.updatedAt ? (data.updatedAt.toDate ? data.updatedAt.toDate().toISOString() : data.createdAt) : null,
-      archivedAt: data.archivedAt ? (data.archivedAt.toDate ? data.archivedAt.toDate().toISOString() : data.archivedAt) : null,
-      startDate: data.startDate,
-      endDate: data.endDate,
-      documentLink: data.documentLink,
-    } as Contract;
-  });
+    console.log('Processed archived contracts:', contracts.length);
+    return contracts;
+  } catch (error) {
+    console.error('Error fetching archived contracts:', error);
+    throw error;
+  }
 };
 
 export const getContract = async (id: string): Promise<Contract | null> => {
@@ -523,25 +571,37 @@ export const archiveContract = async (
   const contractDoc = doc(db, 'contracts', id);
   const now = Timestamp.now();
 
-  // Fetch current timeline
-  const currentContractSnap = await getDoc(contractDoc);
-  const currentTimeline = currentContractSnap.data()?.timeline || [];
+  try {
+    console.log('Archiving contract:', id);
+    
+    // Fetch current timeline
+    const currentContractSnap = await getDoc(contractDoc);
+    const currentTimeline = currentContractSnap.data()?.timeline || [];
+    console.log('Current contract data:', currentContractSnap.data());
 
-  // Create archive timeline entry
-  const archiveTimelineEntry = {
-    timestamp: now.toDate().toISOString(),
-    action: 'Contract Archived',
-    userEmail: archiver.email,
-    userName: archiver.displayName || undefined
-  };
+    // Create archive timeline entry
+    const archiveTimelineEntry = {
+      timestamp: now.toDate().toISOString(),
+      action: 'Contract Archived',
+      userEmail: archiver.email,
+      userName: archiver.displayName || undefined
+    };
 
-  await updateDoc(contractDoc, {
-    archived: true,
-    archivedAt: now.toDate().toISOString(),
-    archivedBy: archiver.email,
-    updatedAt: now.toDate().toISOString(),
-    timeline: [...currentTimeline, archiveTimelineEntry]
-  });
+    const updateData = {
+      archived: true,
+      archivedAt: now.toDate().toISOString(),
+      archivedBy: archiver.email,
+      updatedAt: now.toDate().toISOString(),
+      timeline: [...currentTimeline, archiveTimelineEntry]
+    };
+
+    console.log('Updating contract with:', updateData);
+    await updateDoc(contractDoc, updateData);
+    console.log('Contract archived successfully');
+  } catch (error) {
+    console.error('Error archiving contract:', error);
+    throw error;
+  }
 };
 
 export const unarchiveContract = async (
@@ -1681,21 +1741,39 @@ export const getUserContracts = async (userEmail: string, includeArchived: boole
 export const getUserArchivedContracts = async (userEmail: string): Promise<Contract[]> => {
   if (!userEmail) return [];
 
+  console.log('Getting archived contracts for user:', userEmail);
+  
+  // Check if user is admin
+  const isAdmin = await isUserAdmin(userEmail);
+  if (isAdmin) {
+    // Admins can see all archived contracts
+    console.log('User is admin, returning all archived contracts');
+    return getArchivedContracts();
+  }
+  
+  // For regular users, filter to only show their contracts
   const lowercaseEmail = userEmail.toLowerCase();
-
+  
   // Get all archived contracts
   const archivedContracts = await getArchivedContracts();
+  console.log('Total archived contracts before filtering:', archivedContracts.length);
 
   // Filter contracts to only include those where the user is involved
-  return archivedContracts.filter(contract => {
+  const userArchivedContracts = archivedContracts.filter(contract => {
     // Check if user is the owner
-    if (contract.owner.toLowerCase() === lowercaseEmail) return true;
+    if (contract.owner.toLowerCase() === lowercaseEmail) {
+      console.log('User is owner of contract:', contract.id);
+      return true;
+    }
 
     // Check if user is in the parties list
     const isParty = contract.parties.some(party =>
       party.email.toLowerCase() === lowercaseEmail
     );
-    if (isParty) return true;
+    if (isParty) {
+      console.log('User is party in contract:', contract.id);
+      return true;
+    }
 
     // Check if user is an approver (legal, management, or approver)
     // First normalize the approvers structure
@@ -1719,13 +1797,17 @@ export const getUserArchivedContracts = async (userEmail: string): Promise<Contr
         approver => approver.email.toLowerCase() === lowercaseEmail
       );
 
-    if (isLegalApprover || isManagementApprover || isApprover) return true;
-
-    // sharedWith check removed
+    if (isLegalApprover || isManagementApprover || isApprover) {
+      console.log('User is approver in contract:', contract.id);
+      return true;
+    }
 
     // User is not involved with this contract
     return false;
   });
+  
+  console.log('Filtered archived contracts for user:', userArchivedContracts.length);
+  return userArchivedContracts;
 };
 
 // Function to get contract statistics for a regular user
