@@ -458,6 +458,22 @@ const Contracts = () => {
     filters.dateRange.from !== null ||
     filters.dateRange.to !== null;
 
+  // Reload page data when user switches back to the tab
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Reload the page data when the user comes back to this tab
+        window.location.reload();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   return (
     <>
       <AuthNavbar />

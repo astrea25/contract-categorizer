@@ -17,6 +17,18 @@ import {
   DEFAULT_SYSTEM_SETTINGS, 
   processAutomaticContractDeletion 
 } from '@/lib/data';
+import { AlertTriangle } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const SystemSettingsPage = () => {
   const { currentUser, isAdmin } = useAuth();
@@ -25,6 +37,7 @@ const SystemSettingsPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [processingDeletion, setProcessingDeletion] = useState(false);
+  const [isForceDeleteDialogOpen, setIsForceDeleteDialogOpen] = useState(false);
 
   // Redirect non-admin users
   useEffect(() => {
@@ -107,10 +120,43 @@ const SystemSettingsPage = () => {
         title: 'Deletion Complete',
         description: `${deletedCount} archived contracts were permanently deleted`,
       });
+      
+      // Refresh the page to show updated contracts list
+      window.location.reload();
     } catch (error) {
       toast({
         title: 'Error',
         description: 'Failed to process contract deletion',
+        variant: 'destructive',
+      });
+    } finally {
+      setProcessingDeletion(false);
+    }
+  };
+
+  // Handle force deletion of all archived contracts
+  const handleForceDeleteAll = async () => {
+    if (!currentUser) {
+      return;
+    }
+
+    try {
+      setProcessingDeletion(true);
+      // Pass true to indicate force deletion
+      const deletedCount = await processAutomaticContractDeletion(true);
+      
+      toast({
+        title: 'Force Deletion Complete',
+        description: `${deletedCount} archived contracts were permanently deleted`,
+      });
+      setIsForceDeleteDialogOpen(false);
+      
+      // Refresh the page to show updated contracts list
+      window.location.reload();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to process force deletion',
         variant: 'destructive',
       });
     } finally {
@@ -210,6 +256,46 @@ const SystemSettingsPage = () => {
                     >
                       {processingDeletion ? 'Processing...' : 'Run Deletion Process Now'}
                     </Button>
+
+                    <AlertDialog 
+                      open={isForceDeleteDialogOpen}
+                      onOpenChange={setIsForceDeleteDialogOpen}
+                    >
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          variant="destructive" 
+                          disabled={processingDeletion}
+                        >
+                          Force Delete All Archived
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="flex items-center gap-2">
+                            <AlertTriangle className="h-5 w-5 text-destructive" />
+                            Force Delete All Archived Contracts
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            <p className="mb-4">
+                              This will immediately and permanently delete ALL archived contracts, 
+                              regardless of when they were archived or the retention period.
+                            </p>
+                            <p className="font-semibold text-destructive">
+                              This action cannot be undone. Are you sure you want to proceed?
+                            </p>
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={handleForceDeleteAll}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            {processingDeletion ? "Processing..." : "Yes, Delete All Archived"}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
               </CardContent>

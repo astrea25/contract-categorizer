@@ -2364,32 +2364,51 @@ export const updateSystemSettings = async (
 };
 
 // Function to process automatic deletion of archived contracts
-export const processAutomaticContractDeletion = async (): Promise<number> => {
+export const processAutomaticContractDeletion = async (
+  forceDeleteAll: boolean = false
+): Promise<number> => {
   try {
     // Get system settings
     const settings = await getSystemSettings();
+    console.log("Current retention settings:", settings);
     
-    // If auto-delete is disabled, do nothing
-    if (!settings.autoDeleteEnabled) {
+    // If auto-delete is disabled and we're not force deleting, do nothing
+    if (!settings.autoDeleteEnabled && !forceDeleteAll) {
+      console.log("Auto-delete is disabled in settings");
       return 0;
     }
     
     // Get all archived contracts
     const archivedContracts = await getArchivedContracts();
+    console.log(`Found ${archivedContracts.length} archived contracts`);
+    
     const now = new Date();
     let deletedCount = 0;
     
     // Process each archived contract
     for (const contract of archivedContracts) {
-      if (!contract.archivedAt) continue;
+      if (!contract.archivedAt) {
+        console.log(`Contract ${contract.id} (${contract.title}) has no archivedAt date`);
+        continue;
+      }
       
       const archivedDate = new Date(contract.archivedAt);
       const daysSinceArchived = Math.floor((now.getTime() - archivedDate.getTime()) / (1000 * 60 * 60 * 24));
       
-      // If the contract has been archived longer than the retention period, delete it
-      if (daysSinceArchived >= settings.archiveRetentionDays) {
+      console.log(`Contract ${contract.id} (${contract.title}) was archived on ${archivedDate.toISOString()}, ${daysSinceArchived} days ago`);
+      console.log(`Retention period: ${settings.archiveRetentionDays} days`);
+      
+      // Delete if force is enabled or the retention period has been met
+      if (forceDeleteAll || daysSinceArchived >= settings.archiveRetentionDays) {
+        if (forceDeleteAll) {
+          console.log(`Force deleting contract ${contract.id} (${contract.title})`);
+        } else {
+          console.log(`Deleting contract ${contract.id} (${contract.title}) - archived ${daysSinceArchived} days ago`);
+        }
         await deleteContract(contract.id);
         deletedCount++;
+      } else {
+        console.log(`Contract ${contract.id} retention period not met: ${daysSinceArchived}/${settings.archiveRetentionDays} days`);
       }
     }
     
