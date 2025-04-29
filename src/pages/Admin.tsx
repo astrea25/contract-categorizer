@@ -280,23 +280,23 @@ const Admin = () => {
   const handleAddAdmin = async (user: User) => {
     try {
       setAddingAdmin(true);
-      
+
       // Get the display name from user with better fallbacks
       let displayName = user.displayName;
-      
+
       // If no displayName, try to build it from first and last name
       if (!displayName && (user.firstName || user.lastName)) {
         displayName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
       }
-      
+
       // If still no displayName, use the email username part
       if (!displayName) {
         displayName = user.email.split('@')[0];
       }
-      
+
       // Pass the current user email for authorization check and the display name
       await addAdminUser(user.email, currentUser?.email || undefined, displayName);
-      
+
       toast.success(`${user.email} is now an admin`);
       setAdminUserSearch('');
       setNewAdminEmail('');
@@ -537,37 +537,37 @@ const Admin = () => {
       // For each admin without required fields, update them
       for (const admin of adminsToUpdate) {
         const updates: any = {};
-        
+
         // Check for missing displayName
         if (!admin.displayName) {
           // Find user in allUsers with matching email
-          const matchingUser = allUsers.find(user => 
+          const matchingUser = allUsers.find(user =>
             user.email.toLowerCase() === admin.email.toLowerCase()
           );
 
           if (matchingUser) {
             let displayName = matchingUser.displayName;
-            
+
             if (!displayName && (matchingUser.firstName || matchingUser.lastName)) {
               displayName = `${matchingUser.firstName || ''} ${matchingUser.lastName || ''}`.trim();
             }
-            
+
             if (!displayName) {
               displayName = matchingUser.email.split('@')[0];
             }
-            
+
             if (displayName) {
               updates.displayName = displayName;
             }
           }
         }
-        
+
         // Check for missing createdAt
         if (!admin.createdAt) {
           // Use current date as fallback
           updates.createdAt = new Date().toISOString();
         }
-        
+
         // Only update if we have changes
         if (Object.keys(updates).length > 0) {
           // Update the admin document
@@ -700,14 +700,14 @@ const Admin = () => {
     try {
       // Import the markUserDeletedInAuth function
       const { markUserDeletedInAuth } = await import('@/lib/data');
-      
+
       // Mark the user as deleted in Firebase Auth
       await markUserDeletedInAuth(confirmDeleteEmail, currentUser?.email || 'admin');
-      
+
       toast.success(`User ${confirmDeleteEmail} marked as deleted in Firebase Auth`, {
         description: "The system has recorded that you've manually deleted this user from Firebase Authentication."
       });
-      
+
       setConfirmDeleteEmail('');
     } catch (error) {
       console.error('Error confirming Firebase Auth deletion:', error);
@@ -926,7 +926,7 @@ const Admin = () => {
         <div className="flex-1 w-full">
           <div className="container mx-auto py-8 space-y-6">
             <h1 className="text-3xl font-bold">Admin Panel</h1>
-            
+
             <div className="flex flex-wrap items-center gap-4 mb-6">
               <Button asChild variant="outline">
                 <Link to="/system-settings">
@@ -935,7 +935,7 @@ const Admin = () => {
                 </Link>
               </Button>
             </div>
-            
+
             <Tabs
               defaultValue="users"
               value={activeTab}
@@ -953,10 +953,61 @@ const Admin = () => {
               <TabsContent value="users">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Users</CardTitle>
-                    <CardDescription>
-                      List of all regular users in the application (excluding admins and legal team)
-                    </CardDescription>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <CardTitle>Users</CardTitle>
+                        <CardDescription>
+                          List of all regular users in the application (excluding admins and legal team)
+                        </CardDescription>
+                      </div>
+                      <Dialog open={isInviteDialogOpen} onOpenChange={(open) => {
+                        setIsInviteDialogOpen(open);
+                        if (!open) {
+                          setNewUserEmail('');
+                        }
+                      }}>
+                        <DialogTrigger asChild>
+                          <Button size="sm">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Invite User
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Invite New User</DialogTitle>
+                            <DialogDescription>
+                              Enter the email address of the user you want to invite. They will receive an email with login credentials.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="grid gap-4 py-4">
+                            <div className="grid gap-2">
+                              <Label htmlFor="newUserEmail">Email Address</Label>
+                              <Input
+                                id="newUserEmail"
+                                placeholder="user@example.com"
+                                type="email"
+                                value={newUserEmail}
+                                onChange={(e) => setNewUserEmail(e.target.value)}
+                              />
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              The user will receive an email with a temporary password (12345678) and instructions to log in.
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)}>
+                              Cancel
+                            </Button>
+                            <Button
+                              onClick={handleInviteUser}
+                              disabled={inviting || !newUserEmail}
+                            >
+                              {inviting ? 'Inviting...' : 'Invite User'}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <div className="mb-4 flex flex-wrap gap-2">
@@ -1016,8 +1067,8 @@ const Admin = () => {
                                   value={confirmDeleteEmail || ''}
                                   onChange={(e) => setConfirmDeleteEmail(e.target.value)}
                                 />
-                                <Button 
-                                  size="sm" 
+                                <Button
+                                  size="sm"
                                   onClick={handleConfirmFirebaseAuthDeletion}
                                   disabled={!confirmDeleteEmail}
                                 >
@@ -1027,7 +1078,7 @@ const Admin = () => {
                             </div>
                           </CardContent>
                         </Card>
-                        
+
                         <DataTable
                           columns={userColumns}
                           data={users}
