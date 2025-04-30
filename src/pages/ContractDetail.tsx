@@ -25,7 +25,7 @@ import {
   deleteContract,
   normalizeApprovers
 } from '@/lib/data';
-import { ArrowLeft, CalendarClock, Edit, FileText, Users, Wallet, ShieldAlert, Archive, Trash2, ArchiveRestore, RefreshCw } from 'lucide-react';
+import { ArrowLeft, CalendarClock, Edit, FileText, Users, Wallet, ShieldAlert, Archive, Trash2, ArchiveRestore, RefreshCw, FilePenLine } from 'lucide-react';
 import { formatDistance } from 'date-fns';
 import { toast } from 'sonner';
 import PageTransition from '@/components/layout/PageTransition';
@@ -44,6 +44,7 @@ const ContractDetail = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showAmendDialog, setShowAmendDialog] = useState(false);
   const [showAllTimelineEntries, setShowAllTimelineEntries] = useState(false);
   const DEFAULT_TIMELINE_ENTRIES = 3;
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -55,9 +56,9 @@ const ContractDetail = () => {
   // Helper function to check if a user is an approver for a contract
   const isUserApprover = (contractData: Contract, userEmail: string): boolean => {
     if (!contractData.approvers || !userEmail) return false;
-    
+
     const normalizedEmail = userEmail.toLowerCase();
-    
+
     // Check legal approvers (can be array or object)
     if (contractData.approvers.legal) {
       if (Array.isArray(contractData.approvers.legal)) {
@@ -68,7 +69,7 @@ const ContractDetail = () => {
         return true;
       }
     }
-    
+
     // Check management approvers (can be array or object)
     if (contractData.approvers.management) {
       if (Array.isArray(contractData.approvers.management)) {
@@ -79,20 +80,20 @@ const ContractDetail = () => {
         return true;
       }
     }
-    
+
     // Check other approvers (always array)
     if (contractData.approvers.approver && Array.isArray(contractData.approvers.approver)) {
       if (contractData.approvers.approver.some(a => a.email.toLowerCase() === normalizedEmail)) {
         return true;
       }
     }
-    
+
     return false;
   };
 
   const fetchContractData = async () => {
     if (!id || !currentUser?.email || !isAuthorized) return;
-    
+
     try {
       setIsRefreshing(true);
       const contractData = await getContract(id);
@@ -117,7 +118,7 @@ const ContractDetail = () => {
     if (contract && isAuthorized && !loading) {
       pollingIntervalRef.current = setInterval(fetchContractData, POLL_INTERVAL_MS);
     }
-    
+
     return () => {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
@@ -135,16 +136,16 @@ const ContractDetail = () => {
       }
 
       const authStartTime = performance.now();
-      
+
       setLoading(true);
       setError(null);
 
       try {
         // Fetch the contract data
         const contractFetchStartTime = performance.now();
-        
+
         const contractData = await getContract(id);
-        
+
         const contractFetchEndTime = performance.now();
 
         if (contractData) {
@@ -181,7 +182,7 @@ const ContractDetail = () => {
               setError('You are not authorized to view this contract');
             }
           }
-          
+
           const roleAssignmentEndTime = performance.now();
           const roleAssignmentDuration = roleAssignmentEndTime - roleAssignmentStartTime;
         } else {
@@ -289,29 +290,31 @@ const ContractDetail = () => {
     }
   };
 
-  const handleStatusChange = async (newStatus: ContractStatus): Promise<void> => {
+  const handleStatusChange = async (newStatus: ContractStatus, additionalData?: Partial<Contract>): Promise<void> => {
     if (!contract || !id || !currentUser?.email || !isAuthorized) return;
 
     try {
       setUpdatingStatus(true);
-      
+
       // Check if we need to reset approvals when changing to draft status
-      if (newStatus === 'draft' && 
-          (contract.status === 'approval' || 
-           contract.status === 'legal_review' || 
+      if (newStatus === 'draft' &&
+          (contract.status === 'approval' ||
+           contract.status === 'legal_review' ||
            contract.status === 'management_review' ||
+           contract.status === 'legal_send_back' ||
+           contract.status === 'management_send_back' ||
            contract.status === 'legal_declined' ||
            contract.status === 'management_declined')) {
-        
+
         // Import the normalizeApprovers function to properly handle approver structure
         const { normalizeApprovers } = await import('@/lib/data');
-        
+
         // Normalize the contract to ensure consistent approvers structure
         const normalizedContract = normalizeApprovers(contract);
-        
+
         // Create a deep copy of the approvers
         const approvers = JSON.parse(JSON.stringify(normalizedContract.approvers || {}));
-        
+
         // Reset legal approvals
         if (approvers.legal && approvers.legal.length > 0) {
           approvers.legal = approvers.legal.map((approver: any) => ({
@@ -322,7 +325,7 @@ const ContractDetail = () => {
             declinedAt: null
           }));
         }
-        
+
         // Reset management approvals
         if (approvers.management && approvers.management.length > 0) {
           approvers.management = approvers.management.map((approver: any) => ({
@@ -333,7 +336,7 @@ const ContractDetail = () => {
             declinedAt: null
           }));
         }
-        
+
         // Reset approver approvals
         if (approvers.approver && approvers.approver.length > 0) {
           approvers.approver = approvers.approver.map((approver: any) => ({
@@ -344,9 +347,9 @@ const ContractDetail = () => {
             declinedAt: null
           }));
         }
-        
+
         // Update contract with reset approvals and new status
-        await updateContract(id, { 
+        await updateContract(id, {
           status: newStatus,
           approvers,
           _customTimelineEntry: {
@@ -358,8 +361,14 @@ const ContractDetail = () => {
           displayName: currentUser.displayName
         });
       } else {
-        // Just update the status without resetting approvals
-        await updateContract(id, { status: newStatus }, {
+        // Prepare update data
+        const updateData: Partial<Contract> = {
+          status: newStatus,
+          ...additionalData
+        };
+
+        // Update the contract with the new status and any additional data
+        await updateContract(id, updateData, {
           email: currentUser.email,
           displayName: currentUser.displayName
         });
@@ -368,11 +377,11 @@ const ContractDetail = () => {
       const updatedContract = await getContract(id);
       if (updatedContract) {
         setContract(updatedContract);
-        
+
         // Show a specific toast message when approvals have been reset
-        if (newStatus === 'draft' && 
-            (contract.status === 'approval' || 
-             contract.status === 'legal_review' || 
+        if (newStatus === 'draft' &&
+            (contract.status === 'approval' ||
+             contract.status === 'legal_review' ||
              contract.status === 'management_review' ||
              contract.status === 'legal_declined' ||
              contract.status === 'management_declined')) {
@@ -395,75 +404,75 @@ const ContractDetail = () => {
 
     try {
       const updateStartTime = performance.now();
-      
+
       // Check if we have a custom timeline entry
       const customTimelineEntry = approversData._customTimelineEntry;
-      
+
       // Get approvers, removing _customTimelineEntry if present
       const { _customTimelineEntry, ...cleanApproversData } = approversData;
       const approvers = cleanApproversData.approvers || cleanApproversData;
-      
+
       console.log('ContractDetail - handleUpdateApprovers - Status update requested:', cleanApproversData.status);
       console.log('ContractDetail - handleUpdateApprovers - cleanApproversData:', JSON.stringify(cleanApproversData, null, 2));
-      
+
       // Get the current contract to access its current approvers and timeline
       const fetchStartTime = performance.now();
-      
+
       // Fetch the latest contract data to ensure we're working with the most up-to-date version
       const currentContract = await getContract(id);
-      
+
       const fetchEndTime = performance.now();
-      
+
       if (!currentContract) {
         throw new Error('Could not fetch current contract');
       }
-      
+
       // Check if the contract has been updated by someone else since we loaded it
       if (currentContract.updatedAt !== contract.updatedAt) {
         // The contract was updated since we loaded it - let's refresh our local state
         setContract(currentContract);
         lastUpdatedTimestamp.current = Date.now();
-        
+
         // Still proceed with the update, but notify the user of potential changes
         toast.info('Contract was updated by another user. Your changes will still be applied.');
       }
-      
+
       // Normalize approvers structure - ensure arrays for multi-approver support
       const normalizeStartTime = performance.now();
-      
-      const normalizedApprovers: Contract['approvers'] = { 
-        ...(currentContract.approvers || {}), 
-        ...approvers 
+
+      const normalizedApprovers: Contract['approvers'] = {
+        ...(currentContract.approvers || {}),
+        ...approvers
       };
-      
+
       // Ensure legal approvers are in array format
       if (normalizedApprovers.legal && !Array.isArray(normalizedApprovers.legal)) {
         normalizedApprovers.legal = [normalizedApprovers.legal];
       }
-      
+
       // Ensure management approvers are in array format
       if (normalizedApprovers.management && !Array.isArray(normalizedApprovers.management)) {
         normalizedApprovers.management = [normalizedApprovers.management];
       }
-      
+
       // Ensure approver is always an array (it should be already, but just in case)
       if (normalizedApprovers.approver && !Array.isArray(normalizedApprovers.approver)) {
         normalizedApprovers.approver = [normalizedApprovers.approver];
       }
-      
+
       const normalizeEndTime = performance.now();
-      
+
       // Create update object
       const updateObject: any = {
         approvers: normalizedApprovers
       };
-      
+
       // Check if we have a status update
       if (cleanApproversData.status) {
         updateObject.status = cleanApproversData.status;
         console.log('ContractDetail - handleUpdateApprovers - Setting status to:', updateObject.status);
       }
-      
+
       // If we have a custom timeline entry, prepare a new timeline
       if (customTimelineEntry && currentContract.timeline) {
         // Create a new timeline entry
@@ -474,45 +483,128 @@ const ContractDetail = () => {
           userName: currentUser.displayName || currentUser.email.split('@')[0] || 'User',
           details: customTimelineEntry.details || ''
         };
-        
+
         // Add the new timeline entry to the existing timeline
         updateObject.timeline = [...currentContract.timeline, newTimelineEntry];
       }
-      
+
       // Update the contract with normalized approvers and possibly new timeline entry
       const dbUpdateStartTime = performance.now();
       console.log('ContractDetail - handleUpdateApprovers - Sending update object:', JSON.stringify(updateObject, null, 2));
-      
+
       await updateContract(id, updateObject, {
         email: currentUser.email,
         displayName: currentUser.displayName
       });
-      
+
       const dbUpdateEndTime = performance.now();
       console.log('ContractDetail - handleUpdateApprovers - Update sent successfully');
 
       // Fetch the updated contract to refresh UI
       const refetchStartTime = performance.now();
-      
+
       const updatedContract = await getContract(id);
-      
+
       const refetchEndTime = performance.now();
-      
+
       if (updatedContract) {
         console.log('ContractDetail - handleUpdateApprovers - Updated contract retrieved, new status:', updatedContract.status);
         setContract(updatedContract);
         lastUpdatedTimestamp.current = Date.now(); // Update the timestamp
         toast.success('Approvers updated successfully');
       }
-      
+
       const updateEndTime = performance.now();
       const totalUpdateTime = updateEndTime - updateStartTime;
-      
+
       return Promise.resolve();
     } catch (error) {
       console.error('ContractDetail - handleUpdateApprovers - Error:', error);
       toast.error('Failed to update approvers');
       return Promise.reject(error);
+    }
+  };
+
+  // Helper function to determine if a contract is editable based on its status
+  const isContractEditable = (contract: Contract): boolean => {
+    // Contract can be edited if it's in one of these statuses
+    const editableStatuses: ContractStatus[] = ['requested', 'draft', 'legal_review', 'management_review', 'legal_send_back', 'management_send_back'];
+
+    // Also allow editing if the contract is in amendment status
+    if (contract.status === 'amendment') {
+      return true;
+    }
+
+    // Don't allow editing if the contract is in contract_end status
+    if (contract.status === 'contract_end') {
+      return false;
+    }
+
+    return editableStatuses.includes(contract.status);
+  };
+
+  // Helper function to determine if a contract can be amended
+  const canContractBeAmended = (contract: Contract): boolean => {
+    // Contracts can be amended if they are in implementation, wwf_signing, counterparty_signing, or approval status
+    const amendableStatuses: ContractStatus[] = ['implementation', 'wwf_signing', 'counterparty_signing', 'approval'];
+
+    // Don't allow amending if the contract is already in amendment status
+    if (contract.status === 'amendment') {
+      return false;
+    }
+
+    // Don't allow amending if the contract is in contract_end status
+    if (contract.status === 'contract_end') {
+      return false;
+    }
+
+    // Don't allow amending if the contract is in early stages
+    if (['requested', 'draft', 'legal_review', 'management_review', 'legal_send_back', 'management_send_back'].includes(contract.status)) {
+      return false;
+    }
+
+    return amendableStatuses.includes(contract.status);
+  };
+
+  // Function to open the amend dialog
+  const openAmendDialog = () => {
+    setShowAmendDialog(true);
+  };
+
+  // Function to handle amending a contract
+  const handleAmendContract = async () => {
+    if (!contract || !id || !currentUser?.email || !isAuthorized) return;
+
+    try {
+      setUpdatingStatus(true);
+
+      // Update the contract status to amendment and set amendment flags
+      await updateContract(id, {
+        status: 'amendment',
+        isAmended: true,
+        amendmentStage: 'amendment',
+        _customTimelineEntry: {
+          action: 'Contract Amendment Started',
+          details: 'Contract moved to amendment status'
+        }
+      }, {
+        email: currentUser.email,
+        displayName: currentUser.displayName
+      });
+
+      // Refresh the contract data
+      const updatedContract = await getContract(id);
+      if (updatedContract) {
+        setContract(updatedContract);
+        toast.success('Contract amendment process started');
+      }
+
+      // Close the dialog
+      setShowAmendDialog(false);
+    } catch (error) {
+      toast.error('Failed to start contract amendment');
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -605,10 +697,10 @@ const ContractDetail = () => {
                   <span>Refreshing...</span>
                 </div>
               )}
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={fetchContractData} 
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={fetchContractData}
                 className="mr-2"
                 disabled={isRefreshing}
               >
@@ -652,16 +744,30 @@ const ContractDetail = () => {
                     Archive
                   </Button>
 
-                  <ContractForm
-                    initialData={contract}
-                    onSave={handleSaveContract}
-                    trigger={
-                      <Button variant="outline" className="gap-1">
-                        <Edit size={16} />
-                        Edit Contract
-                      </Button>
-                    }
-                  />
+                  {isContractEditable(contract) && (
+                    <ContractForm
+                      initialData={contract}
+                      onSave={handleSaveContract}
+                      trigger={
+                        <Button variant="outline" className="gap-1">
+                          <Edit size={16} />
+                          Edit Contract
+                        </Button>
+                      }
+                    />
+                  )}
+
+                  {canContractBeAmended(contract) && (
+                    <Button
+                      variant="outline"
+                      className="gap-1"
+                      onClick={openAmendDialog}
+                      disabled={updatingStatus}
+                    >
+                      <FilePenLine size={16} />
+                      Amend Contract
+                    </Button>
+                  )}
                 </>
               )}
             </div>
@@ -809,7 +915,7 @@ const ContractDetail = () => {
             <CardTitle>Contract Progress</CardTitle>
           </CardHeader>
           <CardContent>
-            <ContractProgressBar currentStatus={contract.status} />
+            <ContractProgressBar currentStatus={contract.status} contract={contract} />
           </CardContent>
         </Card>
 
@@ -845,8 +951,16 @@ const ContractDetail = () => {
                         // Convert the formatted status back to the status key
                         if (statusText === 'Legal Review') statusKey = 'legal_review';
                         else if (statusText === 'Management Review') statusKey = 'management_review';
-                        else if (statusText === 'Legal Declined') statusKey = 'legal_declined';
-                        else if (statusText === 'Management Declined') statusKey = 'management_declined';
+                        else if (statusText === 'WWF Signing') statusKey = 'wwf_signing';
+                        else if (statusText === 'Counterparty Signing') statusKey = 'counterparty_signing';
+                        else if (statusText === 'Implementation') statusKey = 'implementation';
+                        else if (statusText === 'Amendment') statusKey = 'amendment';
+                        else if (statusText === 'Contract End') statusKey = 'contract_end';
+                        else if (statusText === 'Legal Send Back') statusKey = 'legal_send_back';
+                        else if (statusText === 'Management Send Back') statusKey = 'management_send_back';
+                        // Handle legacy status names
+                        else if (statusText === 'Legal Declined') statusKey = 'legal_send_back';
+                        else if (statusText === 'Management Declined') statusKey = 'management_send_back';
                         else statusKey = statusText.toLowerCase() as ContractStatus;
                       }
 
@@ -861,8 +975,15 @@ const ContractDetail = () => {
                               statusKey === 'draft' ? 'bg-gray-800' :
                               statusKey === 'legal_review' ? 'bg-purple-800' :
                               statusKey === 'management_review' ? 'bg-orange-800' :
-                              statusKey === 'legal_declined' ? 'bg-red-800' :
-                              statusKey === 'management_declined' ? 'bg-red-800' :
+                              statusKey === 'wwf_signing' ? 'bg-indigo-800' :
+                              statusKey === 'counterparty_signing' ? 'bg-pink-800' :
+                              statusKey === 'implementation' ? 'bg-cyan-800' :
+                              statusKey === 'amendment' ? 'bg-amber-800' :
+                              statusKey === 'contract_end' ? 'bg-slate-800' :
+                              statusKey === 'legal_send_back' ? 'bg-red-800' :
+                              statusKey === 'management_send_back' ? 'bg-red-800' :
+                              statusKey === 'legal_declined' ? 'bg-red-800' : // For backward compatibility
+                              statusKey === 'management_declined' ? 'bg-red-800' : // For backward compatibility
                               statusKey === 'approval' ? 'bg-yellow-800' :
                               statusKey === 'finished' ? 'bg-green-800' : 'bg-primary'
                               : 'bg-primary'}`}></div>
@@ -1024,6 +1145,18 @@ const ContractDetail = () => {
         onConfirm={handleDeleteContract}
         isLoading={isDeleting}
         confirmVariant="destructive"
+      />
+
+      {/* Amendment Confirmation Dialog */}
+      <ConfirmationDialog
+        open={showAmendDialog}
+        onOpenChange={setShowAmendDialog}
+        title="Amend Contract"
+        description="Are you sure you want to amend this contract? This will start the amendment process, which will require approvals from legal and management teams again."
+        confirmText="Start Amendment"
+        onConfirm={handleAmendContract}
+        isLoading={updatingStatus}
+        confirmVariant="outline"
       />
     </PageTransition>
   );

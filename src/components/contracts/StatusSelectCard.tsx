@@ -19,7 +19,7 @@ import { toast } from '@/components/ui/use-toast';
 
 interface StatusSelectCardProps {
   status: ContractStatus;
-  onStatusChange: (status: ContractStatus) => Promise<void>;
+  onStatusChange: (status: ContractStatus, additionalData?: Partial<Contract>) => Promise<void>;
   isUpdating: boolean;
   contract: Contract;
 }
@@ -33,45 +33,51 @@ const StatusSelectCard = ({ status, onStatusChange, isUpdating, contract }: Stat
     { value: 'draft', label: 'Draft' },
     { value: 'legal_review', label: 'Legal Review' },
     { value: 'management_review', label: 'Management Review' },
-    { value: 'legal_declined', label: 'Legal Declined' },
-    { value: 'management_declined', label: 'Management Declined' },
+    { value: 'wwf_signing', label: 'WWF Signing' },
+    { value: 'counterparty_signing', label: 'Counterparty Signing' },
+    { value: 'implementation', label: 'Implementation' },
+    { value: 'amendment', label: 'Amendment' },
+    { value: 'contract_end', label: 'Contract End' },
+    { value: 'legal_send_back', label: 'Legal Send Back' },
+    { value: 'management_send_back', label: 'Management Send Back' },
     { value: 'approval', label: 'Approval' },
     { value: 'finished', label: 'Finished' },
+    // Keep old statuses for backward compatibility but don't show in dropdown
   ];
 
   // Check if both legal and management have approved the contract
-  const areBothApproved = 
+  const areBothApproved =
     contract.approvers && (() => {
-      const legalApproved = contract.approvers.legal 
+      const legalApproved = contract.approvers.legal
         ? Array.isArray(contract.approvers.legal)
           ? contract.approvers.legal.every(a => a.approved)
           : contract.approvers.legal.approved
         : false;
-        
+
       const managementApproved = contract.approvers.management
         ? Array.isArray(contract.approvers.management)
           ? contract.approvers.management.every(a => a.approved)
           : contract.approvers.management.approved
         : false;
-        
+
       return legalApproved && managementApproved;
     })();
 
   // Check if either legal or management have declined the contract
-  const isEitherDeclined = 
+  const isEitherDeclined =
     contract.approvers && (() => {
       const legalDeclined = contract.approvers.legal
         ? Array.isArray(contract.approvers.legal)
           ? contract.approvers.legal.some(a => a.declined)
           : contract.approvers.legal.declined
         : false;
-        
+
       const managementDeclined = contract.approvers.management
         ? Array.isArray(contract.approvers.management)
           ? contract.approvers.management.some(a => a.declined)
           : contract.approvers.management.declined
         : false;
-        
+
       return legalDeclined || managementDeclined;
     })();
 
@@ -116,7 +122,30 @@ const StatusSelectCard = ({ status, onStatusChange, isUpdating, contract }: Stat
       }
     }
 
-    await onStatusChange(newStatus);
+    // If changing to amendment status, set isAmended flag and amendmentStage
+    if (newStatus === 'amendment') {
+      await onStatusChange(newStatus);
+
+      // Update the contract with amendment flags
+      try {
+        // We need to call onStatusChange again with the same status but additional data
+        // This is a bit of a hack, but it allows us to update the contract with the amendment flags
+        await onStatusChange(newStatus, {
+          isAmended: true,
+          amendmentStage: 'amendment'
+        });
+      } catch (error) {
+        console.error('Error setting amendment flags:', error);
+        toast({
+          title: "Warning",
+          description: "Contract status was changed to Amendment, but there was an error setting up the amendment tracking.",
+          variant: "destructive"
+        });
+      }
+    } else {
+      await onStatusChange(newStatus);
+    }
+
     setIsOpen(false);
   };
 

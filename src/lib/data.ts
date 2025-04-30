@@ -35,7 +35,7 @@ export interface ContractStats {
   expiringThisYear: number;
 }
 
-export type ContractStatus = 'requested' | 'draft' | 'legal_review' | 'management_review' | 'approval' | 'finished' | 'legal_declined' | 'management_declined';
+export type ContractStatus = 'requested' | 'draft' | 'legal_review' | 'management_review' | 'wwf_signing' | 'counterparty_signing' | 'implementation' | 'amendment' | 'contract_end' | 'approval' | 'finished' | 'legal_send_back' | 'management_send_back' | 'legal_declined' | 'management_declined';
 export type ContractType = 'service' | 'employment' | 'licensing' | 'nda' | 'partnership';
 
 export interface Folder {
@@ -71,6 +71,9 @@ export interface Contract {
   archived?: boolean; // Flag to indicate if contract is archived
   archivedAt?: string; // When the contract was archived
   archivedBy?: string; // Who archived the contract
+  // Amendment tracking
+  isAmended?: boolean; // Flag to indicate if contract has been amended
+  amendmentStage?: 'amendment' | 'legal' | 'wwf' | 'counterparty'; // Current stage in the amendment process
   // sharedWith property removed
   timeline?: {
     timestamp: string;
@@ -159,6 +162,42 @@ export const statusColors: Record<ContractStatus, { bg: string; text: string; bo
     text: 'text-orange-800',
     border: 'border-orange-200'
   },
+  wwf_signing: {
+    bg: 'bg-indigo-50',
+    text: 'text-indigo-800',
+    border: 'border-indigo-200'
+  },
+  counterparty_signing: {
+    bg: 'bg-pink-50',
+    text: 'text-pink-800',
+    border: 'border-pink-200'
+  },
+  implementation: {
+    bg: 'bg-cyan-50',
+    text: 'text-cyan-800',
+    border: 'border-cyan-200'
+  },
+  amendment: {
+    bg: 'bg-amber-50',
+    text: 'text-amber-800',
+    border: 'border-amber-200'
+  },
+  contract_end: {
+    bg: 'bg-slate-50',
+    text: 'text-slate-800',
+    border: 'border-slate-200'
+  },
+  legal_send_back: {
+    bg: 'bg-red-50',
+    text: 'text-red-800',
+    border: 'border-red-200'
+  },
+  management_send_back: {
+    bg: 'bg-red-50',
+    text: 'text-red-800',
+    border: 'border-red-200'
+  },
+  // Keep the old status names for backward compatibility
   legal_declined: {
     bg: 'bg-red-50',
     text: 'text-red-800',
@@ -227,23 +266,23 @@ export const getContracts = async (includeArchived: boolean = false): Promise<Co
 
 export const getArchivedContracts = async (): Promise<Contract[]> => {
   const contractsCollection = collection(db, 'contracts');
-  
+
   try {
     // Use query to get only archived contracts
     const contractsQuery = query(
       contractsCollection,
       where('archived', '==', true)
     );
-    
+
     const contractsSnapshot = await getDocs(contractsQuery);
-    
+
     if (contractsSnapshot.empty) {
       // Double-check with a full query to see if there are any archived contracts at all
       const allContractsSnapshot = await getDocs(contractsCollection);
-      const allContractsWithArchived = allContractsSnapshot.docs.filter(doc => 
+      const allContractsWithArchived = allContractsSnapshot.docs.filter(doc =>
         doc.data().archived === true
       );
-      
+
       if (allContractsWithArchived.length > 0) {
         // Return manually filtered documents if the query isn't working
         return allContractsWithArchived.map(doc => {
@@ -260,10 +299,10 @@ export const getArchivedContracts = async (): Promise<Contract[]> => {
           } as Contract;
         });
       }
-      
+
       return [];
     }
-    
+
     const contracts = contractsSnapshot.docs.map(doc => {
       const data = doc.data();
       return {
@@ -1639,7 +1678,7 @@ export const removeUser = async (id: string, adminEmail: string = ''): Promise<v
     try {
       const { deleteAuthUser } = await import('./delete-auth-user');
       await deleteAuthUser(email);
-      
+
       // Add a log entry in the deleted_users collection for audit
       const deletedUsersRef = collection(db, 'deleted_users');
       await addDoc(deletedUsersRef, {
@@ -1650,11 +1689,11 @@ export const removeUser = async (id: string, adminEmail: string = ''): Promise<v
         firestore_deleted: true,
         auth_deleted_manually: false, // This will need to be manually updated by admin
       });
-      
+
     } catch (error) {
       console.error('Error in Firebase Auth deletion process:', error);
       // Continue even if this fails, as the user data has been removed from Firestore
-      
+
       // Still create a deletion record for audit
       const deletedUsersRef = collection(db, 'deleted_users');
       await addDoc(deletedUsersRef, {
@@ -1825,17 +1864,17 @@ export const getUserContracts = async (userEmail: string, includeArchived: boole
 // Function to get archived contracts for a user
 export const getUserArchivedContracts = async (userEmail: string): Promise<Contract[]> => {
   if (!userEmail) return [];
-  
+
   // Check if user is admin
   const isAdmin = await isUserAdmin(userEmail);
   if (isAdmin) {
     // Admins can see all archived contracts
     return getArchivedContracts();
   }
-  
+
   // For regular users, filter to only show their contracts
   const lowercaseEmail = userEmail.toLowerCase();
-  
+
   // Get all archived contracts
   const archivedContracts = await getArchivedContracts();
 
@@ -1863,11 +1902,11 @@ export const getUserArchivedContracts = async (userEmail: string): Promise<Contr
       const legalApprovers = Array.isArray(normalizedContract.approvers.legal)
         ? normalizedContract.approvers.legal
         : [normalizedContract.approvers.legal];
-        
+
       const userLegalApprover = legalApprovers.find(
         approver => approver.email.toLowerCase() === lowercaseEmail
       );
-      
+
       if (userLegalApprover) {
         return true;
       }
@@ -1878,11 +1917,11 @@ export const getUserArchivedContracts = async (userEmail: string): Promise<Contr
       const managementApprovers = Array.isArray(normalizedContract.approvers.management)
         ? normalizedContract.approvers.management
         : [normalizedContract.approvers.management];
-        
+
       const userManagementApprover = managementApprovers.find(
         approver => approver.email.toLowerCase() === lowercaseEmail
       );
-      
+
       if (userManagementApprover) {
         return true;
       }
@@ -1893,7 +1932,7 @@ export const getUserArchivedContracts = async (userEmail: string): Promise<Contr
       const userApprover = normalizedContract.approvers.approver.find(
         approver => approver.email.toLowerCase() === lowercaseEmail
       );
-      
+
       if (userApprover) {
         return true;
       }
@@ -1902,7 +1941,7 @@ export const getUserArchivedContracts = async (userEmail: string): Promise<Contr
     // User is not involved with this contract
     return false;
   });
-  
+
   return userArchivedContracts;
 };
 
@@ -2017,7 +2056,7 @@ export const getUserRoles = async (email: string): Promise<{
 
     // Extract role data from the document
     const roleData = userRoleDoc.data();
-    
+
     return {
       isAdmin: roleData.isAdmin || false,
       isLegalTeam: roleData.isLegalTeam || false,
@@ -2031,7 +2070,7 @@ export const getUserRoles = async (email: string): Promise<{
 
 // Function to update a user's roles in the consolidated userRoles collection
 export const updateUserRoles = async (
-  email: string, 
+  email: string,
   roles: {
     isAdmin?: boolean;
     isLegalTeam?: boolean;
@@ -2130,11 +2169,11 @@ export const initializeUserRolesCollection = async (currentUserEmail?: string): 
         throw new Error('Unauthorized: Only administrators can initialize user roles');
       }
     }
-    
+
     // Check if the collection already exists and has documents
     const userRolesRef = collection(db, 'userRoles');
     const userRolesSnapshot = await getDocs(userRolesRef);
-    
+
     if (!userRolesSnapshot.empty) {
       // Delete existing documents
       const batch = writeBatch(db);
@@ -2143,19 +2182,19 @@ export const initializeUserRolesCollection = async (currentUserEmail?: string): 
       });
       await batch.commit();
     }
-    
+
     // Get all users from each role collection
     const adminRef = collection(db, 'admin');
     const legalTeamRef = collection(db, 'legalTeam');
     const managementTeamRef = collection(db, 'managementTeam');
     const approversRef = collection(db, 'approvers');
-    
+
     // Fetch all documents from each collection
     const adminSnapshot = await getDocs(adminRef);
     const legalTeamSnapshot = await getDocs(legalTeamRef);
     const managementTeamSnapshot = await getDocs(managementTeamRef);
     const approversSnapshot = await getDocs(approversRef);
-    
+
     // Create a map of email to roles
     const userRolesMap = new Map<string, {
       isAdmin: boolean;
@@ -2164,7 +2203,7 @@ export const initializeUserRolesCollection = async (currentUserEmail?: string): 
       isApprover: boolean;
       email: string;
     }>();
-    
+
     // Process admin users
     adminSnapshot.forEach(doc => {
       const data = doc.data();
@@ -2172,7 +2211,7 @@ export const initializeUserRolesCollection = async (currentUserEmail?: string): 
       if (!email) {
         return;
       }
-      
+
       const existingRoles = userRolesMap.get(email) || {
         isAdmin: false,
         isLegalTeam: false,
@@ -2180,11 +2219,11 @@ export const initializeUserRolesCollection = async (currentUserEmail?: string): 
         isApprover: false,
         email
       };
-      
+
       existingRoles.isAdmin = true;
       userRolesMap.set(email, existingRoles);
     });
-    
+
     // Process legal team users
     legalTeamSnapshot.forEach(doc => {
       const data = doc.data();
@@ -2192,7 +2231,7 @@ export const initializeUserRolesCollection = async (currentUserEmail?: string): 
       if (!email) {
         return;
       }
-      
+
       const existingRoles = userRolesMap.get(email) || {
         isAdmin: false,
         isLegalTeam: false,
@@ -2200,11 +2239,11 @@ export const initializeUserRolesCollection = async (currentUserEmail?: string): 
         isApprover: false,
         email
       };
-      
+
       existingRoles.isLegalTeam = true;
       userRolesMap.set(email, existingRoles);
     });
-    
+
     // Process management team users
     managementTeamSnapshot.forEach(doc => {
       const data = doc.data();
@@ -2212,7 +2251,7 @@ export const initializeUserRolesCollection = async (currentUserEmail?: string): 
       if (!email) {
         return;
       }
-      
+
       const existingRoles = userRolesMap.get(email) || {
         isAdmin: false,
         isLegalTeam: false,
@@ -2220,11 +2259,11 @@ export const initializeUserRolesCollection = async (currentUserEmail?: string): 
         isApprover: false,
         email
       };
-      
+
       existingRoles.isManagementTeam = true;
       userRolesMap.set(email, existingRoles);
     });
-    
+
     // Process approvers
     approversSnapshot.forEach(doc => {
       const data = doc.data();
@@ -2232,7 +2271,7 @@ export const initializeUserRolesCollection = async (currentUserEmail?: string): 
       if (!email) {
         return;
       }
-      
+
       const existingRoles = userRolesMap.get(email) || {
         isAdmin: false,
         isLegalTeam: false,
@@ -2240,19 +2279,19 @@ export const initializeUserRolesCollection = async (currentUserEmail?: string): 
         isApprover: false,
         email
       };
-      
+
       existingRoles.isApprover = true;
       userRolesMap.set(email, existingRoles);
     });
-    
+
     if (userRolesMap.size === 0) {
       return;
     }
-    
+
     // Batch write all user roles to the new collection
     const batch = writeBatch(db);
     const now = new Date().toISOString();
-    
+
     userRolesMap.forEach((roles) => {
       // Use email as document ID
       const userRoleDocRef = doc(db, 'userRoles', roles.email);
@@ -2262,7 +2301,7 @@ export const initializeUserRolesCollection = async (currentUserEmail?: string): 
         updatedAt: now
       });
     });
-    
+
     // Commit the batch
     await batch.commit();
   } catch (error) {
@@ -2277,12 +2316,12 @@ export const markUserDeletedInAuth = async (email: string, adminEmail: string = 
     const deletedUsersRef = collection(db, 'deleted_users');
     const q = query(deletedUsersRef, where('email', '==', email.toLowerCase()));
     const querySnapshot = await getDocs(q);
-    
+
     if (querySnapshot.empty) {
       console.warn(`User with email ${email} not found in deleted_users collection`);
       return;
     }
-    
+
     // Update the document to mark auth as manually deleted
     const userDoc = querySnapshot.docs[0];
     await updateDoc(doc(db, 'deleted_users', userDoc.id), {
@@ -2290,7 +2329,7 @@ export const markUserDeletedInAuth = async (email: string, adminEmail: string = 
       auth_deleted_at: new Date().toISOString(),
       auth_deleted_by: adminEmail
     });
-    
+
     console.log(`User ${email} marked as deleted in Firebase Auth`);
   } catch (error) {
     console.error('Error marking user as deleted in Firebase Auth:', error);
@@ -2315,16 +2354,16 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
 // Get system settings
 export const getSystemSettings = async (): Promise<SystemSettings> => {
   const settingsDoc = doc(db, 'systemSettings', 'general');
-  
+
   try {
     const settingsSnapshot = await getDoc(settingsDoc);
-    
+
     if (!settingsSnapshot.exists()) {
       // If settings don't exist, create them with defaults
       await setDoc(settingsDoc, DEFAULT_SYSTEM_SETTINGS);
       return DEFAULT_SYSTEM_SETTINGS;
     }
-    
+
     return settingsSnapshot.data() as SystemSettings;
   } catch (error) {
     console.error('Error fetching system settings:', error);
@@ -2342,20 +2381,20 @@ export const updateSystemSettings = async (
   if (!isAdmin) {
     throw new Error('Unauthorized: Only administrators can update system settings');
   }
-  
+
   const settingsDoc = doc(db, 'systemSettings', 'general');
   const now = new Date().toISOString();
-  
+
   try {
     const currentSettings = await getSystemSettings();
-    
+
     const updatedSettings = {
       ...currentSettings,
       ...settings,
       lastUpdated: now,
       updatedBy: updater.email
     };
-    
+
     await setDoc(settingsDoc, updatedSettings);
   } catch (error) {
     console.error('Error updating system settings:', error);
@@ -2371,33 +2410,33 @@ export const processAutomaticContractDeletion = async (
     // Get system settings
     const settings = await getSystemSettings();
     console.log("Current retention settings:", settings);
-    
+
     // If auto-delete is disabled and we're not force deleting, do nothing
     if (!settings.autoDeleteEnabled && !forceDeleteAll) {
       console.log("Auto-delete is disabled in settings");
       return 0;
     }
-    
+
     // Get all archived contracts
     const archivedContracts = await getArchivedContracts();
     console.log(`Found ${archivedContracts.length} archived contracts`);
-    
+
     const now = new Date();
     let deletedCount = 0;
-    
+
     // Process each archived contract
     for (const contract of archivedContracts) {
       if (!contract.archivedAt) {
         console.log(`Contract ${contract.id} (${contract.title}) has no archivedAt date`);
         continue;
       }
-      
+
       const archivedDate = new Date(contract.archivedAt);
       const daysSinceArchived = Math.floor((now.getTime() - archivedDate.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       console.log(`Contract ${contract.id} (${contract.title}) was archived on ${archivedDate.toISOString()}, ${daysSinceArchived} days ago`);
       console.log(`Retention period: ${settings.archiveRetentionDays} days`);
-      
+
       // Delete if force is enabled or the retention period has been met
       if (forceDeleteAll || daysSinceArchived >= settings.archiveRetentionDays) {
         if (forceDeleteAll) {
@@ -2411,7 +2450,7 @@ export const processAutomaticContractDeletion = async (
         console.log(`Contract ${contract.id} retention period not met: ${daysSinceArchived}/${settings.archiveRetentionDays} days`);
       }
     }
-    
+
     return deletedCount;
   } catch (error) {
     console.error('Error processing automatic contract deletion:', error);

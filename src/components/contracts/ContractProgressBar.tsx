@@ -1,13 +1,16 @@
 import React from 'react';
-import { ContractStatus } from '@/lib/data';
-import { CheckCircle, Circle, ArrowRight } from 'lucide-react';
+import { ContractStatus, Contract } from '@/lib/data';
+import { CheckCircle, Circle } from 'lucide-react';
+import AmendmentProgressBar from './AmendmentProgressBar';
 
 interface ContractProgressBarProps {
   currentStatus: ContractStatus;
+  contract?: Contract;
 }
 
 const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
   currentStatus,
+  contract,
 }) => {
   // Helper function to determine if a stage is completed
   const isStageCompleted = (stage: ContractStatus) => {
@@ -15,78 +18,66 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
       'requested': 0,
       'draft': 1,
       'legal_review': 2,
-      'management_review': 2, // Same level as legal_review
-      'legal_declined': 2, // Same level as legal_review
-      'management_declined': 2, // Same level as management_review
-      'approval': 3,
-      'finished': 4
+      'management_review': 3,
+      'wwf_signing': 4,
+      'counterparty_signing': 5,
+      'implementation': 6,
+      'amendment': 7,
+      'contract_end': 8,
+      'legal_send_back': 2, // Same level as legal_review
+      'management_send_back': 3, // Same level as management_review
+      'legal_declined': 2, // Same level as legal_review (for backward compatibility)
+      'management_declined': 3, // Same level as management_review (for backward compatibility)
+      'approval': 9,
+      'finished': 10
     };
 
-    const currentStageValue = stageOrder[currentStatus];
-    const stageValue = stageOrder[stage];
+    const currentStageValue = stageOrder[currentStatus] || 0;
+    const stageValue = stageOrder[stage] || 0;
 
-    // If current status is draft, don't consider legal_review or management_review as completed
+    // If current status is draft, don't consider later stages as completed
     // This handles the case where the contract was reset to draft
-    if (currentStatus === 'draft' && (stage === 'legal_review' || stage === 'management_review')) {
+    if (currentStatus === 'draft' && stageValue > 1) {
       return false;
     }
 
-    // Special handling for review stages to be treated as a group
-    if (stage === 'legal_review' || stage === 'management_review') {
-      return currentStatus === 'legal_review' || 
-             currentStatus === 'management_review' ||
-             currentStatus === 'legal_declined' ||
-             currentStatus === 'management_declined' ||
-             currentStatus === 'approval' || 
-             currentStatus === 'finished';
+    // Special handling for approval and finished statuses
+    // If we're checking if approval is completed and current status is contract_end,
+    // we should return true for backward compatibility
+    if (stage === 'approval' &&
+        (currentStatus === 'contract_end' || currentStatus === 'amendment' || currentStatus === 'implementation')) {
+      return true;
     }
 
-    // For all other stages, use standard stageOrder comparison
+    // For all stages, use standard stageOrder comparison
     return stageValue < currentStageValue;
   };
 
   // Helper function to determine if a stage is current
   const isStageCurrent = (stage: ContractStatus) => {
-    // If current status is draft, don't highlight legal_review or management_review
-    if (currentStatus === 'draft' && (stage === 'legal_review' || stage === 'management_review')) {
-      return false;
-    }
-
-    // Special handling for review stages to be treated as a group
-    if (stage === 'legal_review' || stage === 'management_review') {
-      return currentStatus === 'legal_review' || 
-             currentStatus === 'management_review' ||
-             currentStatus === 'legal_declined' ||
-             currentStatus === 'management_declined';
-    }
-
     // Each stage is only current if it exactly matches the current status
     return stage === currentStatus;
   };
 
-  // Helper function to determine if a stage is declined
+  // Helper function to determine if a stage is declined/sent back
   const isStageDeclined = (stage: ContractStatus) => {
-    // Both review stages should show declined if either one is declined
-    if (stage === 'legal_review' || stage === 'management_review') {
-      return currentStatus === 'legal_declined' || currentStatus === 'management_declined';
+    if (stage === 'legal_review') {
+      return currentStatus === 'legal_send_back' || currentStatus === 'legal_declined';
     }
-    
+
+    if (stage === 'management_review') {
+      return currentStatus === 'management_send_back' || currentStatus === 'management_declined';
+    }
+
     return false;
   };
 
   // Helper function to render a stage node
-  const renderStageNode = (status: ContractStatus, label: string, isCompleted: boolean, isCurrent: boolean) => {
-    // Check if the stage is declined
-    let isDeclined = false;
-    
-    // Special handling for review stages - both should appear declined if either is declined
-    if (status === 'legal_review' || status === 'management_review') {
-      isDeclined = isReviewDeclined;
-    } else {
-      // For other stages, use the standard check
-      isDeclined = isStageDeclined(status);
-    }
-    
+  const renderStageNode = (status: ContractStatus, label: string) => {
+    const isCompleted = isStageCompleted(status);
+    const isCurrent = isStageCurrent(status);
+    const isDeclined = isStageDeclined(status);
+
     return (
       <div className="flex flex-col items-center relative">
         <div
@@ -95,8 +86,8 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
               ? 'bg-red-500 text-white border-red-500' // Declined stage
               : isCompleted || isCurrent
                 ? 'bg-blue-500 text-white border-blue-500' // Completed or current stage
-                : status === 'finished'
-                  ? 'bg-white text-blue-500 border-blue-500 border-2' // Special case for finished
+                : status === 'contract_end'
+                  ? 'bg-white text-blue-500 border-blue-500 border-2' // Special case for contract_end
                   : 'bg-white text-muted-foreground border-gray-300' // Default state
             }`}
         >
@@ -129,164 +120,101 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
     </div>
   );
 
-  // Helper function to render a diagonal connecting line
-  const renderDiagonalLine = (type: 'top-diverge' | 'bottom-diverge' | 'top-converge' | 'bottom-converge', isCompleted: boolean) => {
-    // Different paths for different line types
-    let path;
-    
-    // Check if review stages are declined, apply to both diagonal lines
-    const isDeclined = isReviewDeclined;
-
-    // For better visual connection, we'll use the actual coordinates where we want the lines to connect
-    const leftX = 0;
-    const rightX = 100;
-    const middleY = 50;
-    const topY = 0;
-    const bottomY = 100;
-
-    switch(type) {
-      case 'top-diverge':
-        // From Draft circle to Legal Review circle
-        path = `M ${leftX},${middleY} L ${rightX},${topY}`;
-        break;
-      case 'bottom-diverge':
-        // From Draft circle to Management Review circle
-        path = `M ${leftX},${middleY} L ${rightX},${bottomY}`;
-        break;
-      case 'top-converge':
-        // From Legal Review circle to Approval circle
-        path = `M ${leftX},${topY} L ${rightX},${middleY}`;
-        break;
-      case 'bottom-converge':
-        // From Management Review circle to Approval circle
-        path = `M ${leftX},${bottomY} L ${rightX},${middleY}`;
-        break;
-      default:
-        path = `M ${leftX},${middleY} L ${rightX},${middleY}`;
-    }
-
-    return (
-      <div className="w-28 h-28 relative">
-        <svg viewBox="0 0 100 100" className="w-full h-full">
-          <path
-            d={path}
-            stroke={isDeclined ? '#ef4444' : isCompleted ? '#3b82f6' : '#d1d5db'}
-            strokeWidth="2"
-            fill="none"
-          />
-        </svg>
-      </div>
-    );
+  // Format status labels for display
+  const formatStatusLabel = (status: ContractStatus): string => {
+    return status
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   };
-
-  // Determine if paths are completed
-  const isDraftCompleted = isStageCompleted('draft');
-
-  // For visual consistency in the progress bar, treat both review paths as a single unit
-  const isReviewCompleted = currentStatus === 'approval' || currentStatus === 'finished';
-  const isReviewDeclined = currentStatus === 'legal_declined' || currentStatus === 'management_declined';
-  const isReviewCurrent = currentStatus === 'legal_review' || currentStatus === 'management_review' || 
-                         currentStatus === 'legal_declined' || currentStatus === 'management_declined';
-
-  const isApprovalCompleted = isStageCompleted('approval');
 
   return (
     <div className="w-full py-8">
       <h3 className="font-medium text-base mb-6">Contract Progress</h3>
 
       <div className="flex flex-col w-full">
-        <div className="flex justify-center items-center w-full">
+        <div className="flex justify-center items-center w-full overflow-x-auto pb-8">
           {/* Main horizontal flow */}
-          <div className="flex items-center justify-center">
+          <div className="flex items-center justify-start min-w-max">
             {/* Requested */}
-            {renderStageNode(
-              'requested',
-              'Requested',
-              isStageCompleted('requested'),
-              isStageCurrent('requested')
-            )}
+            {renderStageNode('requested', 'Requested')}
 
             {/* Line from Requested to Draft */}
             {renderHorizontalLine(isStageCompleted('requested'))}
 
             {/* Draft */}
-            {renderStageNode(
-              'draft',
-              'Draft',
-              isStageCompleted('draft'),
-              isStageCurrent('draft')
-            )}
+            {renderStageNode('draft', 'Draft')}
 
-            {/* Diverging and converging paths container */}
-            <div className="flex flex-col items-center">
-              <div className="flex items-center">
-                {/* Top diagonal line to Legal Review */}
-                {renderDiagonalLine('top-diverge', isDraftCompleted)}
-              </div>
+            {/* Line from Draft to Legal Review */}
+            {renderHorizontalLine(isStageCompleted('draft'))}
 
-              <div className="flex items-center">
-                {/* Bottom diagonal line to Management Review */}
-                {renderDiagonalLine('bottom-diverge', isDraftCompleted)}
-              </div>
-            </div>
+            {/* Legal Review */}
+            {renderStageNode('legal_review', 'Legal Review')}
 
-            {/* Parallel reviews container */}
-            <div className="flex flex-col items-center">
-              {/* Legal Review */}
-              <div className="mb-24">
-                {renderStageNode(
-                  'legal_review',
-                  'Legal Review',
-                  isReviewCompleted || isReviewCurrent,
-                  isReviewCurrent && !isReviewDeclined
+            {/* Line from Legal Review to Management Review */}
+            {renderHorizontalLine(isStageCompleted('legal_review'))}
+
+            {/* Management Review */}
+            {renderStageNode('management_review', 'Management Review')}
+
+            {/* Line from Management Review to WWF Signing */}
+            {renderHorizontalLine(isStageCompleted('management_review'))}
+
+            {/* WWF Signing */}
+            {renderStageNode('wwf_signing', 'WWF Signing')}
+
+            {/* Line from WWF Signing to Counterparty Signing */}
+            {renderHorizontalLine(isStageCompleted('wwf_signing'))}
+
+            {/* Counterparty Signing */}
+            {renderStageNode('counterparty_signing', 'Counterparty Signing')}
+
+            {/* Line from Counterparty Signing to Implementation */}
+            {renderHorizontalLine(isStageCompleted('counterparty_signing'))}
+
+            {/* Implementation */}
+            {renderStageNode('implementation', 'Implementation')}
+
+            {/* Line from Implementation to Contract End */}
+            {renderHorizontalLine(isStageCompleted('implementation'))}
+
+            {/* Contract End */}
+            {renderStageNode('contract_end', 'Contract End')}
+
+            {/* For backward compatibility with existing contracts that might use approval/finished statuses */}
+            {(currentStatus === 'approval' || currentStatus === 'finished') && (
+              <>
+                {/* Line from Contract End to Approval */}
+                {renderHorizontalLine(isStageCompleted('contract_end'))}
+
+                {/* Approval */}
+                {renderStageNode('approval', 'Approval')}
+
+                {/* Only show Finished if that's the current status */}
+                {currentStatus === 'finished' && (
+                  <>
+                    {/* Line from Approval to Finished */}
+                    {renderHorizontalLine(isStageCompleted('approval'))}
+
+                    {/* Finished */}
+                    {renderStageNode('finished', 'Finished')}
+                  </>
                 )}
-              </div>
-
-              {/* Management Review */}
-              <div className="mt-24">
-                {renderStageNode(
-                  'management_review',
-                  'Management Review',
-                  isReviewCompleted || isReviewCurrent,
-                  isReviewCurrent && !isReviewDeclined
-                )}
-              </div>
-            </div>
-
-            {/* Converging paths container */}
-            <div className="flex flex-col items-center">
-              <div className="flex items-center">
-                {/* Diagonal line from Legal Review to Approval */}
-                {renderDiagonalLine('top-converge', isReviewCompleted)}
-              </div>
-
-              <div className="flex items-center">
-                {/* Diagonal line from Management Review to Approval */}
-                {renderDiagonalLine('bottom-converge', isReviewCompleted)}
-              </div>
-            </div>
-
-            {/* Approval */}
-            {renderStageNode(
-              'approval',
-              'Approval',
-              isStageCompleted('approval'),
-              isStageCurrent('approval')
-            )}
-
-            {/* Line from Approval to Finished */}
-            {renderHorizontalLine(isStageCompleted('approval'))}
-
-            {/* Finished */}
-            {renderStageNode(
-              'finished',
-              'Finished',
-              isStageCompleted('finished'),
-              isStageCurrent('finished')
+              </>
             )}
           </div>
         </div>
       </div>
+
+      {/* Show Amendment Progress Bar if the contract has been amended */}
+      {(contract?.isAmended || currentStatus === 'amendment') && (
+        <div className="mt-8 border-t pt-4">
+          <AmendmentProgressBar
+            currentStatus={currentStatus}
+            amendmentStage={contract?.amendmentStage || 'amendment'}
+          />
+        </div>
+      )}
     </div>
   );
 };

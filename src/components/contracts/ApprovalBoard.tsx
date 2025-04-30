@@ -328,7 +328,7 @@ const ApprovalBoard = ({
         approver: updatedApprovers
       }
     };
-    
+
     // Add custom timeline entry
     if (userApprover.declined) {
       // Special case: Changing from declined to approved
@@ -487,37 +487,37 @@ const ApprovalBoard = ({
 
     // Check if management has already approved
     const managementApprovers = getManagementApprovers();
-    const isManagementApproved = managementApprovers.length > 0 && 
+    const isManagementApproved = managementApprovers.length > 0 &&
       managementApprovers.every(approver => approver.approved);
-    
+
     console.log('Legal approval - Management approvers:', managementApprovers);
     console.log('Legal approval - Is management approved:', isManagementApproved);
-    
+
     // Build the request data for the API
     const updateData: any = {};
-    
+
     // Add approvers update
     updateData.approvers = {
       ...normalizedContract.approvers,
       legal: updatedLegalApprovers
     };
-    
+
     // Add custom timeline entry
     updateData._customTimelineEntry = {
       action: `Legal Approval: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
       details: 'Approved as legal team member'
     };
 
-    // Handle case where we're changing from declined to approved
-    if (contract.status === 'legal_declined' || userApprover.declined) {
-      updateData._customTimelineEntry.action = `Legal Approval: Changed from Declined to Approved`;
-      updateData._customTimelineEntry.details = 'Changed status from declined to approved';
-      
+    // Handle case where we're changing from send back to approved
+    if (contract.status === 'legal_send_back' || contract.status === 'legal_declined' || userApprover.declined) {
+      updateData._customTimelineEntry.action = `Legal Approval: Changed from Send Back to Approved`;
+      updateData._customTimelineEntry.details = 'Changed status from send back to approved';
+
       // Change status back to legal_review
       updateData.status = 'legal_review';
       updateData._customTimelineEntry.details += ' - Status changed to Legal Review';
       console.log('Legal approval (instead) - Setting status to legal_review');
-      
+
       // If management is already approved, move to approval status
       if (isManagementApproved) {
         updateData.status = 'approval';
@@ -533,7 +533,7 @@ const ApprovalBoard = ({
         updateData._customTimelineEntry.details += ' - Status changed to Legal Review';
         console.log('Legal approval - Setting status to legal_review');
       }
-      
+
       // If both legal and management have approved, move to fully approved status
       if (isManagementApproved && (contract.status === 'management_review' || contract.status === 'management_declined')) {
         updateData.status = 'approval';
@@ -588,9 +588,9 @@ const ApprovalBoard = ({
 
     // Check if management has already approved (not relevant for decline, but we track it)
     const managementApprovers = getManagementApprovers();
-    const isManagementApproved = managementApprovers.length > 0 && 
+    const isManagementApproved = managementApprovers.length > 0 &&
       managementApprovers.every(approver => approver.approved);
-    
+
     console.log('Legal decline - Management approvers:', managementApprovers);
     console.log('Legal decline - Is management approved:', isManagementApproved);
 
@@ -606,10 +606,10 @@ const ApprovalBoard = ({
       }
     };
 
-    // Always change contract status to legal_declined 
+    // Always change contract status to legal_send_back
     // This follows the same progression logic as approval
-    updateData.status = 'legal_declined';
-    updateData._customTimelineEntry.details += ' - Status changed to Legal Declined';
+    updateData.status = 'legal_send_back';
+    updateData._customTimelineEntry.details += ' - Status changed to Legal Send Back';
     console.log('Legal decline - Setting status to legal_declined');
 
     // Update approvers with custom timeline entry and status change
@@ -655,15 +655,15 @@ const ApprovalBoard = ({
 
     // Check if management has approved
     const managementApprovers = getManagementApprovers();
-    const isManagementApproved = managementApprovers.length > 0 && 
+    const isManagementApproved = managementApprovers.length > 0 &&
       managementApprovers.every(approver => approver.approved);
 
     // Create update data
     const updateData: any = {};
-    
+
     // Create a custom timeline entry for legal approval/rejection withdrawal
     updateData._customTimelineEntry = {
-      action: wasDeclined 
+      action: wasDeclined
         ? `Legal Rejection Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`
         : `Legal Approval Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
       details: wasDeclined
@@ -672,15 +672,15 @@ const ApprovalBoard = ({
     };
 
     // Update contract status based on withdrawal
-    if (wasDeclined && contract.status === 'legal_declined') {
+    if (wasDeclined && (contract.status === 'legal_send_back' || contract.status === 'legal_declined')) {
       // If we're withdrawing a decline, go back to draft
       updateData.status = 'draft';
       updateData._customTimelineEntry.details += ' - Status changed to Draft';
       console.log('Legal withdrawal - Setting status back to draft from declined');
-      
+
       // Reset all approvals when going back to draft from declined
       const allApprovers = JSON.parse(JSON.stringify(normalizedContract.approvers || {}));
-      
+
       // Reset legal approvals
       if (allApprovers.legal && allApprovers.legal.length > 0) {
         allApprovers.legal = allApprovers.legal.map((approver: any) => ({
@@ -691,7 +691,7 @@ const ApprovalBoard = ({
           declinedAt: null
         }));
       }
-      
+
       // Reset management approvals
       if (allApprovers.management && allApprovers.management.length > 0) {
         allApprovers.management = allApprovers.management.map((approver: any) => ({
@@ -702,7 +702,7 @@ const ApprovalBoard = ({
           declinedAt: null
         }));
       }
-      
+
       // Reset approver approvals
       if (allApprovers.approver && allApprovers.approver.length > 0) {
         allApprovers.approver = allApprovers.approver.map((approver: any) => ({
@@ -713,7 +713,7 @@ const ApprovalBoard = ({
           declinedAt: null
         }));
       }
-      
+
       updateData.approvers = allApprovers;
       updateData._customTimelineEntry.details += ' - All approvals reset';
     }
@@ -730,19 +730,19 @@ const ApprovalBoard = ({
         updateData._customTimelineEntry.details += ' - Status changed to Draft';
         console.log('Legal withdrawal - Setting status back to draft');
       }
-      
+
       // Update only the legal approvers' status
       updateData.approvers = {
         ...normalizedContract.approvers,
         legal: updatedLegalApprovers
       };
-    } 
+    }
     // If we're in legal_review status, go back to draft
     else if (wasApproved && contract.status === 'legal_review') {
       updateData.status = 'draft';
       updateData._customTimelineEntry.details += ' - Status changed to Draft';
       console.log('Legal withdrawal - Setting status back to draft');
-      
+
       // Update only the legal approvers' status
       updateData.approvers = {
         ...normalizedContract.approvers,
@@ -762,8 +762,8 @@ const ApprovalBoard = ({
 
     toast({
       title: wasDeclined ? 'Rejection Withdrawn' : 'Approval Withdrawn',
-      description: wasDeclined 
-        ? 'You have withdrawn your rejection as a legal team member' 
+      description: wasDeclined
+        ? 'You have withdrawn your rejection as a legal team member'
         : 'You have withdrawn your approval as a legal team member',
       variant: 'default'
     });
@@ -814,21 +814,21 @@ const ApprovalBoard = ({
 
     // Check if legal has already approved
     const legalApprovers = getLegalApprovers();
-    const isLegalApproved = legalApprovers.length > 0 && 
+    const isLegalApproved = legalApprovers.length > 0 &&
       legalApprovers.every(approver => approver.approved);
-    
+
     console.log('Management approval - Legal approvers:', legalApprovers);
     console.log('Management approval - Is legal approved:', isLegalApproved);
-    
+
     // Build the request data for the API
     const updateData: any = {};
-    
+
     // Add approvers update
     updateData.approvers = {
       ...normalizedContract.approvers,
       management: updatedManagementApprovers
     };
-    
+
     // Add custom timeline entry
     updateData._customTimelineEntry = {
       action: `Management Approval: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
@@ -839,12 +839,12 @@ const ApprovalBoard = ({
     if (contract.status === 'management_declined' || userApprover.declined) {
       updateData._customTimelineEntry.action = `Management Approval: Changed from Declined to Approved`;
       updateData._customTimelineEntry.details = 'Changed status from declined to approved';
-      
+
       // Change status back to management_review
       updateData.status = 'management_review';
       updateData._customTimelineEntry.details += ' - Status changed to Management Review';
       console.log('Management approval (instead) - Setting status to management_review');
-      
+
       // If legal is already approved, move to approval status
       if (isLegalApproved) {
         updateData.status = 'approval';
@@ -860,7 +860,7 @@ const ApprovalBoard = ({
         updateData._customTimelineEntry.details += ' - Status changed to Management Review';
         console.log('Management approval - Setting status to management_review');
       }
-      
+
       // If both legal and management have approved, move to fully approved status
       if (isLegalApproved && (contract.status === 'legal_review' || contract.status === 'legal_declined')) {
         updateData.status = 'approval';
@@ -915,9 +915,9 @@ const ApprovalBoard = ({
 
     // Check if legal has already approved (not relevant for decline, but we track it)
     const legalApprovers = getLegalApprovers();
-    const isLegalApproved = legalApprovers.length > 0 && 
+    const isLegalApproved = legalApprovers.length > 0 &&
       legalApprovers.every(approver => approver.approved);
-    
+
     console.log('Management decline - Legal approvers:', legalApprovers);
     console.log('Management decline - Is legal approved:', isLegalApproved);
 
@@ -933,10 +933,10 @@ const ApprovalBoard = ({
       }
     };
 
-    // Always change contract status to management_declined
+    // Always change contract status to management_send_back
     // This follows the same progression logic as approval
-    updateData.status = 'management_declined';
-    updateData._customTimelineEntry.details += ' - Status changed to Management Declined';
+    updateData.status = 'management_send_back';
+    updateData._customTimelineEntry.details += ' - Status changed to Management Send Back';
     console.log('Management decline - Setting status to management_declined');
 
     // Update approvers with custom timeline entry
@@ -982,15 +982,15 @@ const ApprovalBoard = ({
 
     // Check if legal has approved
     const legalApprovers = getLegalApprovers();
-    const isLegalApproved = legalApprovers.length > 0 && 
+    const isLegalApproved = legalApprovers.length > 0 &&
       legalApprovers.every(approver => approver.approved);
 
     // Create update data
     const updateData: any = {};
-    
+
     // Add custom timeline entry
     updateData._customTimelineEntry = {
-      action: wasDeclined 
+      action: wasDeclined
         ? `Management Rejection Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`
         : `Management Approval Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
       details: wasDeclined
@@ -999,15 +999,15 @@ const ApprovalBoard = ({
     };
 
     // Update contract status based on withdrawal
-    if (wasDeclined && contract.status === 'management_declined') {
+    if (wasDeclined && (contract.status === 'management_send_back' || contract.status === 'management_declined')) {
       // If we're withdrawing a decline, go back to draft
       updateData.status = 'draft';
       updateData._customTimelineEntry.details += ' - Status changed to Draft';
       console.log('Management withdrawal - Setting status back to draft from declined');
-      
+
       // Reset all approvals when going back to draft from declined
       const allApprovers = JSON.parse(JSON.stringify(normalizedContract.approvers || {}));
-      
+
       // Reset legal approvals
       if (allApprovers.legal && allApprovers.legal.length > 0) {
         allApprovers.legal = allApprovers.legal.map((approver: any) => ({
@@ -1018,7 +1018,7 @@ const ApprovalBoard = ({
           declinedAt: null
         }));
       }
-      
+
       // Reset management approvals
       if (allApprovers.management && allApprovers.management.length > 0) {
         allApprovers.management = allApprovers.management.map((approver: any) => ({
@@ -1029,7 +1029,7 @@ const ApprovalBoard = ({
           declinedAt: null
         }));
       }
-      
+
       // Reset approver approvals
       if (allApprovers.approver && allApprovers.approver.length > 0) {
         allApprovers.approver = allApprovers.approver.map((approver: any) => ({
@@ -1040,7 +1040,7 @@ const ApprovalBoard = ({
           declinedAt: null
         }));
       }
-      
+
       updateData.approvers = allApprovers;
       updateData._customTimelineEntry.details += ' - All approvals reset';
     }
@@ -1057,19 +1057,19 @@ const ApprovalBoard = ({
         updateData._customTimelineEntry.details += ' - Status changed to Draft';
         console.log('Management withdrawal - Setting status back to draft');
       }
-      
+
       // Update only the management approvers' status
       updateData.approvers = {
         ...normalizedContract.approvers,
         management: updatedManagementApprovers
       };
-    } 
+    }
     // If we're in management_review status, go back to draft
     else if (wasApproved && contract.status === 'management_review') {
       updateData.status = 'draft';
       updateData._customTimelineEntry.details += ' - Status changed to Draft';
       console.log('Management withdrawal - Setting status back to draft');
-      
+
       // Update only the management approvers' status
       updateData.approvers = {
         ...normalizedContract.approvers,
@@ -1089,8 +1089,8 @@ const ApprovalBoard = ({
 
     toast({
       title: wasDeclined ? 'Rejection Withdrawn' : 'Approval Withdrawn',
-      description: wasDeclined 
-        ? 'You have withdrawn your rejection as a management team member' 
+      description: wasDeclined
+        ? 'You have withdrawn your rejection as a management team member'
         : 'You have withdrawn your approval as a management team member',
       variant: 'default'
     });
@@ -1247,7 +1247,7 @@ const ApprovalBoard = ({
                             ) : approver.declined ? (
                               <div className="flex items-center gap-2">
                                 <Badge className="bg-red-50 text-red-800 border-red-200">
-                                  Declined
+                                  Sent Back
                                 </Badge>
                                 {currentUser?.email?.toLowerCase() === approver.email.toLowerCase() && (
                                   <Button
@@ -1276,7 +1276,7 @@ const ApprovalBoard = ({
                                   variant="destructive"
                                 >
                                   <ThumbsDown className="h-3.5 w-3.5 mr-1" />
-                                  Decline
+                                  Send Back
                                 </Button>
                               </div>
                             ) : (
@@ -1326,7 +1326,7 @@ const ApprovalBoard = ({
                         ) : (
                           <div className="flex items-center gap-2">
                             <Badge className="bg-red-50 text-red-800 border-red-200">
-                              Declined
+                              Sent Back
                             </Badge>
                             {isCurrentUserLegalApprover && (
                               <Button
@@ -1452,7 +1452,7 @@ const ApprovalBoard = ({
                             ) : approver.declined ? (
                               <div className="flex items-center gap-2">
                                 <Badge className="bg-red-50 text-red-800 border-red-200">
-                                  Declined
+                                  Sent Back
                                 </Badge>
                                 {currentUser?.email?.toLowerCase() === approver.email.toLowerCase() && (
                                   <Button
@@ -1481,7 +1481,7 @@ const ApprovalBoard = ({
                                   variant="destructive"
                                 >
                                   <ThumbsDown className="h-3.5 w-3.5 mr-1" />
-                                  Decline
+                                  Send Back
                                 </Button>
                               </div>
                             ) : (
@@ -1532,7 +1532,7 @@ const ApprovalBoard = ({
                         ) : (
                           <div className="flex items-center gap-2">
                             <Badge className="bg-red-50 text-red-800 border-red-200">
-                              Declined
+                              Sent Back
                             </Badge>
                             {isCurrentUserManagementApprover && (
                               <Button
@@ -1655,7 +1655,7 @@ const ApprovalBoard = ({
                         ) : approver.declined ? (
                           <div className="flex items-center gap-2">
                             <Badge className="bg-red-50 text-red-800 border-red-200">
-                              Declined
+                              Sent Back
                             </Badge>
                             {currentUser?.email?.toLowerCase() === approver.email.toLowerCase() && (
                               <Button
@@ -1684,7 +1684,7 @@ const ApprovalBoard = ({
                               variant="destructive"
                             >
                               <ThumbsDown className="h-3.5 w-3.5 mr-1" />
-                              Decline
+                              Send Back
                             </Button>
                           </div>
                         ) : (
