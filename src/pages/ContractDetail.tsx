@@ -10,6 +10,7 @@ import ContractStatusBadge from '@/components/contracts/ContractStatusBadge';
 import ContractForm from '@/components/contracts/ContractForm';
 import ContractProgressBar from '@/components/contracts/ContractProgressBar';
 import StatusSelectCard from '@/components/contracts/StatusSelectCard';
+import AmendmentStatusCard from '@/components/contracts/AmendmentStatusCard';
 import CommentSection from '@/components/contracts/CommentSection';
 import ApprovalBoard from '@/components/contracts/ApprovalBoard';
 import ConfirmationDialog from '@/components/contracts/ConfirmationDialog';
@@ -501,6 +502,12 @@ const ContractDetail = () => {
         console.log('ContractDetail - handleUpdateApprovers - Setting status to:', updateObject.status);
       }
 
+      // Check if we have an amendment stage update
+      if (cleanApproversData.amendmentStage) {
+        updateObject.amendmentStage = cleanApproversData.amendmentStage;
+        console.log('ContractDetail - handleUpdateApprovers - Setting amendment stage to:', updateObject.amendmentStage);
+      }
+
       // If we have a custom timeline entry, prepare a new timeline
       if (customTimelineEntry && currentContract.timeline) {
         // Create a new timeline entry
@@ -537,6 +544,8 @@ const ContractDetail = () => {
 
       if (updatedContract) {
         console.log('ContractDetail - handleUpdateApprovers - Updated contract retrieved, new status:', updatedContract.status);
+        console.log('ContractDetail - handleUpdateApprovers - Amendment stage:', updatedContract.amendmentStage);
+        console.log('ContractDetail - handleUpdateApprovers - Full contract:', JSON.stringify(updatedContract, null, 2));
         setContract(updatedContract);
         lastUpdatedTimestamp.current = Date.now(); // Update the timestamp
         toast.success('Approvers updated successfully');
@@ -606,14 +615,58 @@ const ContractDetail = () => {
     try {
       setUpdatingStatus(true);
 
+      // Store the original status before moving to amendment
+      const originalStatus = contract.status;
+
+      // Normalize the contract to ensure consistent approvers structure
+      const normalizedContract = normalizeApprovers(contract);
+
+      // Create a deep copy of the approvers
+      const approvers = JSON.parse(JSON.stringify(normalizedContract.approvers || {}));
+
+      // Reset legal approvals
+      if (approvers.legal && approvers.legal.length > 0) {
+        approvers.legal = approvers.legal.map((approver: any) => ({
+          ...approver,
+          approved: false,
+          declined: false, // declined means sent back
+          approvedAt: null,
+          declinedAt: null
+        }));
+      }
+
+      // Reset management approvals
+      if (approvers.management && approvers.management.length > 0) {
+        approvers.management = approvers.management.map((approver: any) => ({
+          ...approver,
+          approved: false,
+          declined: false, // declined means sent back
+          approvedAt: null,
+          declinedAt: null
+        }));
+      }
+
+      // Reset approver approvals
+      if (approvers.approver && approvers.approver.length > 0) {
+        approvers.approver = approvers.approver.map((approver: any) => ({
+          ...approver,
+          approved: false,
+          declined: false, // declined means sent back
+          approvedAt: null,
+          declinedAt: null
+        }));
+      }
+
       // Update the contract status to amendment and set amendment flags
       await updateContract(id, {
         status: 'amendment',
         isAmended: true,
         amendmentStage: 'amendment',
+        originalStatus: originalStatus, // Store the original status
+        approvers, // Include the reset approvers
         _customTimelineEntry: {
           action: 'Contract Amendment Started',
-          details: 'Contract moved to amendment status'
+          details: `Contract moved to amendment status (original status: ${originalStatus.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}) - All approvals reset`
         }
       }, {
         email: currentUser.email,
@@ -624,7 +677,7 @@ const ContractDetail = () => {
       const updatedContract = await getContract(id);
       if (updatedContract) {
         setContract(updatedContract);
-        toast.success('Contract amendment process started');
+        toast.success('Contract amendment process started - All approvals have been reset');
       }
 
       // Close the dialog
@@ -846,12 +899,22 @@ const ContractDetail = () => {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
+          {/* Always show the original status card */}
           <StatusSelectCard
             status={contract.status}
             onStatusChange={handleStatusChange}
             isUpdating={updatingStatus}
             contract={contract}
           />
+
+          {/* Show amendment status card only when in amendment mode */}
+          {contract.isAmended && contract.status === 'amendment' && (
+            <AmendmentStatusCard
+              contract={contract}
+              onStatusChange={handleStatusChange}
+              isUpdating={updatingStatus}
+            />
+          )}
 
           {contract.value !== null && (
           <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">

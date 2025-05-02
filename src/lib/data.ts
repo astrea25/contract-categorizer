@@ -227,6 +227,7 @@ export interface Contract {
   // Amendment tracking
   isAmended?: boolean; // Flag to indicate if contract has been amended
   amendmentStage?: 'amendment' | 'legal' | 'wwf' | 'counterparty'; // Current stage in the amendment process
+  originalStatus?: ContractStatus; // Original status before amendment started
   // Type-specific fields
   typeSpecificFields?: ContractTypeFields;
   // Timeline and comments

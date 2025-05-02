@@ -53,6 +53,14 @@ const StatusSelectCard = ({ status, onStatusChange, isUpdating, contract }: Stat
     { value: 'amendment', label: 'Amendment' },
   ];
 
+  // Amendment stage options
+  const amendmentStageOptions: { value: string; label: string }[] = [
+    { value: 'amendment', label: 'Amendment' },
+    { value: 'legal', label: 'Legal Review' },
+    { value: 'wwf', label: 'WWF Signing' },
+    { value: 'counterparty', label: 'Counterparty Signing' },
+  ];
+
   // Check if both legal and management have approved the contract
   const areBothApproved =
     contract.approvers && (() => {
@@ -91,6 +99,17 @@ const StatusSelectCard = ({ status, onStatusChange, isUpdating, contract }: Stat
 
   const handleStatusChange = async (value: string) => {
     const newStatus = value as ContractStatus;
+
+    // If the contract is in amendment process, don't allow changing the main status
+    if (contract.isAmended && contract.status === 'amendment') {
+      toast({
+        title: "Cannot change status during amendment",
+        description: "Please use the Amendment Stage card to manage the amendment process.",
+        variant: "destructive"
+      });
+      setIsOpen(false);
+      return;
+    }
 
     // Get the current and new stage indices
     const currentStageIndex = workflowStages.indexOf(contract.status);
@@ -242,10 +261,17 @@ const StatusSelectCard = ({ status, onStatusChange, isUpdating, contract }: Stat
             <ContractStatusBadge status={status} />
           </div>
 
+          {/* Show a message when in amendment mode */}
+          {contract.isAmended && contract.status === 'amendment' && (
+            <p className="text-xs text-amber-600 mt-2 mb-1">
+              Contract is in amendment mode. Original status: {contract.originalStatus?.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+            </p>
+          )}
+
           <Select
             value={status}
             onValueChange={handleStatusChange}
-            disabled={isUpdating}
+            disabled={isUpdating || (contract.isAmended && contract.status === 'amendment')}
             onOpenChange={setIsOpen}
             open={isOpen}
           >
@@ -253,6 +279,7 @@ const StatusSelectCard = ({ status, onStatusChange, isUpdating, contract }: Stat
               <SelectValue placeholder="Change status" />
             </SelectTrigger>
             <SelectContent>
+              {/* Always show normal status options */}
               {statusOptions.map((option) => {
                 // Get the current status index in the workflow
                 const currentIndex = workflowStages.indexOf(status);

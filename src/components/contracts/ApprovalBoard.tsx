@@ -301,8 +301,19 @@ const ApprovalBoard = ({
   const handleApproverApprove = async (email: string) => {
     if (!isApprover || !currentUser?.email) return;
 
-    // Check if management team has approved first
-    if (!isManagementTeamFullyApproved()) {
+    // For amendment mode, check if legal team has approved
+    if (isInAmendmentMode) {
+      if (!isLegalTeamFullyApproved()) {
+        toast({
+          title: 'Legal Approval Required',
+          description: 'The legal team must approve this amendment before final approval.',
+          variant: 'destructive'
+        });
+        return;
+      }
+    }
+    // For regular contracts, check if management team has approved first
+    else if (!isManagementTeamFullyApproved()) {
       toast({
         title: 'Management Approval Required',
         description: 'The management team must approve this contract before final approval.',
@@ -336,32 +347,100 @@ const ApprovalBoard = ({
       approvers: {
         ...normalizedContract.approvers,
         approver: updatedApprovers
-      },
-      // Automatically progress to WWF signing stage
-      status: 'wwf_signing'
+      }
     };
 
-    // Add custom timeline entry
-    if (userApprover.declined) {
-      // Special case: Changing from declined to approved
-      updateData._customTimelineEntry = {
-        action: `Final Approver: Changed from Declined to Approved`,
-        details: `${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]} changed approval from declined to approved - Status changed to WWF Signing`
-      };
+    // Handle differently for amendment mode
+    if (isInAmendmentMode) {
+      // If we're in amendment or legal stage, move to WWF stage
+      if (contract.amendmentStage === 'amendment' || contract.amendmentStage === 'legal') {
+        updateData.amendmentStage = 'wwf';
+
+        // Add custom timeline entry for amendment approval
+        if (userApprover.declined) {
+          // Special case: Changing from declined to approved
+          updateData._customTimelineEntry = {
+            action: `Amendment Approver: Changed from Declined to Approved`,
+            details: `${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]} changed approval from declined to approved - Amendment moved to WWF stage`
+          };
+        } else {
+          // Standard approval
+          updateData._customTimelineEntry = {
+            action: `Amendment Approver: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+            details: 'Approved as amendment approver - Amendment moved to WWF stage'
+          };
+        }
+      }
+      // If we're in WWF stage, move to counterparty stage
+      else if (contract.amendmentStage === 'wwf') {
+        updateData.amendmentStage = 'counterparty';
+
+        // Add custom timeline entry for amendment approval
+        if (userApprover.declined) {
+          // Special case: Changing from declined to approved
+          updateData._customTimelineEntry = {
+            action: `Amendment Final Approver: Changed from Declined to Approved`,
+            details: `${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]} changed approval from declined to approved - Amendment moved to Counterparty stage`
+          };
+        } else {
+          // Standard approval
+          updateData._customTimelineEntry = {
+            action: `Amendment Final Approver: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+            details: 'Approved as final amendment approver - Amendment moved to Counterparty stage'
+          };
+        }
+      } else {
+        // If we're in counterparty stage, just record the approval without changing stage
+        updateData._customTimelineEntry = {
+          action: `Amendment Approver: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+          details: 'Approved as amendment approver'
+        };
+      }
     } else {
-      // Standard approval
-      updateData._customTimelineEntry = {
-        action: `Final Approver: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
-        details: 'Approved as final approver - Status changed to WWF Signing'
-      };
+      // Regular contract flow - Automatically progress to WWF signing stage
+      updateData.status = 'wwf_signing';
+
+      // Add custom timeline entry
+      if (userApprover.declined) {
+        // Special case: Changing from declined to approved
+        updateData._customTimelineEntry = {
+          action: `Final Approver: Changed from Declined to Approved`,
+          details: `${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]} changed approval from declined to approved - Status changed to WWF Signing`
+        };
+      } else {
+        // Standard approval
+        updateData._customTimelineEntry = {
+          action: `Final Approver: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+          details: 'Approved as final approver - Status changed to WWF Signing'
+        };
+      }
     }
 
     // Update approvers with custom timeline entry
     await onUpdateApprovers(updateData);
 
+    // Log the updated data for debugging
+    console.log('Approver approval - Updated data:', JSON.stringify(updateData, null, 2));
+
+    // Create appropriate toast message based on amendment stage
+    let toastTitle = 'Contract Approved';
+    let toastDescription = 'You have approved this contract and it has progressed to WWF Signing stage';
+
+    if (isInAmendmentMode) {
+      toastTitle = 'Amendment Approved';
+
+      if (contract.amendmentStage === 'amendment' || contract.amendmentStage === 'legal') {
+        toastDescription = 'You have approved this amendment and it has progressed to WWF stage';
+      } else if (contract.amendmentStage === 'wwf') {
+        toastDescription = 'You have approved this amendment and it has progressed to Counterparty stage';
+      } else {
+        toastDescription = 'You have approved this amendment';
+      }
+    }
+
     toast({
-      title: 'Contract Approved',
-      description: 'You have approved this contract and it has progressed to WWF Signing stage',
+      title: toastTitle,
+      description: toastDescription,
       variant: 'default'
     });
   };
@@ -370,11 +449,22 @@ const ApprovalBoard = ({
   const handleApproverSendBack = async (email: string) => {
     if (!isApprover || !currentUser?.email) return;
 
-    // Check if management team has approved first
-    if (!isManagementTeamFullyApproved()) {
+    // For amendment mode, check if legal team has approved
+    if (isInAmendmentMode) {
+      if (!isLegalTeamFullyApproved()) {
+        toast({
+          title: 'Legal Approval Required',
+          description: 'The legal team must approve this amendment before you can send it back.',
+          variant: 'destructive'
+        });
+        return;
+      }
+    }
+    // For regular contracts, check if management team has approved first
+    else if (!isManagementTeamFullyApproved()) {
       toast({
         title: 'Management Approval Required',
-        description: 'The management team must approve this contract before you can decline it.',
+        description: 'The management team must approve this contract before you can send it back.',
         variant: 'destructive'
       });
       return;
@@ -405,21 +495,55 @@ const ApprovalBoard = ({
       approvers: {
         ...normalizedContract.approvers,
         approver: updatedApprovers
-      },
-      _customTimelineEntry: {
-        action: `Final Approver Sent Back: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
-        details: 'Sent back as final approver'
       }
     };
 
+    // Handle differently for amendment mode
+    if (isInAmendmentMode) {
+      // Only reset to legal stage if we're in WWF or counterparty stage
+      if (contract.amendmentStage === 'wwf' || contract.amendmentStage === 'counterparty') {
+        updateData.amendmentStage = 'legal';
+
+        // Add custom timeline entry for amendment send back
+        updateData._customTimelineEntry = {
+          action: `Amendment Final Approver Sent Back: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+          details: 'Sent back as final amendment approver - Amendment reset to Legal stage'
+        };
+
+        toast({
+          title: 'Amendment Sent Back',
+          description: 'You have sent back this amendment to the Legal stage',
+          variant: 'destructive'
+        });
+      } else {
+        // If we're not in WWF or counterparty stage, just record the send back without changing stage
+        updateData._customTimelineEntry = {
+          action: `Amendment Approver Sent Back: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+          details: 'Sent back as amendment approver'
+        };
+
+        toast({
+          title: 'Amendment Sent Back',
+          description: 'You have sent back this amendment',
+          variant: 'destructive'
+        });
+      }
+    } else {
+      // Regular contract flow
+      updateData._customTimelineEntry = {
+        action: `Final Approver Sent Back: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+        details: 'Sent back as final approver'
+      };
+
+      toast({
+        title: 'Contract Sent Back',
+        description: 'You have sent back this contract',
+        variant: 'destructive'
+      });
+    }
+
     // Update approvers with custom timeline entry
     await onUpdateApprovers(updateData);
-
-    toast({
-      title: 'Contract Sent Back',
-      description: 'You have sent back this contract',
-      variant: 'destructive'
-    });
   };
 
   // Handle withdrawing approver approval or rejection
@@ -455,27 +579,71 @@ const ApprovalBoard = ({
       approvers: {
         ...normalizedContract.approvers,
         approver: updatedApprovers
-      },
-      _customTimelineEntry: {
+      }
+    };
+
+    // Handle differently for amendment mode
+    if (isInAmendmentMode) {
+      // Add custom timeline entry for amendment withdrawal
+      updateData._customTimelineEntry = {
+        action: wasDeclined
+          ? `Amendment Final Approver Rejection Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`
+          : `Amendment Final Approver Approval Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+        details: wasDeclined
+          ? 'Withdrawn final amendment approver rejection'
+          : 'Withdrawn final amendment approver approval'
+      };
+
+      // If withdrawing approval, update the amendment stage based on the current stage
+      if (wasApproved) {
+        // If we're in counterparty stage, move back to WWF stage
+        if (contract.amendmentStage === 'counterparty') {
+          updateData.amendmentStage = 'wwf';
+          updateData._customTimelineEntry.details += ' - Amendment moved back to WWF stage';
+          console.log('Approver withdrawal for amendment - Moving back to WWF stage');
+        }
+        // If we're in WWF stage, move back to legal stage
+        else if (contract.amendmentStage === 'wwf') {
+          updateData.amendmentStage = 'legal';
+          updateData._customTimelineEntry.details += ' - Amendment moved back to Legal stage';
+          console.log('Approver withdrawal for amendment - Moving back to Legal stage');
+        }
+      }
+      // If withdrawing a send back, no need to change the stage
+      else if (wasDeclined) {
+        updateData._customTimelineEntry.details += ' - Amendment stage unchanged';
+        console.log('Approver send back withdrawal for amendment - Stage unchanged');
+      }
+
+      toast({
+        title: wasDeclined ? 'Amendment Rejection Withdrawn' : 'Amendment Approval Withdrawn',
+        description: wasDeclined
+          ? 'You have withdrawn your rejection of the amendment'
+          : 'You have withdrawn your approval of the amendment',
+        variant: 'default'
+      });
+    } else {
+      // Regular contract flow
+      updateData._customTimelineEntry = {
         action: wasDeclined
           ? `Final Approver Rejection Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`
           : `Final Approver Approval Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
         details: wasDeclined
           ? 'Withdrawn final approver rejection'
           : 'Withdrawn final approver approval'
-      }
-    };
+      };
+
+      toast({
+        title: wasDeclined ? 'Rejection Withdrawn' : 'Approval Withdrawn',
+        description: wasDeclined
+          ? 'You have withdrawn your rejection'
+          : 'You have withdrawn your approval',
+        variant: 'default'
+      });
+    }
 
     // Update approvers with timeline entry
     await onUpdateApprovers(updateData);
-
-    toast({
-      title: wasDeclined ? 'Rejection Withdrawn' : 'Approval Withdrawn',
-      description: wasDeclined
-        ? 'You have withdrawn your rejection'
-        : 'You have withdrawn your approval',
-      variant: 'default'
-    });
   };
 
   // Handle legal approval
@@ -524,43 +692,66 @@ const ApprovalBoard = ({
       legal: updatedLegalApprovers
     };
 
-    // Add custom timeline entry
-    updateData._customTimelineEntry = {
-      action: `Legal Approval: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
-      details: 'Approved as legal team member'
-    };
+    // Handle amendment approval differently
+    if (isInAmendmentMode) {
+      // Add custom timeline entry for amendment approval
+      updateData._customTimelineEntry = {
+        action: `Amendment Legal Approval: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+        details: 'Approved amendment as legal team member'
+      };
 
-    // Handle case where we're changing from send back to approved
-    if (contract.status === 'legal_send_back' || contract.status === 'legal_declined' || userApprover.declined) {
-      updateData._customTimelineEntry.action = `Legal Approval: Changed from Send Back to Approved`;
-      updateData._customTimelineEntry.details = 'Changed status from send back to approved';
-
-      // Change status back to legal_review
-      updateData.status = 'legal_review';
-      updateData._customTimelineEntry.details += ' - Status changed to Legal Review';
-      console.log('Legal approval (instead) - Setting status to legal_review');
-
-      // If management is already approved, move to management_review status
-      if (isManagementApproved) {
-        updateData.status = 'management_review';
-        updateData._customTimelineEntry.details += ' - Status changed to Management Review (both Legal and Management have approved)';
-        console.log('Legal approval (instead) - Setting status to Management Review (both approved)');
+      // If we're in the initial amendment stage, move to legal stage
+      if (contract.amendmentStage === 'amendment') {
+        updateData.amendmentStage = 'legal';
+        updateData._customTimelineEntry.details += ' - Amendment moved to Legal stage';
+        console.log('Legal approval for amendment - Moving to Legal stage');
       }
-    }
-    // Standard approval flow
-    else {
-      // If current status is draft, move to legal_review
-      if (contract.status === 'draft') {
+      // If we're already in legal stage, move to WWF stage
+      else if (contract.amendmentStage === 'legal') {
+        updateData.amendmentStage = 'wwf';
+        updateData._customTimelineEntry.details += ' - Amendment moved to WWF stage';
+        console.log('Legal approval for amendment - Moving to WWF stage');
+      }
+    } else {
+      // Regular contract approval flow
+      // Add custom timeline entry
+      updateData._customTimelineEntry = {
+        action: `Legal Approval: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+        details: 'Approved as legal team member'
+      };
+
+      // Handle case where we're changing from send back to approved
+      if (contract.status === 'legal_send_back' || contract.status === 'legal_declined' || userApprover.declined) {
+        updateData._customTimelineEntry.action = `Legal Approval: Changed from Send Back to Approved`;
+        updateData._customTimelineEntry.details = 'Changed status from send back to approved';
+
+        // Change status back to legal_review
         updateData.status = 'legal_review';
         updateData._customTimelineEntry.details += ' - Status changed to Legal Review';
-        console.log('Legal approval - Setting status to legal_review');
-      }
+        console.log('Legal approval (instead) - Setting status to legal_review');
 
-      // If both legal and management have approved, move to management_review status
-      if (isManagementApproved && (contract.status === 'management_review' || contract.status === 'management_declined')) {
-        updateData.status = 'management_review';
-        updateData._customTimelineEntry.details += ' - Status changed to Management Review (both Legal and Management have approved)';
-        console.log('Legal approval - Setting status to Management Review (both approved)');
+        // If management is already approved, move to management_review status
+        if (isManagementApproved) {
+          updateData.status = 'management_review';
+          updateData._customTimelineEntry.details += ' - Status changed to Management Review (both Legal and Management have approved)';
+          console.log('Legal approval (instead) - Setting status to Management Review (both approved)');
+        }
+      }
+      // Standard approval flow
+      else {
+        // If current status is draft, move to legal_review
+        if (contract.status === 'draft') {
+          updateData.status = 'legal_review';
+          updateData._customTimelineEntry.details += ' - Status changed to Legal Review';
+          console.log('Legal approval - Setting status to legal_review');
+        }
+
+        // If both legal and management have approved, move to management_review status
+        if (isManagementApproved && (contract.status === 'management_review' || contract.status === 'management_declined')) {
+          updateData.status = 'management_review';
+          updateData._customTimelineEntry.details += ' - Status changed to Management Review (both Legal and Management have approved)';
+          console.log('Legal approval - Setting status to Management Review (both approved)');
+        }
       }
     }
 
@@ -621,27 +812,50 @@ const ApprovalBoard = ({
       approvers: {
         ...normalizedContract.approvers,
         legal: updatedLegalApprovers
-      },
-      _customTimelineEntry: {
-        action: `Legal Approval Sent Back: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
-        details: 'Sent back as legal team member'
       }
     };
 
-    // Always change contract status to legal_send_back
-    // This follows the same progression logic as approval
-    updateData.status = 'legal_send_back';
-    updateData._customTimelineEntry.details += ' - Status changed to Legal Send Back';
-    console.log('Legal send back - Setting status to legal_send_back');
+    // Handle amendment send back differently
+    if (isInAmendmentMode) {
+      updateData._customTimelineEntry = {
+        action: `Amendment Legal Send Back: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+        details: 'Sent back amendment as legal team member'
+      };
+
+      // Always reset to the initial amendment stage regardless of current stage
+      updateData.amendmentStage = 'amendment';
+      updateData._customTimelineEntry.details += ' - Amendment reset to initial stage';
+      console.log('Legal send back for amendment - Resetting to amendment stage');
+    } else {
+      // Regular contract send back flow
+      updateData._customTimelineEntry = {
+        action: `Legal Approval Sent Back: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+        details: 'Sent back as legal team member'
+      };
+
+      // Always change contract status to legal_send_back
+      // This follows the same progression logic as approval
+      updateData.status = 'legal_send_back';
+      updateData._customTimelineEntry.details += ' - Status changed to Legal Send Back';
+      console.log('Legal send back - Setting status to legal_send_back');
+    }
 
     // Update approvers with custom timeline entry and status change
     await onUpdateApprovers(updateData);
 
-    toast({
-      title: 'Contract Sent Back',
-      description: 'You have sent back this contract as a legal team member',
-      variant: 'destructive'
-    });
+    if (isInAmendmentMode) {
+      toast({
+        title: 'Amendment Sent Back',
+        description: 'You have sent back this amendment as a legal team member',
+        variant: 'destructive'
+      });
+    } else {
+      toast({
+        title: 'Contract Sent Back',
+        description: 'You have sent back this contract as a legal team member',
+        variant: 'destructive'
+      });
+    }
   };
 
   // Handle withdrawing legal approval or rejection
@@ -683,18 +897,53 @@ const ApprovalBoard = ({
     // Create update data
     const updateData: any = {};
 
-    // Create a custom timeline entry for legal approval/rejection withdrawal
-    updateData._customTimelineEntry = {
-      action: wasDeclined
-        ? `Legal Send Back Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`
-        : `Legal Approval Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
-      details: wasDeclined
-        ? 'Withdrawn legal team send back'
-        : 'Withdrawn as legal team member'
-    };
+    // Handle differently for amendment mode
+    if (isInAmendmentMode) {
+      // Create a custom timeline entry for amendment legal approval/rejection withdrawal
+      updateData._customTimelineEntry = {
+        action: wasDeclined
+          ? `Amendment Legal Send Back Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`
+          : `Amendment Legal Approval Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+        details: wasDeclined
+          ? 'Withdrawn legal team send back for amendment'
+          : 'Withdrawn legal team approval for amendment'
+      };
 
-    // Update contract status based on withdrawal
-    if (wasDeclined && (contract.status === 'legal_send_back' || contract.status === 'legal_declined')) {
+      // If withdrawing approval, update the amendment stage based on the current stage
+      if (wasApproved) {
+        // If we're in WWF or counterparty stage, move back to legal stage
+        if (contract.amendmentStage === 'wwf' || contract.amendmentStage === 'counterparty') {
+          updateData.amendmentStage = 'legal';
+          updateData._customTimelineEntry.details += ' - Amendment moved back to Legal stage';
+          console.log('Legal withdrawal for amendment - Moving back to Legal stage');
+        }
+        // If we're in legal stage, move back to amendment stage
+        else if (contract.amendmentStage === 'legal') {
+          updateData.amendmentStage = 'amendment';
+          updateData._customTimelineEntry.details += ' - Amendment moved back to initial stage';
+          console.log('Legal withdrawal for amendment - Moving back to initial stage');
+        }
+      }
+      // If withdrawing a send back, no need to change the stage
+      else if (wasDeclined) {
+        updateData._customTimelineEntry.details += ' - Amendment stage unchanged';
+        console.log('Legal send back withdrawal for amendment - Stage unchanged');
+      }
+    } else {
+      // Regular contract flow
+      // Create a custom timeline entry for legal approval/rejection withdrawal
+      updateData._customTimelineEntry = {
+        action: wasDeclined
+          ? `Legal Send Back Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`
+          : `Legal Approval Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+        details: wasDeclined
+          ? 'Withdrawn legal team send back'
+          : 'Withdrawn as legal team member'
+      };
+    }
+
+    // Update contract status based on withdrawal (only for non-amendment mode)
+    if (!isInAmendmentMode && wasDeclined && (contract.status === 'legal_send_back' || contract.status === 'legal_declined')) {
       // If we're withdrawing a send back, go back to draft
       updateData.status = 'draft';
       updateData._customTimelineEntry.details += ' - Status changed to Draft';
@@ -739,56 +988,56 @@ const ApprovalBoard = ({
       updateData.approvers = allApprovers;
       updateData._customTimelineEntry.details += ' - All approvals reset';
     }
-    // If we're in WWF Signing status, means both legal and management had approved
-    else if (wasApproved && contract.status === 'wwf_signing') {
-      // If management is still approved, go back to legal_review status
-      if (isManagementApproved) {
-        updateData.status = 'legal_review';
-        updateData._customTimelineEntry.details += ' - Status changed to Legal Review';
-        console.log('Legal withdrawal - Setting status back to legal_review');
-      } else {
-        // If neither is approved, go back to draft
+    // Handle non-amendment mode status changes
+    else if (!isInAmendmentMode) {
+      // If we're in WWF Signing status, means both legal and management had approved
+      if (wasApproved && contract.status === 'wwf_signing') {
+        // If management is still approved, go back to legal_review status
+        if (isManagementApproved) {
+          updateData.status = 'legal_review';
+          updateData._customTimelineEntry.details += ' - Status changed to Legal Review';
+          console.log('Legal withdrawal - Setting status back to legal_review');
+        } else {
+          // If neither is approved, go back to draft
+          updateData.status = 'draft';
+          updateData._customTimelineEntry.details += ' - Status changed to Draft';
+          console.log('Legal withdrawal - Setting status back to draft');
+        }
+      }
+      // If we're in legal_review status, go back to draft
+      else if (wasApproved && contract.status === 'legal_review') {
         updateData.status = 'draft';
         updateData._customTimelineEntry.details += ' - Status changed to Draft';
         console.log('Legal withdrawal - Setting status back to draft');
       }
+    }
 
-      // Update only the legal approvers' status
-      updateData.approvers = {
-        ...normalizedContract.approvers,
-        legal: updatedLegalApprovers
-      };
-    }
-    // If we're in legal_review status, go back to draft
-    else if (wasApproved && contract.status === 'legal_review') {
-      updateData.status = 'draft';
-      updateData._customTimelineEntry.details += ' - Status changed to Draft';
-      console.log('Legal withdrawal - Setting status back to draft');
-
-      // Update only the legal approvers' status
-      updateData.approvers = {
-        ...normalizedContract.approvers,
-        legal: updatedLegalApprovers
-      };
-    }
-    else {
-      // For other cases, just update the legal approvers
-      updateData.approvers = {
-        ...normalizedContract.approvers,
-        legal: updatedLegalApprovers
-      };
-    }
+    // For all cases, update the legal approvers' status
+    updateData.approvers = {
+      ...normalizedContract.approvers,
+      legal: updatedLegalApprovers
+    };
 
     // Update approvers with custom timeline entry
     await onUpdateApprovers(updateData);
 
-    toast({
-      title: wasDeclined ? 'Rejection Withdrawn' : 'Approval Withdrawn',
-      description: wasDeclined
-        ? 'You have withdrawn your rejection as a legal team member'
-        : 'You have withdrawn your approval as a legal team member',
-      variant: 'default'
-    });
+    if (isInAmendmentMode) {
+      toast({
+        title: wasDeclined ? 'Amendment Rejection Withdrawn' : 'Amendment Approval Withdrawn',
+        description: wasDeclined
+          ? 'You have withdrawn your rejection of the amendment as a legal team member'
+          : 'You have withdrawn your approval of the amendment as a legal team member',
+        variant: 'default'
+      });
+    } else {
+      toast({
+        title: wasDeclined ? 'Rejection Withdrawn' : 'Approval Withdrawn',
+        description: wasDeclined
+          ? 'You have withdrawn your rejection as a legal team member'
+          : 'You have withdrawn your approval as a legal team member',
+        variant: 'default'
+      });
+    }
   };
 
   // Function to get an array of legal approvers accounting for type differences
@@ -1187,15 +1436,22 @@ const ApprovalBoard = ({
       : normalizedContract.approvers.management.email;
   };
 
+  // Check if the contract is in amendment mode
+  const isInAmendmentMode = contract.isAmended && contract.status === 'amendment';
+
+  // Check if the amendment is in legal review stage
+  const isAmendmentInLegalStage = isInAmendmentMode && contract.amendmentStage === 'legal';
+
   // Determine if the user can edit approvers
-  const canEditApprovers = isAdmin || contract.status === 'requested' || contract.status === 'draft';
+  const canEditApprovers = isAdmin || contract.status === 'requested' || contract.status === 'draft' ||
+    (isInAmendmentMode && contract.amendmentStage === 'amendment');
 
   return (
     <div className="mb-8">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>Approval Board</span>
+            <span>{isInAmendmentMode ? 'Amendment Approval Board' : 'Approval Board'}</span>
             {isRequired && (
               <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
                 Required
@@ -1413,8 +1669,8 @@ const ApprovalBoard = ({
                   </div>
                 )}
               </div>
-              {/* Management Team Approvers */}
-              <div className="space-y-2">
+              {/* Management Team Approvers - Hide during amendment mode */}
+              {!isInAmendmentMode && <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <div>
                     <Label className="text-sm font-medium">Management Team Approvers ({getManagementApprovers().length}/{approverLimits.management})</Label>
@@ -1656,15 +1912,23 @@ const ApprovalBoard = ({
                     {isRequired ? "Required - Please assign a management team approver" : "No management approver assigned"}
                   </div>
                 )}
-              </div>
+              </div>}
               {/* Approver Team */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <div>
-                    <Label className="text-sm font-medium">Approver Team ({normalizedContract.approvers?.approver?.length || 0}/{approverLimits.approver})</Label>
-                    {!isManagementTeamFullyApproved() && normalizedContract.approvers?.approver?.length > 0 && (
+                    <Label className="text-sm font-medium">
+                      {isInAmendmentMode ? 'Amendment Approver' : 'Approver Team'}
+                      ({normalizedContract.approvers?.approver?.length || 0}/{approverLimits.approver})
+                    </Label>
+                    {!isInAmendmentMode && !isManagementTeamFullyApproved() && normalizedContract.approvers?.approver?.length > 0 && (
                       <div className="text-xs text-amber-600 mt-1">
                         Waiting for management team approval before final approval
+                      </div>
+                    )}
+                    {isInAmendmentMode && !isLegalTeamFullyApproved() && normalizedContract.approvers?.approver?.length > 0 && (
+                      <div className="text-xs text-amber-600 mt-1">
+                        Waiting for legal team approval before final amendment approval
                       </div>
                     )}
                   </div>
@@ -1761,8 +2025,10 @@ const ApprovalBoard = ({
                                 size="sm"
                                 onClick={() => handleApproverApprove(approver.email)}
                                 className="bg-blue-500 hover:bg-blue-600"
-                                disabled={!isManagementTeamFullyApproved()}
-                                title={!isManagementTeamFullyApproved() ? "Management team must approve first" : ""}
+                                disabled={isInAmendmentMode ? !isLegalTeamFullyApproved() : !isManagementTeamFullyApproved()}
+                                title={isInAmendmentMode
+                                  ? (!isLegalTeamFullyApproved() ? "Legal team must approve amendment first" : "")
+                                  : (!isManagementTeamFullyApproved() ? "Management team must approve first" : "")}
                               >
                                 <Check className="h-3.5 w-3.5 mr-1" />
                                 Approve Instead
@@ -1775,8 +2041,10 @@ const ApprovalBoard = ({
                               size="sm"
                               onClick={() => handleApproverApprove(approver.email)}
                               className="bg-blue-500 hover:bg-blue-600"
-                              disabled={!isManagementTeamFullyApproved()}
-                              title={!isManagementTeamFullyApproved() ? "Management team must approve first" : ""}
+                              disabled={isInAmendmentMode ? !isLegalTeamFullyApproved() : !isManagementTeamFullyApproved()}
+                              title={isInAmendmentMode
+                                ? (!isLegalTeamFullyApproved() ? "Legal team must approve amendment first" : "")
+                                : (!isManagementTeamFullyApproved() ? "Management team must approve first" : "")}
                             >
                               <Check className="h-3.5 w-3.5 mr-1" />
                               Approve
@@ -1785,8 +2053,10 @@ const ApprovalBoard = ({
                               size="sm"
                               onClick={() => handleApproverSendBack(approver.email)}
                               variant="destructive"
-                              disabled={!isManagementTeamFullyApproved()}
-                              title={!isManagementTeamFullyApproved() ? "Management team must approve first" : ""}
+                              disabled={isInAmendmentMode ? !isLegalTeamFullyApproved() : !isManagementTeamFullyApproved()}
+                              title={isInAmendmentMode
+                                ? (!isLegalTeamFullyApproved() ? "Legal team must approve amendment first" : "")
+                                : (!isManagementTeamFullyApproved() ? "Management team must approve first" : "")}
                             >
                               <ThumbsDown className="h-3.5 w-3.5 mr-1" />
                               Send Back

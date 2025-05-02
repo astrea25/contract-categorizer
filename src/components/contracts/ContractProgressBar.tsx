@@ -32,12 +32,18 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
       'finished': 10
     };
 
-    const currentStageValue = stageOrder[currentStatus] || 0;
+    // If contract is in amendment mode, use the original status for progress visualization
+    // This "freezes" the main contract progress while in amendment
+    const statusToUse = (contract?.isAmended && contract?.status === 'amendment' && contract?.originalStatus)
+      ? contract.originalStatus
+      : currentStatus;
+
+    const currentStageValue = stageOrder[statusToUse] || 0;
     const stageValue = stageOrder[stage] || 0;
 
     // If current status is draft, don't consider later stages as completed
     // This handles the case where the contract was reset to draft
-    if (currentStatus === 'draft' && stageValue > 1) {
+    if (statusToUse === 'draft' && stageValue > 1) {
       return false;
     }
 
@@ -45,7 +51,7 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
     // If we're checking if approval is completed and current status is contract_end,
     // we should return true for backward compatibility
     if (stage === 'approval' &&
-        (currentStatus === 'contract_end' || currentStatus === 'amendment' || currentStatus === 'implementation')) {
+        (statusToUse === 'contract_end' || statusToUse === 'amendment' || statusToUse === 'implementation')) {
       return true;
     }
 
@@ -55,18 +61,28 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
 
   // Helper function to determine if a stage is current
   const isStageCurrent = (stage: ContractStatus) => {
+    // If contract is in amendment mode, use the original status for progress visualization
+    const statusToUse = (contract?.isAmended && contract?.status === 'amendment' && contract?.originalStatus)
+      ? contract.originalStatus
+      : currentStatus;
+
     // Each stage is only current if it exactly matches the current status
-    return stage === currentStatus;
+    return stage === statusToUse;
   };
 
   // Helper function to determine if a stage is sent back
   const isStageSentBack = (stage: ContractStatus) => {
+    // If contract is in amendment mode, use the original status for progress visualization
+    const statusToUse = (contract?.isAmended && contract?.status === 'amendment' && contract?.originalStatus)
+      ? contract.originalStatus
+      : currentStatus;
+
     if (stage === 'legal_review') {
-      return currentStatus === 'legal_send_back' || currentStatus === 'legal_declined'; // legal_declined is deprecated
+      return statusToUse === 'legal_send_back' || statusToUse === 'legal_declined'; // legal_declined is deprecated
     }
 
     if (stage === 'management_review') {
-      return currentStatus === 'management_send_back' || currentStatus === 'management_declined'; // management_declined is deprecated
+      return statusToUse === 'management_send_back' || statusToUse === 'management_declined'; // management_declined is deprecated
     }
 
     return false;
@@ -210,9 +226,14 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
       {contract?.isAmended === true && (
         <div className="mt-8 border-t pt-4">
           <AmendmentProgressBar
+            key={`amendment-progress-${contract?.amendmentStage || 'amendment'}`}
             currentStatus={currentStatus}
             amendmentStage={contract?.amendmentStage || 'amendment'}
           />
+          {/* Debug information */}
+          <div className="text-xs text-muted-foreground mt-2">
+            Amendment Stage: {contract?.amendmentStage || 'amendment'}
+          </div>
         </div>
       )}
     </div>
