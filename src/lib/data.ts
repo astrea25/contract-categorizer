@@ -35,7 +35,9 @@ export interface ContractStats {
   expiringThisYear: number;
 }
 
-export type ContractStatus = 'requested' | 'draft' | 'legal_review' | 'management_review' | 'wwf_signing' | 'counterparty_signing' | 'implementation' | 'amendment' | 'contract_end' | 'approval' | 'finished' | 'legal_send_back' | 'management_send_back' | 'legal_declined' | 'management_declined';
+export type ContractStatus = 'requested' | 'draft' | 'legal_review' | 'management_review' | 'wwf_signing' | 'counterparty_signing' | 'implementation' | 'amendment' | 'contract_end' | 'approval' | 'finished' | 'legal_send_back' | 'management_send_back' |
+  // Deprecated status names (kept for backward compatibility)
+  'legal_declined' | 'management_declined';
 export type ContractType = 'consultancy' | 'wos' | 'service' | 'moa_mou' | 'employment' | 'amendment' | 'grant' | 'subgrant' | 'lease' | 'donation';
 
 export interface Folder {
@@ -351,6 +353,7 @@ export const statusColors: Record<ContractStatus, { bg: string; text: string; bo
     border: 'border-red-200'
   },
   // Keep the old status names for backward compatibility
+  // Deprecated status names (kept for backward compatibility)
   legal_declined: {
     bg: 'bg-red-50',
     text: 'text-red-800',

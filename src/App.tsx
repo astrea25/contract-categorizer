@@ -27,8 +27,10 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
+        {/* Custom toast component with dismiss all button */}
         <Toaster />
-        <Sonner />
+        {/* Sonner toast with close button and shorter duration */}
+        <Sonner position="top-right" expand={false} closeButton={true} />
         <RoleLoadingOverlay />
         <BrowserRouter>
           <Routes>

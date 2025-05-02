@@ -79,10 +79,10 @@ export const getContractsForApproval = async (
       );
 
       if (userLegalApprover) {
-        // If declined is undefined, treat it as false
-        const isDeclined = userLegalApprover.declined === true;
+        // If declined (sent back) is undefined, treat it as false
+        const isSentBack = userLegalApprover.declined === true;
         const isApproved = userLegalApprover.approved === true;
-        const shouldShow = !isApproved && !isDeclined;
+        const shouldShow = !isApproved && !isSentBack;
 
         if (shouldShow) return true;
       }
@@ -96,10 +96,10 @@ export const getContractsForApproval = async (
       );
 
       if (userManagementApprover) {
-        // If declined is undefined, treat it as false
-        const isDeclined = userManagementApprover.declined === true;
+        // If declined (sent back) is undefined, treat it as false
+        const isSentBack = userManagementApprover.declined === true;
         const isApproved = userManagementApprover.approved === true;
-        const shouldShow = !isApproved && !isDeclined;
+        const shouldShow = !isApproved && !isSentBack;
 
         if (shouldShow) return true;
       }
@@ -112,10 +112,10 @@ export const getContractsForApproval = async (
       );
 
       if (userApprover) {
-        // If declined is undefined, treat it as false
-        const isDeclined = userApprover.declined === true;
+        // If declined (sent back) is undefined, treat it as false
+        const isSentBack = userApprover.declined === true;
         const isApproved = userApprover.approved === true;
-        const shouldShow = !isApproved && !isDeclined;
+        const shouldShow = !isApproved && !isSentBack;
 
         if (shouldShow) return true;
       }
@@ -243,10 +243,10 @@ export const needsApprovalFrom = (
     );
 
     if (userLegalApprover) {
-      // Check if the user has not approved and not declined
-      const isDeclined = userLegalApprover.declined === true;
+      // Check if the user has not approved and not sent back
+      const isSentBack = userLegalApprover.declined === true;
       const isApproved = userLegalApprover.approved === true;
-      return !isApproved && !isDeclined;
+      return !isApproved && !isSentBack;
     }
   }
 
@@ -257,10 +257,10 @@ export const needsApprovalFrom = (
     );
 
     if (userManagementApprover) {
-      // Check if the user has not approved and not declined
-      const isDeclined = userManagementApprover.declined === true;
+      // Check if the user has not approved and not sent back
+      const isSentBack = userManagementApprover.declined === true;
       const isApproved = userManagementApprover.approved === true;
-      return !isApproved && !isDeclined;
+      return !isApproved && !isSentBack;
     }
   }
 
@@ -271,10 +271,10 @@ export const needsApprovalFrom = (
     );
 
     if (userApprover) {
-      // Check if the user has not approved and not declined
-      const isDeclined = userApprover.declined === true;
+      // Check if the user has not approved and not sent back
+      const isSentBack = userApprover.declined === true;
       const isApproved = userApprover.approved === true;
-      return !isApproved && !isDeclined;
+      return !isApproved && !isSentBack;
     }
   }
 
@@ -282,7 +282,7 @@ export const needsApprovalFrom = (
 };
 
 /**
- * Updates disapproval status for a contract
+ * Updates send back status for a contract
  *
  * @param contract The contract to update
  * @param isLegalTeam Whether the user is a legal team member
@@ -290,7 +290,7 @@ export const needsApprovalFrom = (
  * @param userEmail The email of the user
  * @returns The updated approvers object
  */
-export const disapproveContract = (
+export const sendBackContract = (
   contract: Contract,
   isLegalTeam: boolean,
   isManagementTeam: boolean,

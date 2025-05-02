@@ -59,14 +59,14 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
     return stage === currentStatus;
   };
 
-  // Helper function to determine if a stage is declined/sent back
-  const isStageDeclined = (stage: ContractStatus) => {
+  // Helper function to determine if a stage is sent back
+  const isStageSentBack = (stage: ContractStatus) => {
     if (stage === 'legal_review') {
-      return currentStatus === 'legal_send_back' || currentStatus === 'legal_declined';
+      return currentStatus === 'legal_send_back' || currentStatus === 'legal_declined'; // legal_declined is deprecated
     }
 
     if (stage === 'management_review') {
-      return currentStatus === 'management_send_back' || currentStatus === 'management_declined';
+      return currentStatus === 'management_send_back' || currentStatus === 'management_declined'; // management_declined is deprecated
     }
 
     return false;
@@ -76,14 +76,14 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
   const renderStageNode = (status: ContractStatus, label: string) => {
     const isCompleted = isStageCompleted(status);
     const isCurrent = isStageCurrent(status);
-    const isDeclined = isStageDeclined(status);
+    const isSentBack = isStageSentBack(status);
 
     return (
       <div className="flex flex-col items-center relative">
         <div
           className={`flex items-center justify-center w-14 h-14 rounded-full z-10 border
-            ${isDeclined
-              ? 'bg-red-500 text-white border-red-500' // Declined stage
+            ${isSentBack
+              ? 'bg-red-500 text-white border-red-500' // Sent back stage
               : isCompleted || isCurrent
                 ? 'bg-blue-500 text-white border-blue-500' // Completed or current stage
                 : status === 'contract_end'
@@ -91,7 +91,7 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
                   : 'bg-white text-muted-foreground border-gray-300' // Default state
             }`}
         >
-          {isCompleted || isCurrent || isDeclined ? (
+          {isCompleted || isCurrent || isSentBack ? (
             <CheckCircle className="w-6 h-6" />
           ) : (
             <Circle className="w-6 h-6" />
@@ -100,8 +100,8 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
 
         <span
           className={`absolute top-16 text-xs whitespace-nowrap text-center
-            ${isDeclined
-              ? 'text-red-500 font-medium' // Text for declined stages
+            ${isSentBack
+              ? 'text-red-500 font-medium' // Text for sent back stages
               : isCompleted || isCurrent
                 ? 'text-blue-500 font-medium' // Text for completed/current
                 : 'text-muted-foreground' // Default text

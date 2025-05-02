@@ -331,8 +331,8 @@ const ContractDetail = () => {
            contract.status === 'management_review' ||
            contract.status === 'legal_send_back' ||
            contract.status === 'management_send_back' ||
-           contract.status === 'legal_declined' ||
-           contract.status === 'management_declined')) {
+           contract.status === 'legal_declined' || // deprecated status
+           contract.status === 'management_declined')) { // deprecated status
 
         // Import the normalizeApprovers function to properly handle approver structure
         const { normalizeApprovers } = await import('@/lib/data');
@@ -348,7 +348,7 @@ const ContractDetail = () => {
           approvers.legal = approvers.legal.map((approver: any) => ({
             ...approver,
             approved: false,
-            declined: false,
+            declined: false, // declined means sent back
             approvedAt: null,
             declinedAt: null
           }));
@@ -359,7 +359,7 @@ const ContractDetail = () => {
           approvers.management = approvers.management.map((approver: any) => ({
             ...approver,
             approved: false,
-            declined: false,
+            declined: false, // declined means sent back
             approvedAt: null,
             declinedAt: null
           }));
@@ -370,7 +370,7 @@ const ContractDetail = () => {
           approvers.approver = approvers.approver.map((approver: any) => ({
             ...approver,
             approved: false,
-            declined: false,
+            declined: false, // declined means sent back
             approvedAt: null,
             declinedAt: null
           }));
@@ -411,8 +411,8 @@ const ContractDetail = () => {
             (contract.status === 'wwf_signing' ||
              contract.status === 'legal_review' ||
              contract.status === 'management_review' ||
-             contract.status === 'legal_declined' ||
-             contract.status === 'management_declined')) {
+             contract.status === 'legal_declined' || // deprecated status
+             contract.status === 'management_declined')) { // deprecated status
           toast.success(`Status updated to Draft and all approvals have been reset`);
         } else {
           toast.success(`Status updated to ${newStatus.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}`);

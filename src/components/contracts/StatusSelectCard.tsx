@@ -71,22 +71,22 @@ const StatusSelectCard = ({ status, onStatusChange, isUpdating, contract }: Stat
       return legalApproved && managementApproved;
     })();
 
-  // Check if either legal or management have declined the contract
-  const isEitherDeclined =
+  // Check if either legal or management have sent back the contract
+  const isEitherSentBack =
     contract.approvers && (() => {
-      const legalDeclined = contract.approvers.legal
+      const legalSentBack = contract.approvers.legal
         ? Array.isArray(contract.approvers.legal)
           ? contract.approvers.legal.some(a => a.declined)
           : contract.approvers.legal.declined
         : false;
 
-      const managementDeclined = contract.approvers.management
+      const managementSentBack = contract.approvers.management
         ? Array.isArray(contract.approvers.management)
           ? contract.approvers.management.some(a => a.declined)
           : contract.approvers.management.declined
         : false;
 
-      return legalDeclined || managementDeclined;
+      return legalSentBack || managementSentBack;
     })();
 
   const handleStatusChange = async (value: string) => {
@@ -169,15 +169,15 @@ const StatusSelectCard = ({ status, onStatusChange, isUpdating, contract }: Stat
 
     // If trying to change to WWF Signing status, check if both approvers have approved
     if (newStatus === 'wwf_signing') {
-      // Check if either approver has declined
-      if (isEitherDeclined) {
-        const declinedBy = [];
-        if (contract.approvers?.legal?.declined) declinedBy.push('Legal');
-        if (contract.approvers?.management?.declined) declinedBy.push('Management');
+      // Check if either approver has sent back the contract
+      if (isEitherSentBack) {
+        const sentBackBy = [];
+        if (contract.approvers?.legal?.declined) sentBackBy.push('Legal');
+        if (contract.approvers?.management?.declined) sentBackBy.push('Management');
 
         toast({
           title: "Cannot change status to WWF Signing",
-          description: `This contract has been declined by: ${declinedBy.join(', ')}. The declined approver(s) must approve the contract before it can move to WWF Signing status.`,
+          description: `This contract has been sent back by: ${sentBackBy.join(', ')}. The approver(s) who sent it back must approve the contract before it can move to WWF Signing status.`,
           variant: "destructive"
         });
         setIsOpen(false);

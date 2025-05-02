@@ -36,7 +36,7 @@ const Index = () => {
   });
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [approvedContracts, setApprovedContracts] = useState<Contract[]>([]);
-  const [rejectedContracts, setRejectedContracts] = useState<Contract[]>([]);
+  const [sentBackContracts, setSentBackContracts] = useState<Contract[]>([]);
   const [allContracts, setAllContracts] = useState<Contract[]>([]);
   const [expiringContractsList, setExpiringContractsList] = useState<Contract[]>([]); // State for the list
   const [loading, setLoading] = useState(true);
@@ -109,33 +109,33 @@ const Index = () => {
           });
           setApprovedContracts(approved);
 
-          const rejected = normalizedContracts.filter(c => {
+          const sentBack = normalizedContracts.filter(c => {
             const userEmail = currentUser?.email || '';
 
-            // Check if the user is a legal team approver who declined this contract
+            // Check if the user is a legal team approver who sent back this contract
             if (isLegalTeam && c.approvers?.legal) {
               const legalApprovers = Array.isArray(c.approvers.legal) ? c.approvers.legal : [c.approvers.legal];
               const userApprover = legalApprovers.find(a => a.email === userEmail);
-              return userApprover?.declined === true;
+              return userApprover?.declined === true; // declined means sent back
             }
 
-            // Check if the user is a management team approver who declined this contract
+            // Check if the user is a management team approver who sent back this contract
             if (isManagementTeam && c.approvers?.management) {
               const managementApprovers = Array.isArray(c.approvers.management) ? c.approvers.management : [c.approvers.management];
               const userApprover = managementApprovers.find(a => a.email === userEmail);
-              return userApprover?.declined === true;
+              return userApprover?.declined === true; // declined means sent back
             }
 
-            // Check if the user is an approver who declined this contract
+            // Check if the user is an approver who sent back this contract
             if (isApprover && c.approvers?.approver) {
               const approvers = Array.isArray(c.approvers.approver) ? c.approvers.approver : [c.approvers.approver];
               const userApprover = approvers.find(a => a.email === userEmail);
-              return userApprover?.declined === true;
+              return userApprover?.declined === true; // declined means sent back
             }
 
             return false;
           });
-          setRejectedContracts(rejected);
+          setSentBackContracts(sentBack);
 
           // Get contracts requiring approval from this user
           const contractsForApproval = await getContractsForApproval(
@@ -340,7 +340,14 @@ const Index = () => {
 
   // Helper function to format status strings
   const formatStatus = (status: string): string => {
-    return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    let formatted = status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+    // Handle deprecated status names
+    if (status === 'legal_declined' || status === 'management_declined') {
+      formatted = formatted.replace('Declined', 'Sent Back');
+    }
+
+    return formatted;
   };
 
   return (
@@ -375,7 +382,7 @@ const Index = () => {
                     ) : stats.totalContracts}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {isLegalTeam || isManagementTeam ? 'Contracts waiting for your approval/decline' : 'Across all projects and types'}
+                    {isLegalTeam || isManagementTeam ? 'Contracts waiting for your approval/response' : 'Across all projects and types'}
                   </p>
                   <Link
                     to={isLegalTeam || isManagementTeam ? "/contracts?status=awaiting_response" : "/contracts"}
@@ -466,7 +473,7 @@ const Index = () => {
           <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">
-                {isLegalTeam || isManagementTeam ? 'Rejected' : 'Expiring This Year'}
+                {isLegalTeam || isManagementTeam ? 'Sent Back' : 'Expiring This Year'}
               </CardTitle>
               {isLegalTeam || isManagementTeam ? (
                 <Calendar className="h-4 w-4 text-red-500" />
@@ -481,21 +488,21 @@ const Index = () => {
                 <>
                   <div className="text-2xl font-bold">
                     {isLegalTeam || isManagementTeam ? (
-                      rejectedContracts.length
+                      sentBackContracts.length
                     ) : (
                       stats.expiringThisYear
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {isLegalTeam || isManagementTeam ? 'Contracts you have rejected' : `Contracts expiring in ${new Date().getFullYear()}`}
+                    {isLegalTeam || isManagementTeam ? 'Contracts you have sent back' : `Contracts expiring in ${new Date().getFullYear()}`}
                   </p>
                   <Link
                     to={isLegalTeam || isManagementTeam ?
-                       "/contracts?filter=my_rejected" :
+                       "/contracts?filter=my_sent_back" :
                        "/contracts?filter=expiringThisYear"}
                     className="text-xs text-primary hover:underline inline-flex items-center mt-2"
                   >
-                    {isLegalTeam || isManagementTeam ? 'View rejected contracts' : 'View all expiring this year'}
+                    {isLegalTeam || isManagementTeam ? 'View sent back contracts' : 'View all expiring this year'}
                     <ArrowRight className="h-3 w-3 ml-1" />
                   </Link>
                 </>
@@ -663,8 +670,8 @@ const Index = () => {
               ) : (
                 <div className="space-y-4">
                   {chartData.map((item) => (
-                    <div 
-                      key={item.name} 
+                    <div
+                      key={item.name}
                       className="flex justify-between items-center border-b pb-3 last:border-0 cursor-pointer hover:bg-secondary/50 px-2 -mx-2 rounded transition-colors"
                       onClick={() => handlePieClick(item)}
                       style={{
@@ -672,8 +679,8 @@ const Index = () => {
                       }}
                     >
                       <div className="flex items-center gap-2">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
+                        <div
+                          className="w-3 h-3 rounded-full"
                           style={{ backgroundColor: item.color }}
                         />
                         <h4 className="font-medium">{item.name}</h4>

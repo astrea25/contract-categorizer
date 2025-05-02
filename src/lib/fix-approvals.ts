@@ -2,8 +2,8 @@ import { getContracts, updateContract } from './data';
 
 /**
  * Fixes inconsistent approval states in the database
- * This function finds contracts where approved and declined are both true
- * and sets declined to false
+ * This function finds contracts where approved and sent back (declined) are both true
+ * and sets sent back (declined) to false
  *
  * @returns A promise that resolves when all inconsistent states are fixed
  */
@@ -15,28 +15,28 @@ export const fixInconsistentApprovalStates = async (): Promise<void> => {
   const contractsToFix = allContracts.filter(contract => {
     // Check for legal team inconsistencies
     const legalApproved = contract.approvers?.legal?.approved === true;
-    const legalDeclined = contract.approvers?.legal?.declined === true;
-    const legalInconsistent = legalApproved && legalDeclined;
+    const legalSentBack = contract.approvers?.legal?.declined === true; // declined means sent back
+    const legalInconsistent = legalApproved && legalSentBack;
 
     // Check for management team inconsistencies
     const managementApproved = contract.approvers?.management?.approved === true;
-    const managementDeclined = contract.approvers?.management?.declined === true;
-    const managementInconsistent = managementApproved && managementDeclined;
+    const managementSentBack = contract.approvers?.management?.declined === true; // declined means sent back
+    const managementInconsistent = managementApproved && managementSentBack;
 
-    // Also check for undefined declined with approved=true
+    // Also check for undefined sent back (declined) with approved=true
     const legalNeedsDeclinedSet = legalApproved && contract.approvers?.legal?.declined === undefined;
     const managementNeedsDeclinedSet = managementApproved && contract.approvers?.management?.declined === undefined;
 
     // Check for string values instead of booleans
     const legalApprovedIsString = typeof contract.approvers?.legal?.approved === 'string';
-    const legalDeclinedIsString = typeof contract.approvers?.legal?.declined === 'string';
+    const legalSentBackIsString = typeof contract.approvers?.legal?.declined === 'string'; // declined means sent back
     const managementApprovedIsString = typeof contract.approvers?.management?.approved === 'string';
-    const managementDeclinedIsString = typeof contract.approvers?.management?.declined === 'string';
+    const managementSentBackIsString = typeof contract.approvers?.management?.declined === 'string'; // declined means sent back
 
     return legalInconsistent || managementInconsistent ||
            legalNeedsDeclinedSet || managementNeedsDeclinedSet ||
-           legalApprovedIsString || legalDeclinedIsString ||
-           managementApprovedIsString || managementDeclinedIsString;
+           legalApprovedIsString || legalSentBackIsString ||
+           managementApprovedIsString || managementSentBackIsString;
   });
 
   // Fix each contract
@@ -45,12 +45,12 @@ export const fixInconsistentApprovalStates = async (): Promise<void> => {
 
     // Fix legal approver if needed
     if (updatedApprovers.legal) {
-      // Fix inconsistent approved/declined state
+      // Fix inconsistent approved/sent back state
       if (updatedApprovers.legal.approved === true &&
           (updatedApprovers.legal.declined === true || updatedApprovers.legal.declined === undefined)) {
         updatedApprovers.legal = {
           ...updatedApprovers.legal,
-          declined: false,
+          declined: false, // declined means sent back
           declinedAt: null
         };
       }
@@ -73,12 +73,12 @@ export const fixInconsistentApprovalStates = async (): Promise<void> => {
 
     // Fix management approver if needed
     if (updatedApprovers.management) {
-      // Fix inconsistent approved/declined state
+      // Fix inconsistent approved/sent back state
       if (updatedApprovers.management.approved === true &&
           (updatedApprovers.management.declined === true || updatedApprovers.management.declined === undefined)) {
         updatedApprovers.management = {
           ...updatedApprovers.management,
-          declined: false,
+          declined: false, // declined means sent back
           declinedAt: null
         };
       }
