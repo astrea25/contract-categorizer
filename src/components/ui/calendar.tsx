@@ -22,7 +22,7 @@ function Calendar({
     try {
       // Handle DateRange object being passed instead of Date
       if (typeof date === 'object' && 'from' in date) {
-        console.warn('DateRange object passed to createSafeDate, extracting date.from');
+        // This is expected behavior with react-day-picker in range mode
         return createSafeDate(date.from);
       }
 
@@ -57,7 +57,7 @@ function Calendar({
       try {
         // Check if day is a DateRange object instead of a Date
         if (typeof day === 'object' && 'from' in day) {
-          console.warn('DateRange object passed to handleSelect instead of Date');
+          // This is expected behavior with react-day-picker in range mode
           // Just pass it through to the parent component
           (onSelect as any)(day);
           return;
