@@ -37,7 +37,7 @@ import { Tooltip } from '@/components/ui/tooltip';
 import { ResponsiveContainer, BarChart, Bar, XAxis } from 'recharts';
 import PageTransition from '@/components/layout/PageTransition';
 import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
@@ -452,9 +452,22 @@ const Contracts = () => {
     result = filterByParty(result, filters.party);
 
     if (filters.dateRange.from || filters.dateRange.to) {
-      const fromStr = filters.dateRange.from ? filters.dateRange.from.toISOString().split('T')[0] : null;
-      const toStr = filters.dateRange.to ? filters.dateRange.to.toISOString().split('T')[0] : null;
-      result = filterByDateRange(result, fromStr, toStr);
+      try {
+        // Validate dates before converting to ISO strings
+        const fromDate = filters.dateRange.from;
+        const toDate = filters.dateRange.to;
+
+        // Only use dates that are valid
+        const fromStr = fromDate && isValid(fromDate) ? fromDate.toISOString().split('T')[0] : null;
+        const toStr = toDate && isValid(toDate) ? toDate.toISOString().split('T')[0] : null;
+
+        if (fromStr || toStr) {
+          result = filterByDateRange(result, fromStr, toStr);
+        }
+      } catch (error) {
+        console.error('Error processing date range filter:', error);
+        // Continue without date filtering if there's an error
+      }
     }
 
     if (filters.search) {
@@ -629,8 +642,15 @@ const Contracts = () => {
               )}
               {(filters.dateRange.from || filters.dateRange.to) && (
                 <Badge variant="secondary" className="flex items-center gap-1">
-                  Dates: {filters.dateRange.from ? format(filters.dateRange.from, 'PP') : 'Any'} -
-                  {filters.dateRange.to ? format(filters.dateRange.to, 'PP') : 'Any'}
+                  Dates: {
+                    filters.dateRange.from && isValid(filters.dateRange.from)
+                      ? format(filters.dateRange.from, 'PP')
+                      : 'Any'
+                  } - {
+                    filters.dateRange.to && isValid(filters.dateRange.to)
+                      ? format(filters.dateRange.to, 'PP')
+                      : 'Any'
+                  }
                   <X
                     size={14}
                     className="cursor-pointer"

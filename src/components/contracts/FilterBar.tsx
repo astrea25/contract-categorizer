@@ -13,7 +13,7 @@ import { useState, useEffect } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import SortDropdown, { SortOption } from './SortDropdown';
 
 interface FilterBarProps {
@@ -33,6 +33,24 @@ interface FilterBarProps {
   onSortChange: (sort: SortOption) => void;
   className?: string;
 }
+
+// Helper function to safely format dates
+const safeFormatDate = (date: Date | null, formatStr: string): string => {
+  if (!date) return 'Select date';
+
+  try {
+    // Check if the date is valid
+    if (!isValid(date)) {
+      console.error('Invalid date object in FilterBar:', date);
+      return 'Select date';
+    }
+
+    return format(date, formatStr);
+  } catch (error) {
+    console.error('Error formatting date in FilterBar:', error, date);
+    return 'Select date';
+  }
+};
 
 const FilterBar = ({ onFilterChange, currentSort, onSortChange, className }: FilterBarProps) => {
   const [search, setSearch] = useState('');
@@ -108,10 +126,10 @@ const FilterBar = ({ onFilterChange, currentSort, onSortChange, className }: Fil
                 {dateRange.from ? (
                   dateRange.to ? (
                     <>
-                      {format(dateRange.from, "PPP")} - {format(dateRange.to, "PPP")}
+                      {safeFormatDate(dateRange.from, "PPP")} - {safeFormatDate(dateRange.to, "PPP")}
                     </>
                   ) : (
-                    format(dateRange.from, "PPP")
+                    safeFormatDate(dateRange.from, "PPP")
                   )
                 ) : (
                   <span>Select date range</span>
@@ -128,11 +146,53 @@ const FilterBar = ({ onFilterChange, currentSort, onSortChange, className }: Fil
                   to: dateRange.to,
                 }}
                 onSelect={(range) => {
-                  // The dates are already fixed by our custom Calendar component
-                  setDateRange({
-                    from: range?.from ?? null,
-                    to: range?.to ?? null
-                  });
+                  try {
+                    // Handle null or undefined range
+                    if (!range) {
+                      setDateRange({ from: null, to: null });
+                      return;
+                    }
+
+                    // Create new Date objects to ensure they are valid
+                    let from = null;
+                    let to = null;
+
+                    if (range.from) {
+                      try {
+                        from = new Date(range.from.getTime());
+                        from.setHours(12, 0, 0, 0);
+
+                        if (!isValid(from)) {
+                          console.error('Invalid from date in FilterBar:', range.from);
+                          from = null;
+                        }
+                      } catch (e) {
+                        console.error('Error creating from date:', e);
+                        from = null;
+                      }
+                    }
+
+                    if (range.to) {
+                      try {
+                        to = new Date(range.to.getTime());
+                        to.setHours(12, 0, 0, 0);
+
+                        if (!isValid(to)) {
+                          console.error('Invalid to date in FilterBar:', range.to);
+                          to = null;
+                        }
+                      } catch (e) {
+                        console.error('Error creating to date:', e);
+                        to = null;
+                      }
+                    }
+
+                    setDateRange({ from, to });
+                  } catch (error) {
+                    console.error('Error in date selection:', error);
+                    // Reset date range on error
+                    setDateRange({ from: null, to: null });
+                  }
                 }}
                 numberOfMonths={2}
               />

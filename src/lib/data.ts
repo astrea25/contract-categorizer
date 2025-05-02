@@ -1082,35 +1082,54 @@ export const filterByDateRange = (
   if (!startDate && !endDate) return contracts;
 
   return contracts.filter(contract => {
-    if (startDate && contract.startDate) {
-      // Create date objects and normalize them for comparison
-      const contractStartDate = new Date(contract.startDate);
-      const filterStartDate = new Date(startDate);
+    try {
+      if (startDate && contract.startDate) {
+        try {
+          // Create date objects and normalize them for comparison
+          const contractStartDate = new Date(contract.startDate);
+          const filterStartDate = new Date(startDate);
 
-      // Compare dates by converting to simple date strings (YYYY-MM-DD)
-      const contractDateStr = contractStartDate.toISOString().split('T')[0];
-      const filterDateStr = filterStartDate.toISOString().split('T')[0];
+          // Compare dates by converting to simple date strings (YYYY-MM-DD)
+          const contractDateStr = contractStartDate.toISOString().split('T')[0];
+          const filterDateStr = filterStartDate.toISOString().split('T')[0];
 
-      if (contractDateStr < filterDateStr) {
-        return false;
+          if (contractDateStr < filterDateStr) {
+            return false;
+          }
+        } catch (e) {
+          console.error('Error comparing start dates:', e);
+          // Continue with other filters if date comparison fails
+        }
       }
-    }
 
-    if (endDate && contract.endDate) {
-      // Create date objects and normalize them for comparison
-      const contractEndDate = new Date(contract.endDate);
-      const filterEndDate = new Date(endDate);
+      if (endDate && contract.endDate) {
+        try {
+          // Create date objects and normalize them for comparison
+          const contractEndDate = new Date(contract.endDate);
+          const filterEndDate = new Date(endDate);
 
-      // Compare dates by converting to simple date strings (YYYY-MM-DD)
-      const contractDateStr = contractEndDate.toISOString().split('T')[0];
-      const filterDateStr = filterEndDate.toISOString().split('T')[0];
+          // Compare dates by converting to simple date strings (YYYY-MM-DD)
+          const contractDateStr = contractEndDate.toISOString().split('T')[0];
+          const filterDateStr = filterEndDate.toISOString().split('T')[0];
 
-      if (contractDateStr > filterDateStr) {
-        return false;
+          if (contractDateStr > filterDateStr) {
+            return false;
+          }
+        } catch (e) {
+          console.error('Error comparing end dates:', e);
+          // Continue with other filters if date comparison fails
+        }
       }
-    }
 
-    return true;
+      return true;
+    } catch (error) {
+      console.error('Error in filterByDateRange:', error, {
+        contractId: contract.id,
+        startDate: contract.startDate,
+        endDate: contract.endDate
+      });
+      return true; // Include the contract if there's an error
+    }
   });
 };
 
