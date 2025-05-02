@@ -230,8 +230,13 @@ const Index = () => {
     draft: '#6b7280', // gray
     legal_review: '#8b5cf6', // purple
     management_review: '#f97316', // orange
-    approval: '#eab308', // yellow
-    finished: '#22c55e', // green
+    wwf_signing: '#4f46e5', // indigo
+    counterparty_signing: '#ec4899', // pink
+    implementation: '#06b6d4', // cyan
+    amendment: '#f59e0b', // amber
+    contract_end: '#22c55e', // green
+    legal_send_back: '#ef4444', // red
+    management_send_back: '#ef4444', // red
   };
 
   // Create chart data with counts
@@ -240,8 +245,13 @@ const Index = () => {
     { name: 'Draft', value: allContracts.filter(c => c.status === 'draft').length, color: COLORS.draft },
     { name: 'Legal Review', value: allContracts.filter(c => c.status === 'legal_review').length, color: COLORS.legal_review },
     { name: 'Management Review', value: allContracts.filter(c => c.status === 'management_review').length, color: COLORS.management_review },
-    { name: 'Approval', value: allContracts.filter(c => c.status === 'approval').length, color: COLORS.approval },
-    { name: 'Finished', value: allContracts.filter(c => c.status === 'finished').length, color: COLORS.finished },
+    { name: 'WWF Signing', value: allContracts.filter(c => c.status === 'wwf_signing').length, color: COLORS.wwf_signing },
+    { name: 'Counterparty Signing', value: allContracts.filter(c => c.status === 'counterparty_signing').length, color: COLORS.counterparty_signing },
+    { name: 'Implementation', value: allContracts.filter(c => c.status === 'implementation').length, color: COLORS.implementation },
+    { name: 'Amendment', value: allContracts.filter(c => c.status === 'amendment').length, color: COLORS.amendment },
+    { name: 'Contract End', value: allContracts.filter(c => c.status === 'contract_end').length, color: COLORS.contract_end },
+    { name: 'Legal Send Back', value: allContracts.filter(c => c.status === 'legal_send_back' || c.status === 'legal_declined').length, color: COLORS.legal_send_back },
+    { name: 'Management Send Back', value: allContracts.filter(c => c.status === 'management_send_back' || c.status === 'management_declined').length, color: COLORS.management_send_back },
   ];
 
   // Filter out statuses with zero contracts for a cleaner pie chart
@@ -253,8 +263,13 @@ const Index = () => {
     'Draft': 'draft',
     'Legal Review': 'legal_review',
     'Management Review': 'management_review',
-    'Approval': 'approval',
-    'Finished': 'finished'
+    'WWF Signing': 'wwf_signing',
+    'Counterparty Signing': 'counterparty_signing',
+    'Implementation': 'implementation',
+    'Amendment': 'amendment',
+    'Contract End': 'contract_end',
+    'Legal Send Back': 'legal_send_back',
+    'Management Send Back': 'management_send_back'
   };
 
   // Handle click on pie chart slice or legend item
@@ -399,7 +414,7 @@ const Index = () => {
           <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">
-                {isLegalTeam || isManagementTeam ? 'Total Contracts' : 'Finished Contracts'}
+                {isLegalTeam || isManagementTeam ? 'Total Contracts' : 'Contracts Ended'}
               </CardTitle>
               <FileText className="h-4 w-4 text-primary" />
             </CardHeader>
@@ -416,13 +431,13 @@ const Index = () => {
                     ) : stats.finishedContracts}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {isLegalTeam || isManagementTeam ? 'All contracts assigned to you' : 'Completed contracts'}
+                    {isLegalTeam || isManagementTeam ? 'All contracts assigned to you' : 'Contracts at end stage'}
                   </p>
                   <Link
-                    to={isLegalTeam || isManagementTeam ? "/contracts" : "/contracts?status=finished"}
+                    to={isLegalTeam || isManagementTeam ? "/contracts" : "/contracts?status=contract_end"}
                     className="text-xs text-primary hover:underline inline-flex items-center mt-2"
                   >
-                    {isLegalTeam || isManagementTeam ? 'View all your contracts' : 'View finished contracts'}
+                    {isLegalTeam || isManagementTeam ? 'View all your contracts' : 'View ended contracts'}
                     <ArrowRight className="h-3 w-3 ml-1" />
                   </Link>
                 </>

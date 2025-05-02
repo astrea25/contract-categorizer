@@ -24,9 +24,7 @@ const AmendmentProgressBar: React.FC<AmendmentProgressBarProps> = ({
     const currentStageValue = stageOrder[amendmentStage] || 0;
     const stageValue = stageOrder[stage] || 0;
 
-    // For debugging
-    console.log(`AmendmentProgressBar - Checking stage: ${stage}, Current stage: ${amendmentStage}`);
-    console.log(`AmendmentProgressBar - Stage value: ${stageValue}, Current stage value: ${currentStageValue}`);
+    // Stage value comparison for determining completion
 
     // A stage is completed if:
     // 1. It's not the current stage (current stage should be marked as "current", not "completed")

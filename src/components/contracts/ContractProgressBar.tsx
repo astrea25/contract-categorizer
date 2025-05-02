@@ -27,9 +27,7 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
       'legal_send_back': 2, // Same level as legal_review
       'management_send_back': 3, // Same level as management_review
       'legal_declined': 2, // Same level as legal_review (for backward compatibility)
-      'management_declined': 3, // Same level as management_review (for backward compatibility)
-      'approval': 9,
-      'finished': 10
+      'management_declined': 3 // Same level as management_review (for backward compatibility)
     };
 
     // If contract is in amendment mode, use the original status for progress visualization
@@ -47,13 +45,7 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
       return false;
     }
 
-    // Special handling for approval and finished statuses
-    // If we're checking if approval is completed and current status is contract_end,
-    // we should return true for backward compatibility
-    if (stage === 'approval' &&
-        (statusToUse === 'contract_end' || statusToUse === 'amendment' || statusToUse === 'implementation')) {
-      return true;
-    }
+    // No special handling needed for approval and finished statuses as they are no longer used
 
     // For all stages, use standard stageOrder comparison
     return stageValue < currentStageValue;
@@ -103,7 +95,7 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
               : isCompleted || isCurrent
                 ? 'bg-blue-500 text-white border-blue-500' // Completed or current stage
                 : status === 'contract_end'
-                  ? 'bg-white text-blue-500 border-blue-500 border-2' // Special case for contract_end
+                  ? 'bg-white text-green-500 border-green-500 border-2' // Special case for contract_end
                   : 'bg-white text-muted-foreground border-gray-300' // Default state
             }`}
         >
@@ -118,8 +110,10 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
           className={`absolute top-16 text-xs whitespace-nowrap text-center
             ${isSentBack
               ? 'text-red-500 font-medium' // Text for sent back stages
-              : isCompleted || isCurrent
-                ? 'text-blue-500 font-medium' // Text for completed/current
+              : status === 'contract_end'
+                ? 'text-green-500 font-medium' // Text for contract_end
+                : isCompleted || isCurrent
+                  ? 'text-blue-500 font-medium' // Text for completed/current
                 : 'text-muted-foreground' // Default text
             }`}
         >
@@ -196,28 +190,6 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
 
             {/* Contract End */}
             {renderStageNode('contract_end', 'Contract End')}
-
-            {/* For backward compatibility with existing contracts that might use approval/finished statuses */}
-            {(currentStatus === 'approval' || currentStatus === 'finished') && (
-              <>
-                {/* Line from Contract End to Approval */}
-                {renderHorizontalLine(isStageCompleted('contract_end'))}
-
-                {/* Approval */}
-                {renderStageNode('approval', 'Approval')}
-
-                {/* Only show Finished if that's the current status */}
-                {currentStatus === 'finished' && (
-                  <>
-                    {/* Line from Approval to Finished */}
-                    {renderHorizontalLine(isStageCompleted('approval'))}
-
-                    {/* Finished */}
-                    {renderStageNode('finished', 'Finished')}
-                  </>
-                )}
-              </>
-            )}
           </div>
         </div>
       </div>
@@ -230,10 +202,6 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
             currentStatus={currentStatus}
             amendmentStage={contract?.amendmentStage || 'amendment'}
           />
-          {/* Debug information */}
-          <div className="text-xs text-muted-foreground mt-2">
-            Amendment Stage: {contract?.amendmentStage || 'amendment'}
-          </div>
         </div>
       )}
     </div>

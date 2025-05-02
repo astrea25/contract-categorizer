@@ -28,8 +28,8 @@ import { FirebaseError } from "firebase/app";
 
 export interface ContractStats {
   totalContracts: number;
-  finishedContracts: number;
-  pendingApprovalContracts: number;
+  finishedContracts: number; // Contracts at contract_end stage
+  pendingApprovalContracts: number; // Contracts in review stages
   expiringContracts: number;
   totalValue: number;
   expiringThisYear: number;
@@ -339,9 +339,9 @@ export const statusColors: Record<ContractStatus, { bg: string; text: string; bo
     border: 'border-amber-200'
   },
   contract_end: {
-    bg: 'bg-slate-50',
-    text: 'text-slate-800',
-    border: 'border-slate-200'
+    bg: 'bg-green-50',
+    text: 'text-green-800',
+    border: 'border-green-200'
   },
   legal_send_back: {
     bg: 'bg-red-50',
@@ -1153,16 +1153,21 @@ export const getContractStats = async (): Promise<ContractStats> => {
     // Calculate total contracts (excluding archived ones)
     const totalContracts = contracts.length;
 
-    // Calculate finished contracts
-    const finishedContracts = contracts.filter(c => c.status === 'finished').length;
+    // Calculate contracts that have ended (at contract_end stage)
+    const finishedContracts = contracts.filter(c => c.status === 'contract_end').length;
 
-    // Calculate contracts pending approval
-    const pendingApprovalContracts = contracts.filter(c => c.status === 'approval').length;
+    // Calculate contracts in legal_review or management_review
+    const pendingApprovalContracts = contracts.filter(c =>
+      c.status === 'legal_review' ||
+      c.status === 'management_review' ||
+      c.status === 'legal_send_back' ||
+      c.status === 'management_send_back'
+    ).length;
 
     // Calculate contracts expiring in the next 30 days (only active contracts)
     const expiringContracts = contracts.filter(c => {
-      // Skip contracts without end date or finished contracts
-      if (!c.endDate || c.status === 'finished') {
+      // Skip contracts without end date
+      if (!c.endDate) {
         return false;
       }
 
@@ -1187,8 +1192,8 @@ export const getContractStats = async (): Promise<ContractStats> => {
 
     // Calculate contracts expiring this year (only active contracts)
     const expiringThisYear = contracts.filter(c => {
-      // Skip contracts without end date or finished contracts
-      if (!c.endDate || c.status === 'finished') {
+      // Skip contracts without end date
+      if (!c.endDate) {
         return false;
       }
 
@@ -2630,16 +2635,21 @@ export const getUserContractStats = async (userEmail: string): Promise<ContractS
     // Calculate total contracts (excluding archived ones)
     const totalContracts = contracts.length;
 
-    // Calculate finished contracts
-    const finishedContracts = contracts.filter(c => c.status === 'finished').length;
+    // Calculate contracts that have ended (at contract_end stage)
+    const finishedContracts = contracts.filter(c => c.status === 'contract_end').length;
 
-    // Calculate contracts pending approval
-    const pendingApprovalContracts = contracts.filter(c => c.status === 'approval').length;
+    // Calculate contracts in legal_review or management_review
+    const pendingApprovalContracts = contracts.filter(c =>
+      c.status === 'legal_review' ||
+      c.status === 'management_review' ||
+      c.status === 'legal_send_back' ||
+      c.status === 'management_send_back'
+    ).length;
 
     // Calculate contracts expiring in the next 30 days (only active contracts)
     const expiringContracts = contracts.filter(c => {
-      // Skip contracts without end date or finished contracts
-      if (!c.endDate || c.status === 'finished') {
+      // Skip contracts without end date
+      if (!c.endDate) {
         return false;
       }
 
@@ -2665,8 +2675,8 @@ export const getUserContractStats = async (userEmail: string): Promise<ContractS
 
     // Calculate contracts expiring this year (only active contracts)
     const expiringThisYear = contracts.filter(c => {
-      // Skip contracts without end date or finished contracts
-      if (!c.endDate || c.status === 'finished') {
+      // Skip contracts without end date
+      if (!c.endDate) {
         return false;
       }
 
