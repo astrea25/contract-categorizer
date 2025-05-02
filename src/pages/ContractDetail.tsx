@@ -905,6 +905,41 @@ const ContractDetail = () => {
               </div>
             </CardContent>
           </Card>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Card className="overflow-hidden transition-all duration-300 hover:shadow-md cursor-help">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium">Inactivity Notification</CardTitle>
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-sm">
+                      <div className="font-medium">
+                        {contract.inactivityNotificationDays || 30} days
+                      </div>
+                      <p className="text-muted-foreground mt-1">
+                        {contract.lastActivityAt
+                          ? `Last activity: ${new Date(contract.lastActivityAt).toLocaleDateString()}`
+                          : 'No activity recorded yet'}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Creator: {contract.owner ? contract.owner.split('@')[0] : 'Unknown'}
+                        {currentUser?.email === contract.owner && (
+                          <span className="ml-1 text-green-600">(you)</span>
+                        )}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Notifications will be sent to the contract owner and recipient after {contract.inactivityNotificationDays || 30} days of inactivity</p>
+                <p className="text-xs mt-1 text-amber-600">Only the contract creator can modify this setting</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
         {/* Type-specific details - Moved to a more prominent position */}

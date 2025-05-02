@@ -599,6 +599,7 @@ const ContractForm = ({
       status: 'requested', // Automatically set status to requested
       owner: currentUser?.email || 'Unassigned', // Ensure owner is never empty
       recipientEmail: '', // Initialize recipient email field
+      inactivityNotificationDays: 30, // Default to 30 days for inactivity notifications
       startDate: new Date().toISOString().split('T')[0],
       endDate: null,
       typeSpecificFields: {} // Initialize empty type-specific fields
@@ -1069,6 +1070,36 @@ const ContractForm = ({
                   disabled={initialData && !isEditable}
                   placeholder="Enter recipient's email address"
                 />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="inactivityNotificationDays">Inactivity Notification Days</Label>
+                <Input
+                  id="inactivityNotificationDays"
+                  name="inactivityNotificationDays"
+                  type="number"
+                  min="1"
+                  max="365"
+                  value={formData.inactivityNotificationDays || 30}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value);
+                    if (!isNaN(value) && value > 0) {
+                      setFormData((prev) => ({ ...prev, inactivityNotificationDays: value }));
+                      setHasPendingChanges(true);
+                    }
+                  }}
+                  disabled={initialData && (!isEditable || (currentUser?.email !== initialData.owner))}
+                />
+                <p className="text-sm text-muted-foreground">
+                  Number of days of inactivity before sending a notification email (default: 30)
+                  {initialData && currentUser?.email !== initialData.owner && (
+                    <span className="block text-amber-600 mt-1">
+                      Only the contract creator can modify this setting
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
 

@@ -221,6 +221,7 @@ export interface Contract {
   archivedAt?: string; // When the contract was archived
   archivedBy?: string; // Who archived the contract
   lastActivityAt?: string; // Timestamp of the last activity on the contract
+  inactivityNotificationDays?: number; // Number of days of inactivity before sending a notification
   // Amendment tracking
   isAmended?: boolean; // Flag to indicate if contract has been amended
   amendmentStage?: 'amendment' | 'legal' | 'wwf' | 'counterparty'; // Current stage in the amendment process

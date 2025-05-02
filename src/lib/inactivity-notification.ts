@@ -36,8 +36,11 @@ export const checkInactiveContractsAndNotify = async (inactivityDays: number = 3
       const lastActivityDate = new Date(contract.lastActivityAt);
       const daysSinceLastActivity = differenceInDays(now, lastActivityDate);
 
+      // Use contract-specific inactivity days if available, otherwise use the default
+      const contractInactivityDays = contract.inactivityNotificationDays || inactivityDays;
+
       // Check if contract has been inactive for the specified period
-      if (daysSinceLastActivity >= inactivityDays) {
+      if (daysSinceLastActivity >= contractInactivityDays) {
         // Send notifications to both owner and recipient if available
         await sendInactivityNotification(contract);
         notificationsSent++;
@@ -62,13 +65,16 @@ export const sendInactivityNotification = async (contract: Contract): Promise<vo
     const appUrl = import.meta.env.VITE_APP_URL || 'https://contract-management-system-omega.vercel.app';
     const contractUrl = `${appUrl}/contracts/${contract.id}`;
 
+    // Get the contract-specific inactivity days or use default
+    const inactivityDays = contract.inactivityNotificationDays || 30;
+
     // Prepare email content
     const subject = `Inactive Contract Notification: ${contract.title}`;
     const htmlContent = `
       <div style="font-family: sans-serif;">
         <h2>Contract Inactivity Notification</h2>
         <p>This is an automated notification from the Contract Management System.</p>
-        <p>The following contract has not had any activity for 30 days:</p>
+        <p>The following contract has not had any activity for ${inactivityDays} days:</p>
         <ul>
           <li><strong>Contract Title:</strong> ${contract.title}</li>
           <li><strong>Project Name:</strong> ${contract.projectName}</li>
@@ -89,7 +95,7 @@ Contract Inactivity Notification
 
 This is an automated notification from the Contract Management System.
 
-The following contract has not had any activity for 30 days:
+The following contract has not had any activity for ${inactivityDays} days:
 
 Contract Title: ${contract.title}
 Project Name: ${contract.projectName}
