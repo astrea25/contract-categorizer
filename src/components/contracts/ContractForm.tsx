@@ -598,6 +598,7 @@ const ContractForm = ({
       type: 'consultancy', // Default to consultancy as the first contract type
       status: 'requested', // Automatically set status to requested
       owner: currentUser?.email || 'Unassigned', // Ensure owner is never empty
+      recipientEmail: '', // Initialize recipient email field
       startDate: new Date().toISOString().split('T')[0],
       endDate: null,
       typeSpecificFields: {} // Initialize empty type-specific fields
@@ -858,7 +859,7 @@ const ContractForm = ({
     }
 
     // Validate required fields based on contract_types file
-    if (!formData.projectName || !formData.startDate || !formData.type) {
+    if (!formData.projectName || !formData.startDate || !formData.type || !formData.recipientEmail) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -1051,6 +1052,22 @@ const ContractForm = ({
                   onChange={handleInputChange}
                   required
                   disabled={initialData && !isEditable}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="recipientEmail" className="after:content-['*'] after:ml-0.5 after:text-red-500">Recipient Email</Label>
+                <Input
+                  id="recipientEmail"
+                  name="recipientEmail"
+                  type="email"
+                  value={formData.recipientEmail || ''}
+                  onChange={handleInputChange}
+                  required
+                  disabled={initialData && !isEditable}
+                  placeholder="Enter recipient's email address"
                 />
               </div>
             </div>

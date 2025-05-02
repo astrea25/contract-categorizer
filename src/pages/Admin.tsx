@@ -964,6 +964,12 @@ const Admin = () => {
                   System Settings
                 </Link>
               </Button>
+              <Button asChild variant="outline">
+                <Link to="/admin-tools">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Admin Tools
+                </Link>
+              </Button>
             </div>
 
             <Tabs

@@ -4,6 +4,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import AuthNavbar from '@/components/layout/AuthNavbar';
 import ContractStatusBadge from '@/components/contracts/ContractStatusBadge';
 import ContractForm from '@/components/contracts/ContractForm';
@@ -26,11 +27,12 @@ import {
   deleteContract,
   normalizeApprovers
 } from '@/lib/data';
-import { ArrowLeft, CalendarClock, Edit, FileText, Wallet, ShieldAlert, Archive, Trash2, ArchiveRestore, RefreshCw, FilePenLine } from 'lucide-react';
+import { ArrowLeft, CalendarClock, Edit, FileText, Wallet, ShieldAlert, Archive, Trash2, ArchiveRestore, RefreshCw, FilePenLine, Mail } from 'lucide-react';
 import { formatDistance } from 'date-fns';
 import { toast } from 'sonner';
 import PageTransition from '@/components/layout/PageTransition';
 import { useAuth } from '@/contexts/AuthContext';
+import { manuallyTriggerInactivityNotification } from '@/lib/inactivity-notification';
 
 const ContractDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -43,6 +45,7 @@ const ContractDetail = () => {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSendingNotification, setIsSendingNotification] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showAmendDialog, setShowAmendDialog] = useState(false);
@@ -280,6 +283,25 @@ const ContractDetail = () => {
       toast.error('Failed to delete contract');
       setIsDeleting(false);
       setShowDeleteDialog(false);
+    }
+  };
+
+  // Function to handle sending an inactivity notification
+  const handleSendInactivityNotification = async () => {
+    if (!contract || !id || !currentUser?.email || !isAdmin) return;
+
+    try {
+      setIsSendingNotification(true);
+
+      // Send the notification
+      await manuallyTriggerInactivityNotification(id);
+
+      toast.success('Inactivity notification sent successfully');
+    } catch (error) {
+      console.error('Error sending inactivity notification:', error);
+      toast.error('Failed to send inactivity notification');
+    } finally {
+      setIsSendingNotification(false);
     }
   };
 
@@ -713,6 +735,29 @@ const ContractDetail = () => {
                 <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
                 <span className="ml-1">Refresh</span>
               </Button>
+
+              {/* Admin-only inactivity notification button */}
+              {isAdmin && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleSendInactivityNotification}
+                        disabled={isSendingNotification}
+                        className="mr-2"
+                      >
+                        <Mail size={14} className={isSendingNotification ? "animate-spin" : ""} />
+                        <span className="ml-1">{isSendingNotification ? 'Sending...' : 'Send Notification'}</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Manually send an inactivity notification email to the contract owner and recipient</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
 
               {contract.archived ? (
                 // Show restore and permanent delete options for archived contracts

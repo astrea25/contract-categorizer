@@ -203,6 +203,7 @@ export interface Contract {
   type: ContractType;
   status: ContractStatus;
   owner: string;
+  recipientEmail?: string; // Email of the recipient for notifications
   folderId?: string; // Optional reference to the folder ID
   parties: {
     name: string;
@@ -219,6 +220,7 @@ export interface Contract {
   archived?: boolean; // Flag to indicate if contract is archived
   archivedAt?: string; // When the contract was archived
   archivedBy?: string; // Who archived the contract
+  lastActivityAt?: string; // Timestamp of the last activity on the contract
   // Amendment tracking
   isAmended?: boolean; // Flag to indicate if contract has been amended
   amendmentStage?: 'amendment' | 'legal' | 'wwf' | 'counterparty'; // Current stage in the amendment process
@@ -563,6 +565,7 @@ export const createContract = async (
     owner: cleanContract.owner, // Use the cleaned owner value
     createdAt: now.toDate().toISOString(),
     updatedAt: now.toDate().toISOString(),
+    lastActivityAt: now.toDate().toISOString(), // Initialize the last activity timestamp
     archived: false,
     timeline: [initialTimelineEntry]
   };
@@ -607,6 +610,7 @@ export const updateContract = async (
   const updateData: Record<string, any> = {
     ...cleanContractUpdates,
     updatedAt: now.toDate().toISOString(),
+    lastActivityAt: now.toDate().toISOString(), // Update the last activity timestamp
   };
 
   // Prepare timeline entries based on changes
