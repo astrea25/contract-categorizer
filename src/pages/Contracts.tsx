@@ -77,15 +77,21 @@ const Contracts = () => {
   useEffect(() => {
     const loadFolders = async () => {
       try {
-        const foldersList = await getFolders();
-        setFolders(foldersList);
+        // Only load folders created by the current user
+        if (currentUser?.email) {
+          const foldersList = await getFolders(currentUser.email);
+          setFolders(foldersList);
+        } else {
+          setFolders([]);
+        }
       } catch (error) {
         // Silent fail
+        setFolders([]);
       }
     };
 
     loadFolders();
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     const fetchContracts = async () => {
@@ -300,7 +306,14 @@ const Contracts = () => {
       }
 
       // Refresh contracts to update folder assignments
-      const updatedContracts = await getContracts();
+      let updatedContracts: Contract[] = [];
+      if (isAdmin) {
+        updatedContracts = await getContracts(false); // false to exclude archived
+      } else if ((isLegalTeam || isManagementTeam) && currentUser?.email) {
+        updatedContracts = await getUserContracts(currentUser.email, false); // false to exclude archived
+      } else if (currentUser?.email) {
+        updatedContracts = await getUserContracts(currentUser.email, false); // false to exclude archived
+      }
       setContracts(updatedContracts);
 
       toast.success('Folder deleted successfully');

@@ -64,16 +64,22 @@ const FolderList = ({
     const loadFolders = async () => {
       try {
         setLoading(true);
-        const folderList = await getFolders();
-        setFolders(folderList);
 
-        // Get count of archived contracts
-        const archivedContracts = currentUser?.email
-          ? await getUserArchivedContracts(currentUser.email)
-          : await getArchivedContracts();
-        setArchivedCount(archivedContracts.length);
+        // Only load folders created by the current user
+        if (currentUser?.email) {
+          const folderList = await getFolders(currentUser.email);
+          setFolders(folderList);
+
+          // Get count of archived contracts
+          const archivedContracts = await getUserArchivedContracts(currentUser.email);
+          setArchivedCount(archivedContracts.length);
+        } else {
+          setFolders([]);
+          setArchivedCount(0);
+        }
       } catch (error) {
         toast.error('Failed to load folders');
+        setFolders([]);
       } finally {
         setLoading(false);
       }
@@ -96,8 +102,8 @@ const FolderList = ({
 
       await createFolder(newFolder);
 
-      // Refresh folder list
-      const updatedFolders = await getFolders();
+      // Refresh folder list - only get folders for the current user
+      const updatedFolders = await getFolders(currentUser.email);
       setFolders(updatedFolders);
 
       // Reset form & close dialog
@@ -122,9 +128,11 @@ const FolderList = ({
         description: renameFolderDesc.trim()
       });
 
-      // Refresh folder list
-      const updatedFolders = await getFolders();
-      setFolders(updatedFolders);
+      // Refresh folder list - only get folders for the current user
+      if (currentUser?.email) {
+        const updatedFolders = await getFolders(currentUser.email);
+        setFolders(updatedFolders);
+      }
 
       // Reset form & close dialog
       setFolderToRename(null);

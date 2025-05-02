@@ -1182,12 +1182,20 @@ export const registerUser = async (
 };
 
 // Folder Management Functions
-export const getFolders = async (): Promise<Folder[]> => {
+export const getFolders = async (userEmail?: string): Promise<Folder[]> => {
   const foldersCollection = collection(db, 'folders');
-  const foldersSnapshot = await getDocs(foldersCollection);
+
+  // If userEmail is provided, only get folders created by that user
+  let foldersSnapshot;
+  if (userEmail) {
+    const foldersQuery = query(foldersCollection, where('createdBy', '==', userEmail.toLowerCase()));
+    foldersSnapshot = await getDocs(foldersQuery);
+  } else {
+    foldersSnapshot = await getDocs(foldersCollection);
+  }
 
   const folders = foldersSnapshot.docs.map(doc => {
-    const data = doc.data();
+    const data = doc.data() as Record<string, any>;
     return {
       id: doc.id,
       ...data,
@@ -1253,13 +1261,25 @@ export const assignContractToFolder = async (
     return;
   }
 
+  // If assigning to a folder (not removing), verify the folder belongs to the user
   let folderName = 'Unassigned';
+
   if (folderId) {
     const folderDoc = doc(db, 'folders', folderId);
     const folderSnap = await getDoc(folderDoc);
-    if (folderSnap.exists()) {
-      folderName = folderSnap.data()?.name || folderId;
+
+    if (!folderSnap.exists()) {
+      throw new Error('Folder not found');
     }
+
+    const folderData = folderSnap.data() as Record<string, any>;
+    // Check if the folder belongs to the user
+    if (folderData.createdBy.toLowerCase() !== user.email.toLowerCase()) {
+      throw new Error('You can only assign contracts to folders you created');
+    }
+
+    // Set folder name for timeline entry
+    folderName = folderData.name || folderId;
   }
 
   // Create timeline entry for folder change
