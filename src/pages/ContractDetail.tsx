@@ -224,7 +224,11 @@ const ContractDetail = () => {
 
     try {
       setIsArchiving(true);
-      const user = { email: currentUser.email, displayName: currentUser.displayName };
+      // Ensure displayName is never undefined
+      const user = {
+        email: currentUser.email,
+        displayName: currentUser.displayName || ''
+      };
 
       if (contract.archived) {
         // Unarchive the contract
@@ -244,8 +248,9 @@ const ContractDetail = () => {
 
       // Close the dialog
       setShowArchiveDialog(false);
-    } catch (error) {
-      toast.error(contract.archived ? 'Failed to restore contract' : 'Failed to archive contract');
+    } catch (error: any) { // Explicitly type error as any to access message property
+      console.error('Error archiving/unarchiving contract:', error);
+      toast.error(`${contract.archived ? 'Failed to restore contract' : 'Failed to archive contract'}: ${error.message || 'Unknown error'}`);
     } finally {
       setIsArchiving(false);
     }

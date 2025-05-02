@@ -791,7 +791,7 @@ export const archiveContract = async (
       timestamp: now.toDate().toISOString(),
       action: 'Contract Archived',
       userEmail: archiver.email,
-      userName: archiver.displayName || undefined
+      userName: archiver.displayName || '' // Use empty string instead of undefined
     };
 
     const updateData = {
@@ -804,6 +804,7 @@ export const archiveContract = async (
 
     await updateDoc(contractDoc, updateData);
   } catch (error) {
+    console.error('Error archiving contract:', error);
     throw error;
   }
 };
@@ -815,25 +816,30 @@ export const unarchiveContract = async (
   const contractDoc = doc(db, 'contracts', id);
   const now = Timestamp.now();
 
-  // Fetch current timeline
-  const currentContractSnap = await getDoc(contractDoc);
-  const currentTimeline = currentContractSnap.data()?.timeline || [];
+  try {
+    // Fetch current timeline
+    const currentContractSnap = await getDoc(contractDoc);
+    const currentTimeline = currentContractSnap.data()?.timeline || [];
 
-  // Create unarchive timeline entry
-  const unarchiveTimelineEntry = {
-    timestamp: now.toDate().toISOString(),
-    action: 'Contract Restored',
-    userEmail: restorer.email,
-    userName: restorer.displayName || undefined
-  };
+    // Create unarchive timeline entry
+    const unarchiveTimelineEntry = {
+      timestamp: now.toDate().toISOString(),
+      action: 'Contract Restored',
+      userEmail: restorer.email,
+      userName: restorer.displayName || '' // Use empty string instead of undefined
+    };
 
-  await updateDoc(contractDoc, {
-    archived: false,
-    archivedAt: null,
-    archivedBy: null,
-    updatedAt: now.toDate().toISOString(),
-    timeline: [...currentTimeline, unarchiveTimelineEntry]
-  });
+    await updateDoc(contractDoc, {
+      archived: false,
+      archivedAt: null,
+      archivedBy: null,
+      updatedAt: now.toDate().toISOString(),
+      timeline: [...currentTimeline, unarchiveTimelineEntry]
+    });
+  } catch (error) {
+    console.error('Error unarchiving contract:', error);
+    throw error;
+  }
 };
 
 import { sendNotificationEmail } from './brevoService';
