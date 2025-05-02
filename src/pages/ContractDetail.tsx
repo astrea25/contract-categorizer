@@ -12,6 +12,7 @@ import StatusSelectCard from '@/components/contracts/StatusSelectCard';
 import CommentSection from '@/components/contracts/CommentSection';
 import ApprovalBoard from '@/components/contracts/ApprovalBoard';
 import ConfirmationDialog from '@/components/contracts/ConfirmationDialog';
+import TypeSpecificDetailsCard from '@/components/contracts/TypeSpecificDetailsCard';
 import {
   Contract,
   ContractStatus,
@@ -25,7 +26,7 @@ import {
   deleteContract,
   normalizeApprovers
 } from '@/lib/data';
-import { ArrowLeft, CalendarClock, Edit, FileText, Users, Wallet, ShieldAlert, Archive, Trash2, ArchiveRestore, RefreshCw, FilePenLine } from 'lucide-react';
+import { ArrowLeft, CalendarClock, Edit, FileText, Wallet, ShieldAlert, Archive, Trash2, ArchiveRestore, RefreshCw, FilePenLine } from 'lucide-react';
 import { formatDistance } from 'date-fns';
 import { toast } from 'sonner';
 import PageTransition from '@/components/layout/PageTransition';
@@ -845,7 +846,7 @@ const ContractDetail = () => {
 
           <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Type</CardTitle>
+              <CardTitle className="text-sm font-medium">Contract Type</CardTitle>
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -861,45 +862,25 @@ const ContractDetail = () => {
           </Card>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3 mb-8">
-          <Card className="md:col-span-2 overflow-hidden transition-all duration-300 hover:shadow-md">
+        {/* Type-specific details - Moved to a more prominent position */}
+        {contract.typeSpecificFields && Object.keys(contract.typeSpecificFields).length > 0 && (
+          <div className="mb-8">
+            <TypeSpecificDetailsCard contract={contract} />
+          </div>
+        )}
+
+        {contract.description && (
+          <Card className="mb-8 overflow-hidden transition-all duration-300 hover:shadow-md">
             <CardHeader>
               <CardTitle>Description</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="whitespace-pre-line">
-                {contract.description || 'No description provided.'}
+                {contract.description}
               </p>
             </CardContent>
           </Card>
-
-          <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
-            <CardHeader>
-              <CardTitle>Parties</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {contract.parties.map((party, index) => (
-                  <div key={index}>
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{party.name}</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground ml-6">
-                      {party.role}
-                    </p>
-                    <p className="text-sm text-muted-foreground ml-6">
-                      {party.email}
-                    </p>
-                    {index < contract.parties.length - 1 && (
-                      <Separator className="my-2" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        )}
 
         {contract.documentLink && (
           <Card className="mb-8 overflow-hidden transition-all duration-300 hover:shadow-md">
@@ -923,6 +904,8 @@ const ContractDetail = () => {
             <ContractProgressBar currentStatus={contract.status} contract={contract} />
           </CardContent>
         </Card>
+
+
 
         {/* Approval Board */}
         <ApprovalBoard

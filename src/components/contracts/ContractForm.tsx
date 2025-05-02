@@ -587,6 +587,7 @@ const ContractForm = ({
 }: ContractFormProps) => {
   const [open, setOpen] = useState(false);
   const { currentUser } = useAuth();
+  const [hasPendingChanges, setHasPendingChanges] = useState(false);
 
   // Check if the contract should be editable based on its status
   const isEditable = isContractEditable(initialData);
@@ -754,16 +755,18 @@ const ContractForm = ({
     }
   }, [initialFolder]);
 
-  // Parties removed as they're not in the contract_types file
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setHasPendingChanges(true);
   };
 
   const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value ? Number(value) : null }));
+    setHasPendingChanges(true);
   };
 
   const handleSelectChange = (name: string, value: string) => {
@@ -783,9 +786,10 @@ const ContractForm = ({
     } else {
       setFormData((prev) => ({
         ...prev,
-        [name]: value === "none" ? undefined : value
+        [name]: value
       }));
     }
+    setHasPendingChanges(true);
   };
 
   // Handler for type-specific fields
@@ -798,6 +802,7 @@ const ContractForm = ({
         [name]: value
       }
     }));
+    setHasPendingChanges(true);
   };
 
   // Handler for type-specific number fields
@@ -810,6 +815,7 @@ const ContractForm = ({
         [name]: value ? Number(value) : 0
       }
     }));
+    setHasPendingChanges(true);
   };
 
   // Handler for type-specific select fields
@@ -821,12 +827,14 @@ const ContractForm = ({
         [name]: value
       }
     }));
+    setHasPendingChanges(true);
   };
 
   const handleStartDateChange = (date: Date | undefined) => {
     if (date) {
       // The date is already fixed by our custom Calendar component
       setFormData((prev) => ({ ...prev, startDate: date.toISOString().split('T')[0] }));
+      setHasPendingChanges(true);
     }
   };
 
@@ -837,9 +845,8 @@ const ContractForm = ({
     } else {
       setFormData((prev) => ({ ...prev, endDate: null }));
     }
+    setHasPendingChanges(true);
   };
-
-  // Party-related handlers removed as parties are not in the contract_types file
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -988,6 +995,7 @@ const ContractForm = ({
 
     onSave(updatedFormData);
     toast.success('Contract saved successfully');
+    setHasPendingChanges(false);
     setOpen(false);
   };
 
@@ -999,12 +1007,21 @@ const ContractForm = ({
   );
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      if (!newOpen && hasPendingChanges) {
+        if (window.confirm('You have unsaved changes. Are you sure you want to close this form?')) {
+          setOpen(false);
+          setHasPendingChanges(false);
+        }
+      } else {
+        setOpen(newOpen);
+      }
+    }}>
       <DialogTrigger asChild>
         {trigger || defaultTrigger}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} data-pending-changes={hasPendingChanges}>
           <DialogHeader>
             <DialogTitle>{initialData ? 'Edit Contract' : 'Create New Contract'}</DialogTitle>
             <DialogDescription>
@@ -1140,10 +1157,6 @@ const ContractForm = ({
                 </Popover>
               </div>
             </div>
-
-            {/* Parties section removed as it's not in the contract_types file */}
-
-            {/* Description and Document Link fields removed as they're not in the contract_types file */}
           </div>
 
           <DialogFooter>

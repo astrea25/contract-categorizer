@@ -260,7 +260,8 @@ const Contracts = () => {
         value: newContract.value || null,
         description: newContract.description || '',
         documentLink: newContract.documentLink || '',
-        folderId: newContract.folderId === null || newContract.folderId === "none" ? null : (newContract.folderId || (selectedFolder !== 'all' && selectedFolder !== 'archive' ? selectedFolder : null))
+        folderId: newContract.folderId === null || newContract.folderId === "none" ? null : (newContract.folderId || (selectedFolder !== 'all' && selectedFolder !== 'archive' ? selectedFolder : null)),
+        typeSpecificFields: newContract.typeSpecificFields || {} // Include type-specific fields
       } as Omit<Contract, 'id' | 'createdAt' | 'updatedAt'>;
 
       await createContract(contractToAdd, {
@@ -495,8 +496,15 @@ const Contracts = () => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        // Reload the page data when the user comes back to this tab
-        window.location.reload();
+        // Check if there are any open forms with pending changes
+        const hasPendingForms = document.querySelector('form[data-pending-changes="true"]');
+
+        // Only refresh data if there are no pending forms
+        if (!hasPendingForms) {
+          // Refresh data without full page reload
+          fetchContracts();
+          loadFolders();
+        }
       }
     };
 
