@@ -301,6 +301,16 @@ const ApprovalBoard = ({
   const handleApproverApprove = async (email: string) => {
     if (!isApprover || !currentUser?.email) return;
 
+    // Check if management team has approved first
+    if (!isManagementTeamFullyApproved()) {
+      toast({
+        title: 'Management Approval Required',
+        description: 'The management team must approve this contract before final approval.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     // Only allow if the current user is the assigned approver
     const normalizedContract = normalizeApprovers(contract);
     const currentApprovers = normalizedContract.approvers?.approver || [];
@@ -326,7 +336,9 @@ const ApprovalBoard = ({
       approvers: {
         ...normalizedContract.approvers,
         approver: updatedApprovers
-      }
+      },
+      // Automatically progress to WWF signing stage
+      status: 'wwf_signing'
     };
 
     // Add custom timeline entry
@@ -334,13 +346,13 @@ const ApprovalBoard = ({
       // Special case: Changing from declined to approved
       updateData._customTimelineEntry = {
         action: `Final Approver: Changed from Declined to Approved`,
-        details: `${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]} changed approval from declined to approved`
+        details: `${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]} changed approval from declined to approved - Status changed to WWF Signing`
       };
     } else {
       // Standard approval
       updateData._customTimelineEntry = {
         action: `Final Approver: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
-        details: 'Approved as final approver'
+        details: 'Approved as final approver - Status changed to WWF Signing'
       };
     }
 
@@ -349,7 +361,7 @@ const ApprovalBoard = ({
 
     toast({
       title: 'Contract Approved',
-      description: 'You have approved this contract',
+      description: 'You have approved this contract and it has progressed to WWF Signing stage',
       variant: 'default'
     });
   };
@@ -357,6 +369,16 @@ const ApprovalBoard = ({
   // Handle declining as an approver
   const handleApproverDecline = async (email: string) => {
     if (!isApprover || !currentUser?.email) return;
+
+    // Check if management team has approved first
+    if (!isManagementTeamFullyApproved()) {
+      toast({
+        title: 'Management Approval Required',
+        description: 'The management team must approve this contract before you can decline it.',
+        variant: 'destructive'
+      });
+      return;
+    }
 
     // Only allow if the current user is the assigned approver
     const normalizedContract = normalizeApprovers(contract);
@@ -518,11 +540,11 @@ const ApprovalBoard = ({
       updateData._customTimelineEntry.details += ' - Status changed to Legal Review';
       console.log('Legal approval (instead) - Setting status to legal_review');
 
-      // If management is already approved, move to WWF Signing status
+      // If management is already approved, move to management_review status
       if (isManagementApproved) {
-        updateData.status = 'wwf_signing';
-        updateData._customTimelineEntry.details += ' - Status changed to WWF Signing (both Legal and Management have approved)';
-        console.log('Legal approval (instead) - Setting status to WWF Signing (fully approved)');
+        updateData.status = 'management_review';
+        updateData._customTimelineEntry.details += ' - Status changed to Management Review (both Legal and Management have approved)';
+        console.log('Legal approval (instead) - Setting status to Management Review (both approved)');
       }
     }
     // Standard approval flow
@@ -534,11 +556,11 @@ const ApprovalBoard = ({
         console.log('Legal approval - Setting status to legal_review');
       }
 
-      // If both legal and management have approved, move to WWF Signing status
+      // If both legal and management have approved, move to management_review status
       if (isManagementApproved && (contract.status === 'management_review' || contract.status === 'management_declined')) {
-        updateData.status = 'wwf_signing';
-        updateData._customTimelineEntry.details += ' - Status changed to WWF Signing (both Legal and Management have approved)';
-        console.log('Legal approval - Setting status to WWF Signing (fully approved)');
+        updateData.status = 'management_review';
+        updateData._customTimelineEntry.details += ' - Status changed to Management Review (both Legal and Management have approved)';
+        console.log('Legal approval - Setting status to Management Review (both approved)');
       }
     }
 
@@ -783,11 +805,33 @@ const ApprovalBoard = ({
       : normalizedContract.approvers?.management ? [normalizedContract.approvers.management as Approver] : [];
   };
 
+  // Helper function to check if legal team has fully approved
+  const isLegalTeamFullyApproved = () => {
+    const legalApprovers = getLegalApprovers();
+    return legalApprovers.length > 0 && legalApprovers.every(approver => approver.approved);
+  };
+
+  // Helper function to check if management team has fully approved
+  const isManagementTeamFullyApproved = () => {
+    const managementApprovers = getManagementApprovers();
+    return managementApprovers.length > 0 && managementApprovers.every(approver => approver.approved);
+  };
+
   // Handle management approval
   const handleManagementApprove = async () => {
     if (!isManagementTeam || !currentUser?.email) return;
 
     console.log('Management approval - Current contract status:', contract.status);
+
+    // Check if legal team has approved first
+    if (!isLegalTeamFullyApproved()) {
+      toast({
+        title: 'Legal Approval Required',
+        description: 'The legal team must approve this contract before management can approve.',
+        variant: 'destructive'
+      });
+      return;
+    }
 
     // Only allow if the current user is an assigned management approver
     const normalizedContract = normalizeApprovers(contract);
@@ -845,11 +889,11 @@ const ApprovalBoard = ({
       updateData._customTimelineEntry.details += ' - Status changed to Management Review';
       console.log('Management approval (instead) - Setting status to management_review');
 
-      // If legal is already approved, move to WWF Signing status
+      // If legal is already approved, move to management_review status
       if (isLegalApproved) {
-        updateData.status = 'wwf_signing';
-        updateData._customTimelineEntry.details += ' - Status changed to WWF Signing (both Legal and Management have approved)';
-        console.log('Management approval (instead) - Setting status to WWF Signing (fully approved)');
+        updateData.status = 'management_review';
+        updateData._customTimelineEntry.details += ' - Status changed to Management Review (Legal has approved)';
+        console.log('Management approval (instead) - Setting status to Management Review (Legal has approved)');
       }
     }
     // Standard approval flow
@@ -861,11 +905,11 @@ const ApprovalBoard = ({
         console.log('Management approval - Setting status to management_review');
       }
 
-      // If both legal and management have approved, move to WWF Signing status
+      // If legal has approved, move to management_review status
       if (isLegalApproved && (contract.status === 'legal_review' || contract.status === 'legal_declined')) {
-        updateData.status = 'wwf_signing';
-        updateData._customTimelineEntry.details += ' - Status changed to WWF Signing (both Legal and Management have approved)';
-        console.log('Management approval - Setting status to WWF Signing (fully approved)');
+        updateData.status = 'management_review';
+        updateData._customTimelineEntry.details += ' - Status changed to Management Review (Legal has approved)';
+        console.log('Management approval - Setting status to Management Review (Legal has approved)');
       }
     }
 
@@ -889,6 +933,16 @@ const ApprovalBoard = ({
   // Handle management decline
   const handleManagementDecline = async () => {
     if (!isManagementTeam || !currentUser?.email) return;
+
+    // Check if legal team has approved first
+    if (!isLegalTeamFullyApproved()) {
+      toast({
+        title: 'Legal Approval Required',
+        description: 'The legal team must approve this contract before management can decline.',
+        variant: 'destructive'
+      });
+      return;
+    }
 
     // Only allow if the current user is an assigned management approver
     const normalizedContract = normalizeApprovers(contract);
@@ -1362,7 +1416,14 @@ const ApprovalBoard = ({
               {/* Management Team Approvers */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <Label className="text-sm font-medium">Management Team Approvers ({getManagementApprovers().length}/{approverLimits.management})</Label>
+                  <div>
+                    <Label className="text-sm font-medium">Management Team Approvers ({getManagementApprovers().length}/{approverLimits.management})</Label>
+                    {!isLegalTeamFullyApproved() && getManagementApprovers().length > 0 && (
+                      <div className="text-xs text-amber-600 mt-1">
+                        Waiting for legal team approval before management can approve
+                      </div>
+                    )}
+                  </div>
                   {canEditApprovers && (
                     ((!normalizedContract.approvers?.management || getManagementApprovers().length < approverLimits.management)) ? (
                       <div className="relative">
@@ -1471,6 +1532,8 @@ const ApprovalBoard = ({
                                   size="sm"
                                   onClick={handleManagementApprove}
                                   className="bg-blue-500 hover:bg-blue-600"
+                                  disabled={!isLegalTeamFullyApproved()}
+                                  title={!isLegalTeamFullyApproved() ? "Legal team must approve first" : ""}
                                 >
                                   <Check className="h-3.5 w-3.5 mr-1" />
                                   Approve
@@ -1479,6 +1542,8 @@ const ApprovalBoard = ({
                                   size="sm"
                                   onClick={handleManagementDecline}
                                   variant="destructive"
+                                  disabled={!isLegalTeamFullyApproved()}
+                                  title={!isLegalTeamFullyApproved() ? "Legal team must approve first" : ""}
                                 >
                                   <ThumbsDown className="h-3.5 w-3.5 mr-1" />
                                   Send Back
@@ -1531,18 +1596,45 @@ const ApprovalBoard = ({
                           </div>
                         ) : (
                           <div className="flex items-center gap-2">
-                            <Badge className="bg-red-50 text-red-800 border-red-200">
-                              Sent Back
-                            </Badge>
-                            {isCurrentUserManagementApprover && (
-                              <Button
-                                size="sm"
-                                onClick={handleManagementWithdraw}
-                                variant="outline"
-                                className="text-amber-600 border-amber-200 hover:bg-amber-50"
-                              >
-                                Undo
-                              </Button>
+                            {isCurrentUserManagementApprover && !getManagementApprovers().some(a => a.declined) ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={handleManagementApprove}
+                                  className="bg-blue-500 hover:bg-blue-600"
+                                  disabled={!isLegalTeamFullyApproved()}
+                                  title={!isLegalTeamFullyApproved() ? "Legal team must approve first" : ""}
+                                >
+                                  <Check className="h-3.5 w-3.5 mr-1" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={handleManagementDecline}
+                                  variant="destructive"
+                                  disabled={!isLegalTeamFullyApproved()}
+                                  title={!isLegalTeamFullyApproved() ? "Legal team must approve first" : ""}
+                                >
+                                  <ThumbsDown className="h-3.5 w-3.5 mr-1" />
+                                  Send Back
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Badge className="bg-red-50 text-red-800 border-red-200">
+                                  Sent Back
+                                </Badge>
+                                {isCurrentUserManagementApprover && (
+                                  <Button
+                                    size="sm"
+                                    onClick={handleManagementWithdraw}
+                                    variant="outline"
+                                    className="text-amber-600 border-amber-200 hover:bg-amber-50"
+                                  >
+                                    Undo
+                                  </Button>
+                                )}
+                              </>
                             )}
                           </div>
                         )}
@@ -1568,7 +1660,14 @@ const ApprovalBoard = ({
               {/* Approver Team */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <Label className="text-sm font-medium">Approver Team ({normalizedContract.approvers?.approver?.length || 0}/{approverLimits.approver})</Label>
+                  <div>
+                    <Label className="text-sm font-medium">Approver Team ({normalizedContract.approvers?.approver?.length || 0}/{approverLimits.approver})</Label>
+                    {!isManagementTeamFullyApproved() && normalizedContract.approvers?.approver?.length > 0 && (
+                      <div className="text-xs text-amber-600 mt-1">
+                        Waiting for management team approval before final approval
+                      </div>
+                    )}
+                  </div>
                   {canEditApprovers && (
                     ((!normalizedContract.approvers?.approver || normalizedContract.approvers?.approver?.length < approverLimits.approver)) ? (
                       <div className="relative">
@@ -1662,6 +1761,8 @@ const ApprovalBoard = ({
                                 size="sm"
                                 onClick={() => handleApproverApprove(approver.email)}
                                 className="bg-blue-500 hover:bg-blue-600"
+                                disabled={!isManagementTeamFullyApproved()}
+                                title={!isManagementTeamFullyApproved() ? "Management team must approve first" : ""}
                               >
                                 <Check className="h-3.5 w-3.5 mr-1" />
                                 Approve Instead
@@ -1674,6 +1775,8 @@ const ApprovalBoard = ({
                               size="sm"
                               onClick={() => handleApproverApprove(approver.email)}
                               className="bg-blue-500 hover:bg-blue-600"
+                              disabled={!isManagementTeamFullyApproved()}
+                              title={!isManagementTeamFullyApproved() ? "Management team must approve first" : ""}
                             >
                               <Check className="h-3.5 w-3.5 mr-1" />
                               Approve
@@ -1682,6 +1785,8 @@ const ApprovalBoard = ({
                               size="sm"
                               onClick={() => handleApproverDecline(approver.email)}
                               variant="destructive"
+                              disabled={!isManagementTeamFullyApproved()}
+                              title={!isManagementTeamFullyApproved() ? "Management team must approve first" : ""}
                             >
                               <ThumbsDown className="h-3.5 w-3.5 mr-1" />
                               Send Back
