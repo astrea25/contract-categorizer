@@ -34,8 +34,8 @@ import DroppableFolder from './DroppableFolder';
 import { cn } from '@/lib/utils';
 
 interface FolderListProps {
-  selectedFolder: string | 'all' | 'archive' | 'approval';
-  onFolderSelect: (folderId: string | 'all' | 'archive' | 'approval') => void;
+  selectedFolder: string | 'all' | 'archive';
+  onFolderSelect: (folderId: string | 'all' | 'archive') => void;
   onDeleteFolder: (folderId: string) => void;
   onDropContract: (contractId: string, folderId: string | null) => void;
 }
@@ -330,17 +330,6 @@ const FolderList = ({
           onSelect={() => onFolderSelect('archive')}
           onDrop={(contractId) => {}} // No-op for Archive view
         />
-        {(isLegalTeam || isManagementTeam) && (
-          <DroppableFolder
-            id="approval"
-            name="Needs Your Approval"
-            count={0} // Count not shown for approval view
-            icon={<ClipboardCheck className="h-4 w-4 mr-2" />}
-            isSelected={selectedFolder === 'approval'}
-            onSelect={() => onFolderSelect('approval')}
-            onDrop={(contractId) => {}} // No-op for Approval view
-          />
-        )}
         {loading ? (
           <div className="p-3 text-center text-muted-foreground">Loading folders...</div>
         ) : folders.length === 0 ? (

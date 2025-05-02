@@ -260,11 +260,17 @@ const Admin = () => {
   useEffect(() => {
     if (isAdminDialogOpen) {
       const adminEmails = admins.map(admin => admin.email.toLowerCase());
+      const legalEmails = legalTeam.map(member => member.email.toLowerCase());
+      const managementEmails = managementTeam.map(member => member.email.toLowerCase());
+      const approverEmails = approvers.map(member => member.email.toLowerCase());
 
       if (adminUserSearch.trim() !== '') {
-        // Allow all users to be admins, including those in legal and management teams
+        // Only show users who don't have any role yet
         const filtered = allUsers.filter(user =>
-          !adminEmails.includes(user.email.toLowerCase()) && // Only exclude existing admins
+          !adminEmails.includes(user.email.toLowerCase()) && // Exclude existing admins
+          !legalEmails.includes(user.email.toLowerCase()) && // Exclude legal team members
+          !managementEmails.includes(user.email.toLowerCase()) && // Exclude management team members
+          !approverEmails.includes(user.email.toLowerCase()) && // Exclude approvers
           (user.email.toLowerCase().includes(adminUserSearch.toLowerCase()) ||
            user.displayName?.toLowerCase().includes(adminUserSearch.toLowerCase()) ||
            `${user.firstName || ''} ${user.lastName || ''}`.trim().toLowerCase().includes(adminUserSearch.toLowerCase()))
@@ -274,7 +280,7 @@ const Admin = () => {
         setFilteredAdminUsers([]);
       }
     }
-  }, [adminUserSearch, isAdminDialogOpen, admins, allUsers]);
+  }, [adminUserSearch, isAdminDialogOpen, admins, legalTeam, managementTeam, approvers, allUsers]);
 
   // Function to add user as admin
   const handleAddAdmin = async (user: User) => {
@@ -303,9 +309,21 @@ const Admin = () => {
       setFilteredAdminUsers([]);
       setIsAdminDialogOpen(false);
       fetchData(); // Refresh data
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding admin:', error);
-      toast.error(`Failed to add admin user: ${error instanceof Error ? error.message : 'Unknown error'}`);
+
+      // Check for specific error messages
+      if (error.message && error.message.includes('legal team member')) {
+        toast.error('This user is already a legal team member. A user cannot have multiple roles.');
+      } else if (error.message && error.message.includes('management team member')) {
+        toast.error('This user is already a management team member. A user cannot have multiple roles.');
+      } else if (error.message && error.message.includes('approver')) {
+        toast.error('This user is already an approver. A user cannot have multiple roles.');
+      } else if (error.message && error.message.includes('Unauthorized')) {
+        toast.error('Unauthorized: Only administrators can add admin users');
+      } else {
+        toast.error(`Failed to add admin user: ${error.message || 'Unknown error'}`);
+      }
     } finally {
       setAddingAdmin(false);
     }
@@ -418,10 +436,14 @@ const Admin = () => {
   useEffect(() => {
     if (isApproverDialogOpen) {
       const approverEmails = approvers.map(member => member.email.toLowerCase());
+      const legalEmails = legalTeam.map(member => member.email.toLowerCase());
+      const managementEmails = managementTeam.map(member => member.email.toLowerCase());
 
       if (approverUserSearch.trim() !== '') {
         const filtered = users.filter(user =>
           !approverEmails.includes(user.email.toLowerCase()) &&
+          !legalEmails.includes(user.email.toLowerCase()) && // Exclude legal team members
+          !managementEmails.includes(user.email.toLowerCase()) && // Exclude management team members
           (user.email.toLowerCase().includes(approverUserSearch.toLowerCase()) ||
            user.displayName?.toLowerCase().includes(approverUserSearch.toLowerCase()) ||
            `${user.firstName || ''} ${user.lastName || ''}`.trim().toLowerCase().includes(approverUserSearch.toLowerCase()))
@@ -431,7 +453,7 @@ const Admin = () => {
         setFilteredApproverUsers([]);
       }
     }
-  }, [approverUserSearch, isApproverDialogOpen, approvers, users]);
+  }, [approverUserSearch, isApproverDialogOpen, approvers, legalTeam, managementTeam, users]);
 
   // Function to add a management team member
   const handleAddManagementMember = async (user: User) => {
@@ -503,9 +525,17 @@ const Admin = () => {
       setFilteredApproverUsers([]);
       setIsApproverDialogOpen(false);
       fetchData(); // Refresh data
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding approver:', error);
-      toast.error('Failed to add approver');
+
+      // Check for specific error messages
+      if (error.message && error.message.includes('legal team member')) {
+        toast.error('This user is already a legal team member. A user cannot be in both legal team and approver roles.');
+      } else if (error.message && error.message.includes('management team member')) {
+        toast.error('This user is already a management team member. A user cannot be in both management team and approver roles.');
+      } else {
+        toast.error('Failed to add approver');
+      }
     } finally {
       setAddingApprover(false);
     }

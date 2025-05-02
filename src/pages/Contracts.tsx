@@ -437,37 +437,34 @@ const Contracts = () => {
       return sortContracts(result, sort);
     }
 
-    // Skip filtering when in approval folder since contracts are pre-filtered
-    if (selectedFolder !== 'approval') {
-      // Filter by folder first
-      if (selectedFolder !== 'all' && selectedFolder) {
-        // When viewing a specific folder, admins should see all contracts in that folder
-        // including archived ones
-        result = filterByFolder(result, selectedFolder);
-      }
+    // Filter by folder first
+    if (selectedFolder !== 'all' && selectedFolder) {
+      // When viewing a specific folder, admins should see all contracts in that folder
+      // including archived ones
+      result = filterByFolder(result, selectedFolder);
+    }
 
-      // Then apply other filters
-      result = filterByStatus(result, filters.status);
-      result = filterByType(result, filters.type);
-      result = filterByProject(result, filters.project);
-      result = filterByOwner(result, filters.owner);
-      result = filterByParty(result, filters.party);
+    // Then apply other filters
+    result = filterByStatus(result, filters.status);
+    result = filterByType(result, filters.type);
+    result = filterByProject(result, filters.project);
+    result = filterByOwner(result, filters.owner);
+    result = filterByParty(result, filters.party);
 
-      if (filters.dateRange.from || filters.dateRange.to) {
-        const fromStr = filters.dateRange.from ? filters.dateRange.from.toISOString().split('T')[0] : null;
-        const toStr = filters.dateRange.to ? filters.dateRange.to.toISOString().split('T')[0] : null;
-        result = filterByDateRange(result, fromStr, toStr);
-      }
+    if (filters.dateRange.from || filters.dateRange.to) {
+      const fromStr = filters.dateRange.from ? filters.dateRange.from.toISOString().split('T')[0] : null;
+      const toStr = filters.dateRange.to ? filters.dateRange.to.toISOString().split('T')[0] : null;
+      result = filterByDateRange(result, fromStr, toStr);
+    }
 
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        result = result.filter(
-          contract =>
-            contract.title.toLowerCase().includes(searchLower) ||
-            contract.projectName.toLowerCase().includes(searchLower) ||
-            contract.description.toLowerCase().includes(searchLower)
-        );
-      }
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      result = result.filter(
+        contract =>
+          contract.title.toLowerCase().includes(searchLower) ||
+          contract.projectName.toLowerCase().includes(searchLower) ||
+          contract.description.toLowerCase().includes(searchLower)
+      );
     }
 
     // Always apply sorting
@@ -494,6 +491,45 @@ const Contracts = () => {
 
   // Reload page data when user switches back to the tab
   useEffect(() => {
+    const fetchContracts = async () => {
+      try {
+        setLoading(true);
+        // Use different contract fetching functions based on user role
+        if (isAdmin) {
+          // Admins can see all contracts
+          const contractsList = await getContracts();
+          setContracts(contractsList);
+        } else if (isLegalTeam || isManagementTeam) {
+          // Legal and management team can only see contracts they are involved with
+          const contractsList = await getUserContracts(currentUser?.email || '');
+          setContracts(contractsList);
+        } else if (currentUser?.email) {
+          // Regular users can only see contracts they are involved with
+          const contractsList = await getUserContracts(currentUser.email);
+          setContracts(contractsList);
+        }
+      } catch (error) {
+        toast.error("Failed to load contracts");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const loadFolders = async () => {
+      try {
+        // Only load folders created by the current user
+        if (currentUser?.email) {
+          const foldersList = await getFolders(currentUser.email);
+          setFolders(foldersList);
+        } else {
+          setFolders([]);
+        }
+      } catch (error) {
+        // Silent fail
+        setFolders([]);
+      }
+    };
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         // Check if there are any open forms with pending changes

@@ -916,6 +916,27 @@ export const addAdminUser = async (email: string, currentUserEmail?: string, dis
   const normalizedEmail = email.toLowerCase();
   console.log(`[Admin] ${new Date().toISOString()} - Adding admin user: ${normalizedEmail}`);
 
+  // Check if the user is already in the legal team
+  const isLegal = await isUserLegalTeam(normalizedEmail);
+  if (isLegal) {
+    console.log(`[Admin] ${new Date().toISOString()} - User is already in legal team: ${normalizedEmail}`);
+    throw new Error('User is already a legal team member. A user cannot have multiple roles.');
+  }
+
+  // Check if the user is already in the management team
+  const isManagement = await isUserManagementTeam(normalizedEmail);
+  if (isManagement) {
+    console.log(`[Admin] ${new Date().toISOString()} - User is already in management team: ${normalizedEmail}`);
+    throw new Error('User is already a management team member. A user cannot have multiple roles.');
+  }
+
+  // Check if the user is already an approver
+  const isApprover = await isUserApprover(normalizedEmail);
+  if (isApprover) {
+    console.log(`[Admin] ${new Date().toISOString()} - User is already an approver: ${normalizedEmail}`);
+    throw new Error('User is already an approver. A user cannot have multiple roles.');
+  }
+
   const adminRef = collection(db, 'admin');
   const adminQuery = query(adminRef, where('email', '==', normalizedEmail));
   const adminSnapshot = await getDocs(adminQuery);
@@ -977,8 +998,40 @@ export const removeAdminUser = async (id: string, currentUserEmail?: string): Pr
     }
   }
 
+  // Get the admin document to retrieve the email
   const adminRef = doc(db, 'admin', id);
+  const adminDoc = await getDoc(adminRef);
+
+  if (!adminDoc.exists()) {
+    throw new Error('Admin user not found');
+  }
+
+  const adminData = adminDoc.data();
+  const email = adminData.email?.toLowerCase();
+
+  if (!email) {
+    throw new Error('Admin email not found in document');
+  }
+
+  // Delete from admin collection
   await deleteDoc(adminRef);
+
+  // Update userRoles to set isAdmin to false
+  try {
+    const userRolesRef = doc(db, 'userRoles', email);
+    const userRoleDoc = await getDoc(userRolesRef);
+
+    if (userRoleDoc.exists()) {
+      await updateDoc(userRolesRef, {
+        isAdmin: false,
+        updatedAt: new Date().toISOString()
+      });
+      console.log(`[Admin] ${new Date().toISOString()} - Updated userRoles document for removed admin: ${email}`);
+    }
+  } catch (error) {
+    console.error(`[Admin] ${new Date().toISOString()} - Error updating userRoles document for removed admin:`, error);
+    // Continue even if updating userRoles fails - the user is still removed from the admin collection
+  }
 };
 
 // updateInviteStatus and getSharedContracts functions removed
@@ -1464,12 +1517,25 @@ export const addLegalTeamMember = async (
   const normalizedEmail = email.toLowerCase();
   console.log(`[Legal] ${new Date().toISOString()} - Adding legal team member: ${normalizedEmail}`);
 
-  // First check if the user is already in the management team
-  const isManagement = await isUserManagementTeam(normalizedEmail);
+  // Check if the user is already an admin
+  const isAdmin = await isUserAdmin(normalizedEmail);
+  if (isAdmin) {
+    console.log(`[Legal] ${new Date().toISOString()} - User is already an admin: ${normalizedEmail}`);
+    throw new Error('User is already an admin. A user cannot have multiple roles.');
+  }
 
+  // Check if the user is already in the management team
+  const isManagement = await isUserManagementTeam(normalizedEmail);
   if (isManagement) {
     console.log(`[Legal] ${new Date().toISOString()} - User is already in management team: ${normalizedEmail}`);
-    throw new Error('User is already a management team member. A user cannot be in both legal and management teams.');
+    throw new Error('User is already a management team member. A user cannot have multiple roles.');
+  }
+
+  // Check if the user is already an approver
+  const isApprover = await isUserApprover(normalizedEmail);
+  if (isApprover) {
+    console.log(`[Legal] ${new Date().toISOString()} - User is already an approver: ${normalizedEmail}`);
+    throw new Error('User is already an approver. A user cannot have multiple roles.');
   }
 
   const legalTeamRef = collection(db, 'legalTeam');
@@ -1536,8 +1602,40 @@ export const getLegalTeamMembers = async (): Promise<any[]> => {
 
 // Remove a legal team member
 export const removeLegalTeamMember = async (id: string): Promise<void> => {
+  // Get the legal team member document to retrieve the email
   const legalTeamRef = doc(db, 'legalTeam', id);
+  const legalTeamDoc = await getDoc(legalTeamRef);
+
+  if (!legalTeamDoc.exists()) {
+    throw new Error('Legal team member not found');
+  }
+
+  const legalTeamData = legalTeamDoc.data();
+  const email = legalTeamData.email?.toLowerCase();
+
+  if (!email) {
+    throw new Error('Legal team member email not found in document');
+  }
+
+  // Delete from legal team collection
   await deleteDoc(legalTeamRef);
+
+  // Update userRoles to set isLegalTeam to false
+  try {
+    const userRolesRef = doc(db, 'userRoles', email);
+    const userRoleDoc = await getDoc(userRolesRef);
+
+    if (userRoleDoc.exists()) {
+      await updateDoc(userRolesRef, {
+        isLegalTeam: false,
+        updatedAt: new Date().toISOString()
+      });
+      console.log(`[Legal] ${new Date().toISOString()} - Updated userRoles document for removed legal team member: ${email}`);
+    }
+  } catch (error) {
+    console.error(`[Legal] ${new Date().toISOString()} - Error updating userRoles document for removed legal team member:`, error);
+    // Continue even if updating userRoles fails - the user is still removed from the legal team collection
+  }
 };
 
 // Add a user to the management team
@@ -1548,12 +1646,25 @@ export const addManagementTeamMember = async (
   const normalizedEmail = email.toLowerCase();
   console.log(`[Management] ${new Date().toISOString()} - Adding management team member: ${normalizedEmail}`);
 
-  // First check if the user is already in the legal team
-  const isLegal = await isUserLegalTeam(normalizedEmail);
+  // Check if the user is already an admin
+  const isAdmin = await isUserAdmin(normalizedEmail);
+  if (isAdmin) {
+    console.log(`[Management] ${new Date().toISOString()} - User is already an admin: ${normalizedEmail}`);
+    throw new Error('User is already an admin. A user cannot have multiple roles.');
+  }
 
+  // Check if the user is already in the legal team
+  const isLegal = await isUserLegalTeam(normalizedEmail);
   if (isLegal) {
     console.log(`[Management] ${new Date().toISOString()} - User is already in legal team: ${normalizedEmail}`);
-    throw new Error('User is already a legal team member. A user cannot be in both legal and management teams.');
+    throw new Error('User is already a legal team member. A user cannot have multiple roles.');
+  }
+
+  // Check if the user is already an approver
+  const isApprover = await isUserApprover(normalizedEmail);
+  if (isApprover) {
+    console.log(`[Management] ${new Date().toISOString()} - User is already an approver: ${normalizedEmail}`);
+    throw new Error('User is already an approver. A user cannot have multiple roles.');
   }
 
   const managementTeamRef = collection(db, 'managementTeam');
@@ -1620,8 +1731,40 @@ export const getManagementTeamMembers = async (): Promise<any[]> => {
 
 // Remove a management team member
 export const removeManagementTeamMember = async (id: string): Promise<void> => {
+  // Get the management team member document to retrieve the email
   const managementTeamRef = doc(db, 'managementTeam', id);
+  const managementTeamDoc = await getDoc(managementTeamRef);
+
+  if (!managementTeamDoc.exists()) {
+    throw new Error('Management team member not found');
+  }
+
+  const managementTeamData = managementTeamDoc.data();
+  const email = managementTeamData.email?.toLowerCase();
+
+  if (!email) {
+    throw new Error('Management team member email not found in document');
+  }
+
+  // Delete from management team collection
   await deleteDoc(managementTeamRef);
+
+  // Update userRoles to set isManagementTeam to false
+  try {
+    const userRolesRef = doc(db, 'userRoles', email);
+    const userRoleDoc = await getDoc(userRolesRef);
+
+    if (userRoleDoc.exists()) {
+      await updateDoc(userRolesRef, {
+        isManagementTeam: false,
+        updatedAt: new Date().toISOString()
+      });
+      console.log(`[Management] ${new Date().toISOString()} - Updated userRoles document for removed management team member: ${email}`);
+    }
+  } catch (error) {
+    console.error(`[Management] ${new Date().toISOString()} - Error updating userRoles document for removed management team member:`, error);
+    // Continue even if updating userRoles fails - the user is still removed from the management team collection
+  }
 };
 
 // Create a user account using the REST API
@@ -1883,6 +2026,27 @@ export const addApprover = async (
   const normalizedEmail = email.toLowerCase();
   console.log(`[Approver] ${new Date().toISOString()} - Adding approver: ${normalizedEmail}`);
 
+  // Check if the user is already an admin
+  const isAdmin = await isUserAdmin(normalizedEmail);
+  if (isAdmin) {
+    console.log(`[Approver] ${new Date().toISOString()} - User is already an admin: ${normalizedEmail}`);
+    throw new Error('User is already an admin. A user cannot have multiple roles.');
+  }
+
+  // Check if the user is already in the legal team
+  const isLegal = await isUserLegalTeam(normalizedEmail);
+  if (isLegal) {
+    console.log(`[Approver] ${new Date().toISOString()} - User is already in legal team: ${normalizedEmail}`);
+    throw new Error('User is already a legal team member. A user cannot have multiple roles.');
+  }
+
+  // Check if the user is already in the management team
+  const isManagement = await isUserManagementTeam(normalizedEmail);
+  if (isManagement) {
+    console.log(`[Approver] ${new Date().toISOString()} - User is already in management team: ${normalizedEmail}`);
+    throw new Error('User is already a management team member. A user cannot have multiple roles.');
+  }
+
   const approversRef = collection(db, 'approvers');
   const approverQuery = query(approversRef, where('email', '==', normalizedEmail));
   const approverSnapshot = await getDocs(approverQuery);
@@ -1947,8 +2111,40 @@ export const getApprovers = async (): Promise<any[]> => {
 
 // Remove an approver
 export const removeApprover = async (id: string): Promise<void> => {
+  // Get the approver document to retrieve the email
   const approverRef = doc(db, 'approvers', id);
+  const approverDoc = await getDoc(approverRef);
+
+  if (!approverDoc.exists()) {
+    throw new Error('Approver not found');
+  }
+
+  const approverData = approverDoc.data();
+  const email = approverData.email?.toLowerCase();
+
+  if (!email) {
+    throw new Error('Approver email not found in document');
+  }
+
+  // Delete from approvers collection
   await deleteDoc(approverRef);
+
+  // Update userRoles to set isApprover to false
+  try {
+    const userRolesRef = doc(db, 'userRoles', email);
+    const userRoleDoc = await getDoc(userRolesRef);
+
+    if (userRoleDoc.exists()) {
+      await updateDoc(userRolesRef, {
+        isApprover: false,
+        updatedAt: new Date().toISOString()
+      });
+      console.log(`[Approver] ${new Date().toISOString()} - Updated userRoles document for removed approver: ${email}`);
+    }
+  } catch (error) {
+    console.error(`[Approver] ${new Date().toISOString()} - Error updating userRoles document for removed approver:`, error);
+    // Continue even if updating userRoles fails - the user is still removed from the approvers collection
+  }
 };
 
 // Get the approver role
