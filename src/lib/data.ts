@@ -1261,7 +1261,7 @@ export const assignContractToFolder = async (
     return;
   }
 
-  // If assigning to a folder (not removing), verify the folder belongs to the user
+  // If assigning to a folder (not removing), verify the folder exists
   let folderName = 'Unassigned';
 
   if (folderId) {
@@ -1273,10 +1273,6 @@ export const assignContractToFolder = async (
     }
 
     const folderData = folderSnap.data() as Record<string, any>;
-    // Check if the folder belongs to the user
-    if (folderData.createdBy.toLowerCase() !== user.email.toLowerCase()) {
-      throw new Error('You can only assign contracts to folders you created');
-    }
 
     // Set folder name for timeline entry
     folderName = folderData.name || folderId;
@@ -1287,7 +1283,8 @@ export const assignContractToFolder = async (
     timestamp: now.toDate().toISOString(),
     action: folderId ? `Moved to Folder: ${folderName}` : 'Removed from Folder',
     userEmail: user.email,
-    userName: user.displayName || undefined,
+    // Ensure userName is never undefined - use empty string instead
+    userName: user.displayName || '',
     details: folderId ? `Assigned to folder ID: ${folderId}` : 'Unassigned from any folder'
   };
 
@@ -1429,7 +1426,7 @@ export const deleteComment = async (
   }
 
   const existingComments = contract.comments || [];
-  let updatedComments;
+  let updatedComments: Comment[] = [];
 
   if (parentCommentId) {
     // It's a reply - find the parent and remove the reply

@@ -328,14 +328,30 @@ const Contracts = () => {
       return;
     }
     try {
+      // Log the contract and folder IDs for debugging
+      console.log(`Moving contract ${contractId} to folder ${folderId || 'unassigned'}`);
+
       await assignContractToFolder(contractId, folderId, {
         email: currentUser.email,
-        displayName: currentUser.displayName
+        displayName: currentUser.displayName || '' // Ensure displayName is never undefined
       });
 
       toast.success(`Contract moved successfully`);
-    } catch (error) {
-      toast.error('Failed to move contract');
+
+      // Refresh the contracts list to show the updated folder assignment
+      let updatedContracts: Contract[] = [];
+      if (isAdmin) {
+        updatedContracts = await getContracts(false); // false to exclude archived
+      } else if ((isLegalTeam || isManagementTeam) && currentUser?.email) {
+        updatedContracts = await getUserContracts(currentUser.email, false); // false to exclude archived
+      } else if (currentUser?.email) {
+        updatedContracts = await getUserContracts(currentUser.email, false); // false to exclude archived
+      }
+      setContracts(updatedContracts);
+
+    } catch (error: any) { // Explicitly type error as any to access message property
+      console.error('Error moving contract:', error);
+      toast.error(`Failed to move contract: ${error.message || 'Unknown error'}`);
     }
   };
 
