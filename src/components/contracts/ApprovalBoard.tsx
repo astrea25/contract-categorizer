@@ -518,11 +518,11 @@ const ApprovalBoard = ({
       updateData._customTimelineEntry.details += ' - Status changed to Legal Review';
       console.log('Legal approval (instead) - Setting status to legal_review');
 
-      // If management is already approved, move to approval status
+      // If management is already approved, move to WWF Signing status
       if (isManagementApproved) {
-        updateData.status = 'approval';
-        updateData._customTimelineEntry.details += ' - Status changed to Fully Approved (both Legal and Management have approved)';
-        console.log('Legal approval (instead) - Setting status to approval (fully approved)');
+        updateData.status = 'wwf_signing';
+        updateData._customTimelineEntry.details += ' - Status changed to WWF Signing (both Legal and Management have approved)';
+        console.log('Legal approval (instead) - Setting status to WWF Signing (fully approved)');
       }
     }
     // Standard approval flow
@@ -534,11 +534,11 @@ const ApprovalBoard = ({
         console.log('Legal approval - Setting status to legal_review');
       }
 
-      // If both legal and management have approved, move to fully approved status
+      // If both legal and management have approved, move to WWF Signing status
       if (isManagementApproved && (contract.status === 'management_review' || contract.status === 'management_declined')) {
-        updateData.status = 'approval';
-        updateData._customTimelineEntry.details += ' - Status changed to Fully Approved (both Legal and Management have approved)';
-        console.log('Legal approval - Setting status to approval (fully approved)');
+        updateData.status = 'wwf_signing';
+        updateData._customTimelineEntry.details += ' - Status changed to WWF Signing (both Legal and Management have approved)';
+        console.log('Legal approval - Setting status to WWF Signing (fully approved)');
       }
     }
 
@@ -717,8 +717,8 @@ const ApprovalBoard = ({
       updateData.approvers = allApprovers;
       updateData._customTimelineEntry.details += ' - All approvals reset';
     }
-    // If we're in approval status, means both legal and management had approved
-    else if (wasApproved && contract.status === 'approval') {
+    // If we're in WWF Signing status, means both legal and management had approved
+    else if (wasApproved && contract.status === 'wwf_signing') {
       // If management is still approved, go back to legal_review status
       if (isManagementApproved) {
         updateData.status = 'legal_review';
@@ -845,11 +845,11 @@ const ApprovalBoard = ({
       updateData._customTimelineEntry.details += ' - Status changed to Management Review';
       console.log('Management approval (instead) - Setting status to management_review');
 
-      // If legal is already approved, move to approval status
+      // If legal is already approved, move to WWF Signing status
       if (isLegalApproved) {
-        updateData.status = 'approval';
-        updateData._customTimelineEntry.details += ' - Status changed to Fully Approved (both Legal and Management have approved)';
-        console.log('Management approval (instead) - Setting status to approval (fully approved)');
+        updateData.status = 'wwf_signing';
+        updateData._customTimelineEntry.details += ' - Status changed to WWF Signing (both Legal and Management have approved)';
+        console.log('Management approval (instead) - Setting status to WWF Signing (fully approved)');
       }
     }
     // Standard approval flow
@@ -861,11 +861,11 @@ const ApprovalBoard = ({
         console.log('Management approval - Setting status to management_review');
       }
 
-      // If both legal and management have approved, move to fully approved status
+      // If both legal and management have approved, move to WWF Signing status
       if (isLegalApproved && (contract.status === 'legal_review' || contract.status === 'legal_declined')) {
-        updateData.status = 'approval';
-        updateData._customTimelineEntry.details += ' - Status changed to Fully Approved (both Legal and Management have approved)';
-        console.log('Management approval - Setting status to approval (fully approved)');
+        updateData.status = 'wwf_signing';
+        updateData._customTimelineEntry.details += ' - Status changed to WWF Signing (both Legal and Management have approved)';
+        console.log('Management approval - Setting status to WWF Signing (fully approved)');
       }
     }
 
@@ -1044,8 +1044,8 @@ const ApprovalBoard = ({
       updateData.approvers = allApprovers;
       updateData._customTimelineEntry.details += ' - All approvals reset';
     }
-    // If we're in approval status, means both legal and management had approved
-    else if (wasApproved && contract.status === 'approval') {
+    // If we're in WWF Signing status, means both legal and management had approved
+    else if (wasApproved && contract.status === 'wwf_signing') {
       // If legal is still approved, go back to legal_review status
       if (isLegalApproved) {
         updateData.status = 'legal_review';

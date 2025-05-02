@@ -206,8 +206,8 @@ const ContractProgressBar: React.FC<ContractProgressBarProps> = ({
         </div>
       </div>
 
-      {/* Show Amendment Progress Bar if the contract has been amended */}
-      {(contract?.isAmended || currentStatus === 'amendment') && (
+      {/* Show Amendment Progress Bar ONLY if the contract has been explicitly marked as amended */}
+      {contract?.isAmended === true && (
         <div className="mt-8 border-t pt-4">
           <AmendmentProgressBar
             currentStatus={currentStatus}

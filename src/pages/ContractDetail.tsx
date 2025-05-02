@@ -298,7 +298,7 @@ const ContractDetail = () => {
 
       // Check if we need to reset approvals when changing to draft status
       if (newStatus === 'draft' &&
-          (contract.status === 'approval' ||
+          (contract.status === 'wwf_signing' ||
            contract.status === 'legal_review' ||
            contract.status === 'management_review' ||
            contract.status === 'legal_send_back' ||
@@ -380,7 +380,7 @@ const ContractDetail = () => {
 
         // Show a specific toast message when approvals have been reset
         if (newStatus === 'draft' &&
-            (contract.status === 'approval' ||
+            (contract.status === 'wwf_signing' ||
              contract.status === 'legal_review' ||
              contract.status === 'management_review' ||
              contract.status === 'legal_declined' ||
@@ -545,8 +545,8 @@ const ContractDetail = () => {
 
   // Helper function to determine if a contract can be amended
   const canContractBeAmended = (contract: Contract): boolean => {
-    // Contracts can be amended if they are in implementation, wwf_signing, counterparty_signing, or approval status
-    const amendableStatuses: ContractStatus[] = ['implementation', 'wwf_signing', 'counterparty_signing', 'approval'];
+    // Contracts can be amended if they are in implementation, wwf_signing, or counterparty_signing status
+    const amendableStatuses: ContractStatus[] = ['implementation', 'wwf_signing', 'counterparty_signing'];
 
     // Don't allow amending if the contract is already in amendment status
     if (contract.status === 'amendment') {
