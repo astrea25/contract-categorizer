@@ -669,6 +669,7 @@ const Contracts = () => {
                     key={contract.id}
                     contract={contract}
                     className="animate-slide-in"
+                    onRemoveFromFolder={(contractId) => handleDropContract(contractId, null)}
                   />
                 ))}
               </div>

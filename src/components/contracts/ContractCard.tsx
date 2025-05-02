@@ -2,18 +2,25 @@ import { Contract, contractTypeLabels } from '@/lib/data';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import ContractStatusBadge from './ContractStatusBadge';
 // ShareDialog removed
-import { Calendar, DollarSign, FileText, Users } from 'lucide-react';
+import { Calendar, DollarSign, FileText, Users, FolderMinus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ContractCardProps {
   contract: Contract;
   className?: string;
+  onRemoveFromFolder?: (contractId: string) => void;
 }
 
-const ContractCard = ({ contract, className }: ContractCardProps) => {
+const ContractCard = ({ contract, className, onRemoveFromFolder }: ContractCardProps) => {
   const {
     id,
     title,
@@ -23,7 +30,8 @@ const ContractCard = ({ contract, className }: ContractCardProps) => {
     startDate,
     endDate,
     value,
-    updatedAt
+    updatedAt,
+    folderId
   } = contract;
 
   const formattedDate = new Date(startDate).toLocaleDateString();
@@ -85,6 +93,25 @@ const ContractCard = ({ contract, className }: ContractCardProps) => {
           Updated {updatedTimeAgo}
         </span>
         <div className="flex items-center gap-2">
+          {folderId && onRemoveFromFolder && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="gap-1 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                    onClick={() => onRemoveFromFolder(id)}
+                  >
+                    <FolderMinus size={14} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Remove from folder</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           <Button asChild size="sm" variant="ghost" className="gap-1">
             <Link to={`/contract/${id}`}>
               <span>View</span>

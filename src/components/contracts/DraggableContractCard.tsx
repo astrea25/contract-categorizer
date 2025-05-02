@@ -6,25 +6,26 @@ import { cn } from '@/lib/utils';
 interface DraggableContractCardProps {
   contract: Contract;
   className?: string;
+  onRemoveFromFolder?: (contractId: string) => void;
 }
 
-const DraggableContractCard = ({ contract, className }: DraggableContractCardProps) => {
+const DraggableContractCard = ({ contract, className, onRemoveFromFolder }: DraggableContractCardProps) => {
   const [isDragging, setIsDragging] = useState(false);
-  
+
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
     // Set the data to be transferred - in this case, the contract ID
     e.dataTransfer.setData('text/plain', contract.id);
     e.dataTransfer.effectAllowed = 'move';
     setIsDragging(true);
   };
-  
+
   const handleDragEnd = () => {
     setIsDragging(false);
   };
-  
+
   return (
-    <div 
-      draggable 
+    <div
+      draggable
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       className={cn(
@@ -33,9 +34,12 @@ const DraggableContractCard = ({ contract, className }: DraggableContractCardPro
         className
       )}
     >
-      <ContractCard contract={contract} />
+      <ContractCard
+        contract={contract}
+        onRemoveFromFolder={onRemoveFromFolder}
+      />
     </div>
   );
 };
 
-export default DraggableContractCard; 
+export default DraggableContractCard;
