@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { PrivateRoute } from "@/components/auth/PrivateRoute";
 import { AdminRoute } from "@/components/auth/AdminRoute";
+import { PasswordChangeRequiredRoute } from "@/components/auth/PasswordChangeRequiredRoute";
 import RoleLoadingOverlay from "@/components/ui/role-loading-overlay";
 import Index from "./pages/Index";
 import Contracts from "./pages/Contracts";
@@ -20,6 +21,7 @@ import MakeAdmin from "./pages/MakeAdmin";
 import Profile from "./pages/Profile";
 import SystemSettings from "./pages/SystemSettings";
 import AdminTools from "./pages/AdminTools";
+import FirstTimeSetup from "./pages/FirstTimeSetup";
 
 const queryClient = new QueryClient();
 
@@ -36,20 +38,25 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/first-time-setup" element={<FirstTimeSetup />} />
             {/* AcceptInvite route removed */}
             <Route path="/make-admin" element={<MakeAdmin />} />
 
             <Route element={<PrivateRoute />}>
-              <Route path="/" element={<Index />} />
-              <Route path="/contracts" element={<Contracts />} />
-              <Route path="/contract/:id" element={<ContractDetail />} />
-              <Route path="/profile" element={<Profile />} />
+              <Route element={<PasswordChangeRequiredRoute />}>
+                <Route path="/" element={<Index />} />
+                <Route path="/contracts" element={<Contracts />} />
+                <Route path="/contract/:id" element={<ContractDetail />} />
+                <Route path="/profile" element={<Profile />} />
+              </Route>
             </Route>
 
             <Route element={<AdminRoute />}>
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/system-settings" element={<SystemSettings />} />
-              <Route path="/admin-tools" element={<AdminTools />} />
+              <Route element={<PasswordChangeRequiredRoute />}>
+                <Route path="/admin" element={<Admin />} />
+                <Route path="/system-settings" element={<SystemSettings />} />
+                <Route path="/admin-tools" element={<AdminTools />} />
+              </Route>
             </Route>
 
             <Route path="*" element={<NotFound />} />

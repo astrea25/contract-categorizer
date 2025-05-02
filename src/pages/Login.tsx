@@ -11,7 +11,7 @@ import { AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const Login = () => {
-  const { signInWithEmail, currentUser, error: authError } = useAuth();
+  const { signInWithEmail, currentUser, passwordChangeRequired, error: authError } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
@@ -19,9 +19,18 @@ const Login = () => {
 
   useEffect(() => {
     if (currentUser) {
-      navigate("/");
+      if (passwordChangeRequired) {
+        // Redirect to first-time setup if password change is required
+        console.log('Redirecting to first-time setup');
+        // Use window.location for a hard redirect to ensure fresh state
+        window.location.href = "/first-time-setup";
+      } else {
+        // Otherwise redirect to home
+        console.log('Redirecting to home');
+        window.location.href = "/";
+      }
     }
-  }, [currentUser, navigate]);
+  }, [currentUser, passwordChangeRequired]);
 
   // Google login removed
 

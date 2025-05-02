@@ -1248,6 +1248,7 @@ export const registerUser = async (
       displayName: finalDisplayName,
       role: 'user', // Default role
       createdAt: new Date().toISOString(),
+      passwordChangeRequired: true, // Flag to indicate that the user needs to change their password
     });
 
     // If the user was invited (has a pending status), update their status
@@ -1842,7 +1843,8 @@ export const inviteUser = async (
     invitedBy,
     createdAt: new Date().toISOString(),
     displayName: email.split('@')[0], // Default display name from email
-    status: 'active' // Mark as active user, not pending
+    status: 'active', // Mark as active user, not pending
+    passwordChangeRequired: true // Flag to indicate that the user needs to change their password on first login
   };
 
   // Add to users collection as an active user
@@ -2354,12 +2356,78 @@ export const updateUserProfile = async (
 
 // Update user password
 export const updateUserPassword = async (
+  user: any,
+  currentPassword: string,
   newPassword: string
 ): Promise<void> => {
-  // Note: Password update is handled directly in the Profile component
-  // using Firebase Auth methods. This function is a placeholder for any
-  // additional logic that might be needed in the future.
-  return Promise.resolve();
+  if (!user || !user.email) {
+    throw new Error('User is required to update password');
+  }
+
+  try {
+    // Import Firebase auth functions
+    const { EmailAuthProvider, reauthenticateWithCredential, updatePassword } = await import('firebase/auth');
+
+    // Create credential with current password
+    const credential = EmailAuthProvider.credential(
+      user.email,
+      currentPassword
+    );
+
+    // Try to reauthenticate
+    await reauthenticateWithCredential(user, credential);
+
+    // Update password
+    await updatePassword(user, newPassword);
+
+    console.log('Password updated successfully');
+  } catch (error: any) {
+    console.error('Error updating password:', error);
+
+    // If the error is related to invalid credentials, throw a specific error
+    if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+      throw new Error('Current password is incorrect');
+    }
+
+    throw error;
+  }
+};
+
+// Check if a user needs to change their password
+export const isPasswordChangeRequired = async (email: string): Promise<boolean> => {
+  if (!email) return false;
+
+  const normalizedEmail = email.toLowerCase();
+  const usersRef = collection(db, 'users');
+  const userQuery = query(usersRef, where('email', '==', normalizedEmail));
+  const userSnapshot = await getDocs(userQuery);
+
+  if (userSnapshot.empty) {
+    return false; // User not found
+  }
+
+  const userData = userSnapshot.docs[0].data();
+  return userData.passwordChangeRequired === true;
+};
+
+// Update the passwordChangeRequired flag for a user
+export const updatePasswordChangeRequired = async (email: string, required: boolean): Promise<void> => {
+  if (!email) return;
+
+  const normalizedEmail = email.toLowerCase();
+  const usersRef = collection(db, 'users');
+  const userQuery = query(usersRef, where('email', '==', normalizedEmail));
+  const userSnapshot = await getDocs(userQuery);
+
+  if (userSnapshot.empty) {
+    return; // User not found
+  }
+
+  const userDoc = userSnapshot.docs[0];
+  await updateDoc(doc(db, 'users', userDoc.id), {
+    passwordChangeRequired: required,
+    updatedAt: new Date().toISOString()
+  });
 };
 
 // Check if a user exists in the system (for password reset)

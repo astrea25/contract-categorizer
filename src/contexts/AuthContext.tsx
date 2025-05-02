@@ -7,7 +7,15 @@ import {
   updateProfile
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { registerUser, isUserAdmin, isUserLegalTeam, isUserManagementTeam, isUserApprover, getUserRoles } from "@/lib/data";
+import {
+  registerUser,
+  isUserAdmin,
+  isUserLegalTeam,
+  isUserManagementTeam,
+  isUserApprover,
+  getUserRoles,
+  isPasswordChangeRequired
+} from "@/lib/data";
 
 interface AuthContextType {
   currentUser: User | null;
@@ -18,6 +26,7 @@ interface AuthContextType {
   isManagementTeam: boolean;
   isApprover: boolean;
   userRole: string;
+  passwordChangeRequired: boolean;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   error: string | null;
@@ -32,6 +41,7 @@ const AuthContext = createContext<AuthContextType>({
   isManagementTeam: false,
   isApprover: false,
   userRole: "",
+  passwordChangeRequired: false,
   signInWithEmail: async () => {},
   signOut: async () => {},
   error: null
@@ -49,6 +59,7 @@ interface UserState {
   isManagementTeam: boolean;
   isApprover: boolean;
   userRole: string;
+  passwordChangeRequired: boolean;
 }
 
 // Initial user state
@@ -58,7 +69,8 @@ const initialUserState: UserState = {
   isLegalTeam: false,
   isManagementTeam: false,
   isApprover: false,
-  userRole: "user"
+  userRole: "user",
+  passwordChangeRequired: false
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -110,7 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const newUserState = await checkUserRoles(result.user);
         setUserState(newUserState);
         setRoleCheckLoading(false);
-        
+
         setError(null);
 
         // Show message about default password if it was used
@@ -120,7 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error: any) {
       let message = 'Failed to sign in.';
-      
+
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
         message = 'Invalid email or password.';
       } else if (error.code === 'auth/too-many-requests') {
@@ -128,7 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else if (error.code === 'auth/user-disabled') {
         message = 'This account has been disabled. Please contact support.';
       }
-      
+
       setError(message);
     }
   };
@@ -141,19 +153,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLegalTeam: false,
         isManagementTeam: false,
         isApprover: false,
-        userRole: "user"
+        userRole: "user",
+        passwordChangeRequired: false
       };
     }
-    
+
     const email = user.email.toLowerCase();
     const roleCheckStartTime = performance.now();
-    
+
     // Use single API call to fetch all roles at once - much faster than separate calls
     const roles = await getUserRoles(email);
-    
+
     // If roles is null, fall back to parallel checks (though this should be rare)
     if (roles === null) {
-      
+
       // Run all role checks in parallel as a fallback
       const [admin, legal, management, approver] = await Promise.all([
         isUserAdmin(email),
@@ -161,8 +174,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isUserManagementTeam(email),
         isUserApprover(email)
       ]);
-      
-      
+
+
       // Determine primary display role (for UI purposes)
       let role = "user";
       if (admin) {
@@ -174,17 +187,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else if (approver) {
         role = "Approver";
       }
-              
+
+      // Check if password change is required
+      const passwordChangeRequired = await isPasswordChangeRequired(email);
+
       return {
         currentUser: user,
         isAdmin: admin,
         isLegalTeam: legal,
         isManagementTeam: management,
         isApprover: approver,
-        userRole: role
+        userRole: role,
+        passwordChangeRequired
       };
     }
-    
+
     // If we got consolidated roles, use them
     let role = "user";
     if (roles.isAdmin) {
@@ -196,17 +213,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else if (roles.isApprover) {
       role = "Approver";
     }
-    
+
     const roleCheckEndTime = performance.now();
     const totalRoleCheckTime = roleCheckEndTime - roleCheckStartTime;
-    
+
+    // Check if password change is required
+    const passwordChangeRequired = await isPasswordChangeRequired(email);
+
     return {
       currentUser: user,
       isAdmin: roles.isAdmin,
       isLegalTeam: roles.isLegalTeam,
       isManagementTeam: roles.isManagementTeam,
       isApprover: roles.isApprover,
-      userRole: role
+      userRole: role,
+      passwordChangeRequired
     };
   };
 
@@ -226,7 +247,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Set the user immediately to improve initial load time
       if (user) {
         const authStateChangeTime = performance.now();
-        
+
         // Set basic user state immediately
         setUserState({
           currentUser: user,
@@ -234,7 +255,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isLegalTeam: false,
           isManagementTeam: false,
           isApprover: false,
-          userRole: "user"
+          userRole: "user",
+          passwordChangeRequired: false // Will be updated after role check
         });
         setLoading(false);
         setRoleCheckLoading(true);
@@ -243,26 +265,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         (async () => {
           try {
             const roleCheckStartTime = performance.now();
-            
+
             // Check user roles and update state
             const newUserState = await checkUserRoles(user);
-            
+
             const roleCheckEndTime = performance.now();
             const roleAssignmentTime = roleCheckEndTime - roleCheckStartTime;
-            
+
             setUserState(newUserState);
             setRoleCheckLoading(false);
             setError(null);
 
             // Register or update user data
             const registrationStartTime = performance.now();
-            
+
             // Extract name from display name if available
             const displayName = user.displayName || '';
             const nameArray = displayName.split(' ');
             const firstName = nameArray[0] || '';
             const lastName = nameArray.slice(1).join(' ') || '';
-            
+
             // Register or update user data
             await registerUser(
               user.uid,
@@ -271,7 +293,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               lastName,
               displayName
             );
-                        
+
           } catch (error) {
             console.error("Error in auth state change:", error);
             setRoleCheckLoading(false);
@@ -300,6 +322,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isManagementTeam: userState.isManagementTeam,
         isApprover: userState.isApprover,
         userRole: userState.userRole,
+        passwordChangeRequired: userState.passwordChangeRequired,
         signInWithEmail,
         signOut,
         error
