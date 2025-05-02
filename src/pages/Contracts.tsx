@@ -246,7 +246,7 @@ const Contracts = () => {
         title: newContract.title || projectName, // Use project name as title if not provided
         projectName: projectName,
         type: newContract.type || 'service',
-        status: newContract.status || 'draft',
+        status: newContract.status || 'requested',
         owner: owner, // Use the explicitly set owner value
         parties: parties,
         startDate: newContract.startDate || new Date().toISOString().split('T')[0],

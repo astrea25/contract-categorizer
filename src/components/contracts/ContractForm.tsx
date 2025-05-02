@@ -595,7 +595,7 @@ const ContractForm = ({
     initialData || {
       projectName: '',
       type: 'consultancy', // Default to consultancy as the first contract type
-      status: 'draft',
+      status: 'requested', // Automatically set status to requested
       owner: currentUser?.email || 'Unassigned', // Ensure owner is never empty
       startDate: new Date().toISOString().split('T')[0],
       endDate: null,
@@ -979,10 +979,11 @@ const ContractForm = ({
       return;
     }
 
-    // Use project name as the title
+    // Use project name as the title and ensure status is set to requested for new contracts
     const updatedFormData = {
       ...formData,
-      title: formData.projectName // Set title to be the same as project name
+      title: formData.projectName, // Set title to be the same as project name
+      status: initialData ? formData.status : 'requested' // Ensure new contracts always have requested status
     };
 
     onSave(updatedFormData);
@@ -1037,54 +1038,24 @@ const ContractForm = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="type" className="after:content-['*'] after:ml-0.5 after:text-red-500">Contract Type</Label>
-                <Select
-                  value={formData.type as string || 'service'}
-                  onValueChange={(value) => handleSelectChange('type', value)}
-                  disabled={initialData && !isEditable}
-                >
-                  <SelectTrigger id="type">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(contractTypeLabels).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
-                <Select
-                  value={formData.status as ContractStatus || 'draft'}
-                  onValueChange={(value) => handleSelectChange('status', value)}
-                  disabled={initialData && !isEditable}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="requested">Requested</SelectItem>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="legal_review">Legal Review</SelectItem>
-                    <SelectItem value="management_review">Management Review</SelectItem>
-                    <SelectItem value="wwf_signing" disabled={initialData && !isEditable}>WWF Signing</SelectItem>
-                    <SelectItem value="counterparty_signing" disabled={initialData && !isEditable}>Counterparty Signing</SelectItem>
-                    <SelectItem value="implementation" disabled={initialData && !isEditable}>Implementation</SelectItem>
-                    <SelectItem value="amendment" disabled={initialData && !isEditable}>Amendment</SelectItem>
-                    <SelectItem value="contract_end" disabled={initialData && !isEditable}>Contract End</SelectItem>
-                    <SelectItem value="legal_send_back">Legal Send Back</SelectItem>
-                    <SelectItem value="management_send_back">Management Send Back</SelectItem>
-                    <SelectItem value="approval" disabled={initialData && !isEditable}>Approval</SelectItem>
-                    <SelectItem value="finished" disabled={initialData && !isEditable}>Finished</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="type" className="after:content-['*'] after:ml-0.5 after:text-red-500">Contract Type</Label>
+              <Select
+                value={formData.type as string || 'service'}
+                onValueChange={(value) => handleSelectChange('type', value)}
+                disabled={initialData && !isEditable}
+              >
+                <SelectTrigger id="type">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(contractTypeLabels).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Type-specific fields */}

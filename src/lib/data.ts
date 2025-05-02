@@ -530,12 +530,12 @@ export const createContract = async (
   creator: { email: string; displayName?: string | null }
 ): Promise<string> => {
   const now = Timestamp.now();
-  const initialStatus = contract.status || 'draft';
+  const initialStatus = contract.status || 'requested';
 
   // Create the initial timeline entry
   const initialTimelineEntry = {
     timestamp: now.toDate().toISOString(),
-    action: 'Contract Created with Draft Status',
+    action: 'Contract Created with Requested Status',
     userEmail: creator.email,
     userName: creator.displayName || creator.email.split('@')[0] || 'User', // Use email username or 'User' as fallback
     details: 'Contract was initially created'
