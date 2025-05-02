@@ -17,6 +17,18 @@ import { format, isValid } from 'date-fns';
 import SortDropdown, { SortOption } from './SortDropdown';
 
 interface FilterBarProps {
+  filters?: {
+    search: string;
+    status: ContractStatus | 'all';
+    type: ContractType | 'all';
+    project: string;
+    owner: string;
+    party: string;
+    dateRange: {
+      from: Date | null;
+      to: Date | null;
+    };
+  };
   onFilterChange: (filters: {
     search: string;
     status: ContractStatus | 'all';
@@ -52,20 +64,33 @@ const safeFormatDate = (date: Date | null, formatStr: string): string => {
   }
 };
 
-const FilterBar = ({ onFilterChange, currentSort, onSortChange, className }: FilterBarProps) => {
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<ContractStatus | 'all'>('all');
-  const [type, setType] = useState<ContractType | 'all'>('all');
-  const [project, setProject] = useState('');
-  const [owner, setOwner] = useState('');
-  const [party, setParty] = useState('');
+const FilterBar = ({ filters, onFilterChange, currentSort, onSortChange, className }: FilterBarProps) => {
+  const [search, setSearch] = useState(filters?.search || '');
+  const [status, setStatus] = useState<ContractStatus | 'all'>(filters?.status || 'all');
+  const [type, setType] = useState<ContractType | 'all'>(filters?.type || 'all');
+  const [project, setProject] = useState(filters?.project || '');
+  const [owner, setOwner] = useState(filters?.owner || '');
+  const [party, setParty] = useState(filters?.party || '');
   const [dateRange, setDateRange] = useState<{
     from: Date | null;
     to: Date | null;
-  }>({
+  }>(filters?.dateRange || {
     from: null,
     to: null,
   });
+
+  // Sync internal state with props when filters change
+  useEffect(() => {
+    if (filters) {
+      setSearch(filters.search);
+      setStatus(filters.status);
+      setType(filters.type);
+      setProject(filters.project);
+      setOwner(filters.owner);
+      setParty(filters.party);
+      setDateRange(filters.dateRange);
+    }
+  }, [filters]);
 
   useEffect(() => {
     const handler = setTimeout(() => {

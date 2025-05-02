@@ -601,6 +601,7 @@ const Contracts = () => {
             />
           </div>
           <FilterBar
+            filters={filters}
             onFilterChange={handleFilterChange}
             currentSort={sort}
             onSortChange={setSort}
