@@ -36,7 +36,7 @@ export interface ContractStats {
 }
 
 export type ContractStatus = 'requested' | 'draft' | 'legal_review' | 'management_review' | 'wwf_signing' | 'counterparty_signing' | 'implementation' | 'amendment' | 'contract_end' | 'approval' | 'finished' | 'legal_send_back' | 'management_send_back' | 'legal_declined' | 'management_declined';
-export type ContractType = 'service' | 'employment' | 'licensing' | 'nda' | 'partnership';
+export type ContractType = 'consultancy' | 'wos' | 'service' | 'moa_mou' | 'employment' | 'amendment' | 'grant' | 'subgrant' | 'lease' | 'donation';
 
 export interface Folder {
   id: string;
@@ -47,6 +47,154 @@ export interface Folder {
   updatedAt: string;
   contractCount?: number; // Optional for UI display purposes
 }
+
+// Define type-specific fields for each contract type based on contract_types file
+export interface ConsultancyFields {
+  consultantName?: string; // Name of Consultant
+  positionTitle?: string; // Position Title
+  // Name of Project is already in the main Contract interface as projectName
+  // Contract start date is already in the main Contract interface as startDate
+  // Contract end date is already in the main Contract interface as endDate
+  grossProfessionalFee?: number; // Gross Professional Fee
+  paymentSchedules?: string; // Payment Schedules
+  costCenter?: string; // Cost Center/Charging
+  termsOfReferenceLink?: string; // Terms of Reference (attachable as PDF link)
+}
+
+export interface WOSFields {
+  serviceProviderName?: string; // Name of Service Provider
+  positionTitle?: string; // Position Title
+  // Name of Project is already in the main Contract interface as projectName
+  // Contract start date is already in the main Contract interface as startDate
+  // Contract end date is already in the main Contract interface as endDate
+  grossTechnicalServiceFee?: number; // Gross Technical Service Fee
+  paymentSchedules?: string; // Payment Schedules
+  costCenter?: string; // Cost Center/Charging
+  scopeOfWorkLink?: string; // Scope of Work and Output (attachable as PDF link)
+}
+
+export interface ServiceAgreementFields {
+  serviceProviderName?: string; // Name of Service Provider
+  positionTitle?: string; // Position Title
+  // Name of Project is already in the main Contract interface as projectName
+  // Contract start date is already in the main Contract interface as startDate
+  // Contract end date is already in the main Contract interface as endDate
+  grossTechnicalServiceFee?: number; // Gross Technical Service Fee
+  paymentSchedules?: string; // Payment Schedules
+  costCenter?: string; // Cost Center/Charging
+  scopeOfWorkLink?: string; // Scope of Work and Output (attachable as PDF link)
+}
+
+export interface MOAMOUFields {
+  contractingPartyName?: string; // Name of Contracting Party
+  registeredAddress?: string; // Registered Business/Office Address
+  authorizedRepresentative?: string; // Name of Authorized Representative/Signatory
+  authorizedRepresentativeDesignation?: string; // Designation of Authorized Representative
+  recitals?: string; // Recitals or Whereas Clauses
+  purpose?: string; // Purpose of the agreement
+  kkpfiRoles?: string; // Roles of KKPFI
+  contractingPartyRoles?: string; // Roles of the contracting party
+  mutualObligations?: string; // Mutual obligations (if any)
+  // Contract start date is already in the main Contract interface as startDate
+  // Contract end date is already in the main Contract interface as endDate
+}
+
+export interface EmploymentFields {
+  positionTitle?: string; // Position Title
+  // Project Name is already in the main Contract interface as projectName
+  costCenter?: string; // Cost Center/Charging
+  numberOfStaff?: number; // Number of staff needed
+  salaryRate?: number; // Salary Rate
+  communicationAllowance?: number; // Communication Allowance
+  requisitionReason?: 'new_position' | 'additional' | 'replacement'; // Reason for Requisition
+  replacementReason?: string; // Specify reason if replacement
+  employmentClassification?: 'core' | 'project'; // Classification of employment
+  projectDurationMonths?: number; // Number of months if project
+}
+
+export interface AmendmentFields {
+  originalContractType?: ContractType; // Contract type
+  durationAmendment?: string; // Duration
+  deliverablesAmendment?: string; // Deliverables
+  paymentAmendment?: string; // Payment
+  paymentSchedulesAmendment?: string; // Schedules of Payment
+}
+
+export interface GrantAgreementFields {
+  donorName?: string; // Name of Donor
+  donorAddress?: string; // Registered Address of Donor
+  // Project Name is already in the main Contract interface as projectName
+  projectLocation?: string; // Project Location
+  // Contract start date is already in the main Contract interface as startDate
+  // Contract end date is already in the main Contract interface as endDate
+  primaryDonor?: string; // Primary Donor
+  primaryDonorFundingSourceAgreementNumber?: string; // Primary Donor Funding Source Agreement Number
+  contractAmount?: number; // Contract Amount
+  bankAccountInformation?: string; // Bank Account Information
+  paymentSchedules?: string; // Payment Schedules
+  donorContacts?: string; // Donor contacts
+  kkpfiContacts?: string; // KKPFI contacts
+  deliverables?: string; // Deliverables and dates of submission
+  authorizedSignatoryName?: string; // Name of Authorized Signatory
+  authorizedSignatoryDesignation?: string; // Designation of Authorized Signatory
+}
+
+export interface SubgrantFields {
+  recipientOrganizationName?: string; // Name of Recipient Organization
+  recipientOrganizationAddress?: string; // Registered Address of Recipient Organization
+  recipientOrganizationContact?: string; // Contact Details of Recipient Organization
+  // Project Name is already in the main Contract interface as projectName
+  projectLocation?: string; // Project Location
+  // Contract start date is already in the main Contract interface as startDate
+  // Contract end date is already in the main Contract interface as endDate
+  primaryDonor?: string; // Primary Donor
+  primaryDonorFundingSourceAgreementNumber?: string; // Primary Donor Funding Source Agreement Number
+  contractAmount?: number; // Contract Amount
+  bankAccountInformation?: string; // Bank Account Information
+  paymentSchedules?: string; // Payment Schedules
+  recipientOrganizationContacts?: string; // Recipient Organization contacts
+  kkpfiContacts?: string; // KKPFI contacts
+  deliverables?: string; // Deliverables and dates of submission
+  authorizedSignatoryName?: string; // Name of Authorized Signatory
+  authorizedSignatoryDesignation?: string; // Designation of Authorized Signatory
+}
+
+export interface LeaseFields {
+  lessorName?: string; // Name of Lessor
+  lessorAddress?: string; // Registered Address of Lessor
+  propertyDescription?: string; // Description of Property to be Leased
+  propertyAddress?: string; // Complete Address of Property
+  leasePurpose?: string; // Purpose of Lease
+  // Contract start date is already in the main Contract interface as startDate
+  // Contract end date is already in the main Contract interface as endDate
+  monthlyRentalFee?: number; // Amount of Monthly Rental Fee
+  paymentDueDate?: string; // Due Date of Payment
+  costCenter?: string; // Cost Center/Charging
+}
+
+export interface DonationFields {
+  // Name of Project is already in the main Contract interface as projectName
+  recipientOrganizationName?: string; // Name of Recipient Organization/Donee
+  authorizedRepresentative?: string; // Name of Authorized Representative of Donee
+  recipientAddress?: string; // Address of Donee
+  recipientEmail?: string; // Email Address of Donee
+  transferPurpose?: string; // Purpose for the transfer of item/equipment
+  donatedItems?: string; // List of materials to be donated
+  doneeObligations?: string; // Specific Donee Obligations
+}
+
+// Union type for all possible type-specific fields
+export type ContractTypeFields =
+  ConsultancyFields |
+  WOSFields |
+  ServiceAgreementFields |
+  MOAMOUFields |
+  EmploymentFields |
+  AmendmentFields |
+  GrantAgreementFields |
+  SubgrantFields |
+  LeaseFields |
+  DonationFields;
 
 export interface Contract {
   id: string;
@@ -74,7 +222,9 @@ export interface Contract {
   // Amendment tracking
   isAmended?: boolean; // Flag to indicate if contract has been amended
   amendmentStage?: 'amendment' | 'legal' | 'wwf' | 'counterparty'; // Current stage in the amendment process
-  // sharedWith property removed
+  // Type-specific fields
+  typeSpecificFields?: ContractTypeFields;
+  // Timeline and comments
   timeline?: {
     timestamp: string;
     action: string;
@@ -221,11 +371,16 @@ export const statusColors: Record<ContractStatus, { bg: string; text: string; bo
 };
 
 export const contractTypeLabels: Record<ContractType, string> = {
+  consultancy: 'Consultancy',
+  wos: 'Work Order for Services (WOS)',
   service: 'Service Agreement',
+  moa_mou: 'Memorandum of Agreement/Understanding (MOA/MOU)',
   employment: 'Employment Contract',
-  licensing: 'Licensing Agreement',
-  nda: 'Non-Disclosure Agreement',
-  partnership: 'Partnership Agreement'
+  amendment: 'Request for Amendment',
+  grant: 'Grant Agreement',
+  subgrant: 'Subgrant Agreement',
+  lease: 'Lease Contract',
+  donation: 'Deed of Donation'
 };
 
 export const getContracts = async (includeArchived: boolean = false): Promise<Contract[]> => {
@@ -752,16 +907,57 @@ export const addAdminUser = async (email: string, currentUserEmail?: string, dis
     }
   }
 
+  const normalizedEmail = email.toLowerCase();
+  console.log(`[Admin] ${new Date().toISOString()} - Adding admin user: ${normalizedEmail}`);
+
   const adminRef = collection(db, 'admin');
-  const adminQuery = query(adminRef, where('email', '==', email.toLowerCase()));
+  const adminQuery = query(adminRef, where('email', '==', normalizedEmail));
   const adminSnapshot = await getDocs(adminQuery);
 
   if (adminSnapshot.empty) {
     await addDoc(adminRef, {
-      email: email.toLowerCase(),
+      email: normalizedEmail,
       displayName: displayName,
       createdAt: new Date().toISOString()
     });
+    console.log(`[Admin] ${new Date().toISOString()} - Added user to admin collection: ${normalizedEmail}`);
+  } else {
+    console.log(`[Admin] ${new Date().toISOString()} - User already exists in admin collection: ${normalizedEmail}`);
+  }
+
+  // Update userRoles document to set isAdmin to true
+  try {
+    const now = new Date().toISOString();
+    const userRolesRef = doc(db, 'userRoles', normalizedEmail);
+
+    // Check if userRoles document already exists
+    const userRoleDoc = await getDoc(userRolesRef);
+
+    if (!userRoleDoc.exists()) {
+      // Create a new userRoles document with isAdmin set to true and others to false
+      const userRolesData = {
+        email: normalizedEmail,
+        isAdmin: true,
+        isLegalTeam: false,
+        isManagementTeam: false,
+        isApprover: false,
+        createdAt: now,
+        updatedAt: now
+      };
+
+      await setDoc(userRolesRef, userRolesData);
+      console.log(`[Admin] ${new Date().toISOString()} - Created userRoles document for admin: ${normalizedEmail}`);
+    } else {
+      // Update the existing document to set isAdmin to true
+      await updateDoc(userRolesRef, {
+        isAdmin: true,
+        updatedAt: now
+      });
+      console.log(`[Admin] ${new Date().toISOString()} - Updated userRoles document for admin: ${normalizedEmail}`);
+    }
+  } catch (error) {
+    console.error(`[Admin] ${new Date().toISOString()} - Error updating userRoles document:`, error);
+    // Continue even if updating userRoles fails - the user is still added to the admin collection
   }
 };
 
@@ -1242,23 +1438,65 @@ export const addLegalTeamMember = async (
   email: string,
   displayName: string = ''
 ): Promise<void> => {
+  const normalizedEmail = email.toLowerCase();
+  console.log(`[Legal] ${new Date().toISOString()} - Adding legal team member: ${normalizedEmail}`);
+
   // First check if the user is already in the management team
-  const isManagement = await isUserManagementTeam(email);
+  const isManagement = await isUserManagementTeam(normalizedEmail);
 
   if (isManagement) {
+    console.log(`[Legal] ${new Date().toISOString()} - User is already in management team: ${normalizedEmail}`);
     throw new Error('User is already a management team member. A user cannot be in both legal and management teams.');
   }
 
   const legalTeamRef = collection(db, 'legalTeam');
-  const legalTeamQuery = query(legalTeamRef, where('email', '==', email.toLowerCase()));
+  const legalTeamQuery = query(legalTeamRef, where('email', '==', normalizedEmail));
   const legalTeamSnapshot = await getDocs(legalTeamQuery);
 
   if (legalTeamSnapshot.empty) {
     await addDoc(legalTeamRef, {
-      email: email.toLowerCase(),
+      email: normalizedEmail,
       displayName,
       createdAt: new Date().toISOString()
     });
+    console.log(`[Legal] ${new Date().toISOString()} - Added user to legal team collection: ${normalizedEmail}`);
+  } else {
+    console.log(`[Legal] ${new Date().toISOString()} - User already exists in legal team collection: ${normalizedEmail}`);
+  }
+
+  // Update userRoles document to set isLegalTeam to true
+  try {
+    const now = new Date().toISOString();
+    const userRolesRef = doc(db, 'userRoles', normalizedEmail);
+
+    // Check if userRoles document already exists
+    const userRoleDoc = await getDoc(userRolesRef);
+
+    if (!userRoleDoc.exists()) {
+      // Create a new userRoles document with isLegalTeam set to true and others to false
+      const userRolesData = {
+        email: normalizedEmail,
+        isAdmin: false,
+        isLegalTeam: true,
+        isManagementTeam: false,
+        isApprover: false,
+        createdAt: now,
+        updatedAt: now
+      };
+
+      await setDoc(userRolesRef, userRolesData);
+      console.log(`[Legal] ${new Date().toISOString()} - Created userRoles document for legal team member: ${normalizedEmail}`);
+    } else {
+      // Update the existing document to set isLegalTeam to true
+      await updateDoc(userRolesRef, {
+        isLegalTeam: true,
+        updatedAt: now
+      });
+      console.log(`[Legal] ${new Date().toISOString()} - Updated userRoles document for legal team member: ${normalizedEmail}`);
+    }
+  } catch (error) {
+    console.error(`[Legal] ${new Date().toISOString()} - Error updating userRoles document:`, error);
+    // Continue even if updating userRoles fails - the user is still added to the legal team collection
   }
 };
 
@@ -1284,23 +1522,65 @@ export const addManagementTeamMember = async (
   email: string,
   displayName: string = ''
 ): Promise<void> => {
+  const normalizedEmail = email.toLowerCase();
+  console.log(`[Management] ${new Date().toISOString()} - Adding management team member: ${normalizedEmail}`);
+
   // First check if the user is already in the legal team
-  const isLegal = await isUserLegalTeam(email);
+  const isLegal = await isUserLegalTeam(normalizedEmail);
 
   if (isLegal) {
+    console.log(`[Management] ${new Date().toISOString()} - User is already in legal team: ${normalizedEmail}`);
     throw new Error('User is already a legal team member. A user cannot be in both legal and management teams.');
   }
 
   const managementTeamRef = collection(db, 'managementTeam');
-  const managementTeamQuery = query(managementTeamRef, where('email', '==', email.toLowerCase()));
+  const managementTeamQuery = query(managementTeamRef, where('email', '==', normalizedEmail));
   const managementTeamSnapshot = await getDocs(managementTeamQuery);
 
   if (managementTeamSnapshot.empty) {
     await addDoc(managementTeamRef, {
-      email: email.toLowerCase(),
+      email: normalizedEmail,
       displayName,
       createdAt: new Date().toISOString()
     });
+    console.log(`[Management] ${new Date().toISOString()} - Added user to management team collection: ${normalizedEmail}`);
+  } else {
+    console.log(`[Management] ${new Date().toISOString()} - User already exists in management team collection: ${normalizedEmail}`);
+  }
+
+  // Update userRoles document to set isManagementTeam to true
+  try {
+    const now = new Date().toISOString();
+    const userRolesRef = doc(db, 'userRoles', normalizedEmail);
+
+    // Check if userRoles document already exists
+    const userRoleDoc = await getDoc(userRolesRef);
+
+    if (!userRoleDoc.exists()) {
+      // Create a new userRoles document with isManagementTeam set to true and others to false
+      const userRolesData = {
+        email: normalizedEmail,
+        isAdmin: false,
+        isLegalTeam: false,
+        isManagementTeam: true,
+        isApprover: false,
+        createdAt: now,
+        updatedAt: now
+      };
+
+      await setDoc(userRolesRef, userRolesData);
+      console.log(`[Management] ${new Date().toISOString()} - Created userRoles document for management team member: ${normalizedEmail}`);
+    } else {
+      // Update the existing document to set isManagementTeam to true
+      await updateDoc(userRolesRef, {
+        isManagementTeam: true,
+        updatedAt: now
+      });
+      console.log(`[Management] ${new Date().toISOString()} - Updated userRoles document for management team member: ${normalizedEmail}`);
+    }
+  } catch (error) {
+    console.error(`[Management] ${new Date().toISOString()} - Error updating userRoles document:`, error);
+    // Continue even if updating userRoles fails - the user is still added to the management team collection
   }
 };
 
@@ -1350,17 +1630,21 @@ export const inviteUser = async (
   role: string = 'user',
   invitedBy: string
 ): Promise<void> => {
+  const normalizedEmail = email.toLowerCase();
+  console.log(`[User] ${new Date().toISOString()} - Inviting user: ${normalizedEmail} with role: ${role}`);
+
   // Check if user already exists
-  const userQuery = query(collection(db, 'users'), where('email', '==', email.toLowerCase()));
+  const userQuery = query(collection(db, 'users'), where('email', '==', normalizedEmail));
   const userSnapshot = await getDocs(userQuery);
 
   if (!userSnapshot.empty) {
+    console.log(`[User] ${new Date().toISOString()} - User already exists: ${normalizedEmail}`);
     return; // User already exists, no need to create a new account
   }
 
   // Create user data
   const userData = {
-    email: email.toLowerCase(),
+    email: normalizedEmail,
     role,
     invitedBy,
     createdAt: new Date().toISOString(),
@@ -1370,14 +1654,45 @@ export const inviteUser = async (
 
   // Add to users collection as an active user
   await addDoc(collection(db, 'users'), userData);
+  console.log(`[User] ${new Date().toISOString()} - Added user to users collection: ${normalizedEmail}`);
+
+  // Create userRoles document with all boolean fields set to false
+  try {
+    const now = new Date().toISOString();
+    const userRolesRef = doc(db, 'userRoles', normalizedEmail);
+
+    // Check if userRoles document already exists
+    const userRoleDoc = await getDoc(userRolesRef);
+
+    if (!userRoleDoc.exists()) {
+      // Create a new userRoles document with all roles set to false
+      const userRolesData = {
+        email: normalizedEmail,
+        isAdmin: false,
+        isLegalTeam: false,
+        isManagementTeam: false,
+        isApprover: false,
+        createdAt: now,
+        updatedAt: now
+      };
+
+      await setDoc(userRolesRef, userRolesData);
+      console.log(`[User] ${new Date().toISOString()} - Created userRoles document for: ${normalizedEmail}`);
+    } else {
+      console.log(`[User] ${new Date().toISOString()} - userRoles document already exists for: ${normalizedEmail}`);
+    }
+  } catch (error) {
+    console.error(`[User] ${new Date().toISOString()} - Error creating userRoles document:`, error);
+    // Continue even if creating userRoles fails - the user is still added to the database
+  }
 
   // Get default password without creating Firebase Auth account
   // This prevents logging out the current user
   let defaultPassword = '12345678';
   try {
-    defaultPassword = await createUserRecord(email.toLowerCase());
+    defaultPassword = await createUserRecord(normalizedEmail);
   } catch (error) {
-    console.error('Error creating user record:', error);
+    console.error(`[User] ${new Date().toISOString()} - Error creating user record:`, error);
     // Continue with default password even if there's an error
   }
 
@@ -1392,7 +1707,7 @@ export const inviteUser = async (
         <p>This is an automated notification from the Contract Management System.</p>
         <p>An account has been created for you by WWF-Philippines Team. This system helps manage and track contracts efficiently.</p>
         <p>You can log in immediately using the credentials below:</p>
-        <p><strong>Login email:</strong> ${email.toLowerCase()}</p>
+        <p><strong>Login email:</strong> ${normalizedEmail}</p>
         <p><strong>Temporary access code:</strong> ${defaultPassword}</p>
         <p style="font-size: 12px; color: #999;">This is a temporary credential for your first login. For your security, please change it immediately after accessing the system.</p>
         <p>You can access the system here:</p>
@@ -1414,7 +1729,7 @@ An account has been created for you by WWF-Philippines Team. This system helps m
 
 You can log in immediately using the credentials below:
 
-Login email: ${email.toLowerCase()}
+Login email: ${normalizedEmail}
 Temporary access code: ${defaultPassword}
 
 (This is a temporary credential for your first login. For your security, please change it immediately after accessing the system.)
@@ -1427,13 +1742,14 @@ Sent by Contract Management System – WWF Contracts
     `;
 
     await sendNotificationEmail(
-      email.toLowerCase(),
+      normalizedEmail,
       'Your Contract Management System Account',
       htmlContent,
       textContent // Pass the text content
     );
+    console.log(`[User] ${new Date().toISOString()} - Sent invitation email to: ${normalizedEmail}`);
   } catch (error) {
-    console.error('Error sending account creation email:', error);
+    console.error(`[User] ${new Date().toISOString()} - Error sending account creation email:`, error);
     // Continue even if email fails - the user is still added to the database
   }
 };
@@ -1541,16 +1857,57 @@ export const addApprover = async (
   email: string,
   displayName: string = ''
 ): Promise<void> => {
+  const normalizedEmail = email.toLowerCase();
+  console.log(`[Approver] ${new Date().toISOString()} - Adding approver: ${normalizedEmail}`);
+
   const approversRef = collection(db, 'approvers');
-  const approverQuery = query(approversRef, where('email', '==', email.toLowerCase()));
+  const approverQuery = query(approversRef, where('email', '==', normalizedEmail));
   const approverSnapshot = await getDocs(approverQuery);
 
   if (approverSnapshot.empty) {
     await addDoc(approversRef, {
-      email: email.toLowerCase(),
+      email: normalizedEmail,
       displayName,
       createdAt: new Date().toISOString()
     });
+    console.log(`[Approver] ${new Date().toISOString()} - Added user to approvers collection: ${normalizedEmail}`);
+  } else {
+    console.log(`[Approver] ${new Date().toISOString()} - User already exists in approvers collection: ${normalizedEmail}`);
+  }
+
+  // Update userRoles document to set isApprover to true
+  try {
+    const now = new Date().toISOString();
+    const userRolesRef = doc(db, 'userRoles', normalizedEmail);
+
+    // Check if userRoles document already exists
+    const userRoleDoc = await getDoc(userRolesRef);
+
+    if (!userRoleDoc.exists()) {
+      // Create a new userRoles document with isApprover set to true and others to false
+      const userRolesData = {
+        email: normalizedEmail,
+        isAdmin: false,
+        isLegalTeam: false,
+        isManagementTeam: false,
+        isApprover: true,
+        createdAt: now,
+        updatedAt: now
+      };
+
+      await setDoc(userRolesRef, userRolesData);
+      console.log(`[Approver] ${new Date().toISOString()} - Created userRoles document for approver: ${normalizedEmail}`);
+    } else {
+      // Update the existing document to set isApprover to true
+      await updateDoc(userRolesRef, {
+        isApprover: true,
+        updatedAt: now
+      });
+      console.log(`[Approver] ${new Date().toISOString()} - Updated userRoles document for approver: ${normalizedEmail}`);
+    }
+  } catch (error) {
+    console.error(`[Approver] ${new Date().toISOString()} - Error updating userRoles document:`, error);
+    // Continue even if updating userRoles fails - the user is still added to the approvers collection
   }
 };
 

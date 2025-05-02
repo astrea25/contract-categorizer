@@ -628,7 +628,7 @@ const Admin = () => {
     }
   };
 
-  // Function to handle user removal
+  // Function to handle user removal (only from Firestore, not Firebase Auth)
   const handleRemoveUser = async () => {
     if (!userToRemove) return;
 
@@ -640,12 +640,12 @@ const Admin = () => {
         await removeUser(userToRemove.id, currentUser?.email || 'admin');
         toast.success(`Invitation for ${userToRemove.email} has been canceled`);
       } else {
-        // This is a registered user - use the removeUser function
-        // Pass the admin's email for logging and potential server-side operations
-        await removeUser(userToRemove.id, currentUser?.email || 'admin');
+        // This is a registered user - only remove from Firestore database
+        const userRef = doc(db, 'users', userToRemove.id);
+        await deleteDoc(userRef);
 
         toast.success(`User ${userToRemove.email} has been removed from the database`, {
-          description: "Note: The user has been removed from Firestore, but you'll see a popup with instructions for manually removing them from Firebase Authentication."
+          description: "Note: The user has been removed from the Firestore database only. You'll need to manually delete them from Firebase Authentication using the guide above."
         });
       }
 
@@ -653,7 +653,7 @@ const Admin = () => {
       fetchData(); // Refresh data
     } catch (error) {
       console.error('Error removing user:', error);
-      toast.error('Failed to remove user');
+      toast.error(`Failed to remove user: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsRemovingUser(false);
     }
@@ -1058,24 +1058,6 @@ const Admin = () => {
                               <li>Select "Delete account"</li>
                             </ol>
                             <p className="text-sm mt-3 italic">This step is necessary because client-side applications cannot directly delete users from Firebase Authentication for security reasons.</p>
-                            <div className="mt-4 pt-4 border-t border-amber-200">
-                              <p className="text-sm font-medium mb-2">After manually deleting a user in Firebase Auth, confirm deletion here:</p>
-                              <div className="flex items-center gap-2">
-                                <Input
-                                  placeholder="Enter user email"
-                                  className="max-w-xs"
-                                  value={confirmDeleteEmail || ''}
-                                  onChange={(e) => setConfirmDeleteEmail(e.target.value)}
-                                />
-                                <Button
-                                  size="sm"
-                                  onClick={handleConfirmFirebaseAuthDeletion}
-                                  disabled={!confirmDeleteEmail}
-                                >
-                                  Mark as Deleted
-                                </Button>
-                              </div>
-                            </div>
                           </CardContent>
                         </Card>
 
@@ -1088,8 +1070,10 @@ const Admin = () => {
                   </CardContent>
                   <CardFooter className="border-t pt-6 flex flex-col gap-2">
                     <div className="text-sm text-muted-foreground">
-                      This section shows both registered users and pending invitations. Regular users can be removed using the delete icon.
+                      This section shows both registered users and pending invitations.
                       This application is invitation-only - new users must be invited via the "Invite User" button before they can sign up.
+                      The delete button will remove users from the Firestore database only. To completely delete users, you must also
+                      manually delete them from Firebase Authentication using the guide above.
                     </div>
                   </CardFooter>
                 </Card>
@@ -1521,7 +1505,7 @@ const Admin = () => {
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>
-                    {userToRemove?.isPendingInvite ? 'Cancel Invitation' : 'Confirm User Removal'}
+                    {userToRemove?.isPendingInvite ? 'Cancel Invitation' : 'Remove User from Database'}
                   </AlertDialogTitle>
                   <AlertDialogDescription>
                     {userToRemove?.isPendingInvite ? (
@@ -1531,28 +1515,28 @@ const Admin = () => {
                       </>
                     ) : (
                       <>
-                        Are you sure you want to remove <span className="font-semibold">{userToRemove?.email}</span>?
-                        This will permanently delete the user's data from the database and prevent them from accessing the application.
-                        <p className="mt-3 text-green-600 text-sm">
-                          <strong>Note:</strong> This will remove the user from both the database and Firebase Authentication.
-                          The user will no longer be able to sign in after this operation.
-                        </p>
-                        <div className="mt-3 p-3 border border-amber-200 bg-amber-50 rounded-md">
-                          <p className="text-amber-700 text-sm font-medium">Important: Two-Step Process</p>
-                          <p className="text-amber-700 text-sm mt-1">
-                            1. This operation will remove the user from the database only.
-                          </p>
-                          <p className="text-amber-700 text-sm mt-1">
-                            2. You will need to manually delete the user from Firebase Authentication
-                            through the Firebase Console as a separate step.
-                          </p>
-                          <p className="text-amber-700 text-sm mt-1">
-                            Please refer to the Firebase Auth Deletion Guide in the Users tab for detailed instructions.
-                          </p>
-                        </div>
+                        Are you sure you want to remove <span className="font-semibold">{userToRemove?.email}</span> from the database?
+                        This will remove the user from the Firestore database only.
                       </>
                     )}
                   </AlertDialogDescription>
+
+                  {!userToRemove?.isPendingInvite && (
+                    <div className="mt-3 p-3 border border-amber-200 bg-amber-50 rounded-md">
+                      <div className="text-amber-700 text-sm font-medium">Important Note</div>
+                      <div className="text-amber-700 text-sm mt-1">
+                        This operation will only remove the user from the Firestore database.
+                      </div>
+                      <div className="text-amber-700 text-sm mt-1">
+                        The user will still exist in Firebase Authentication and will need to be manually deleted
+                        through the Firebase Console as explained in the guide above.
+                      </div>
+                      <div className="text-amber-700 text-sm mt-1">
+                        Until deleted from Firebase Authentication, the user may still be able to log in,
+                        but will appear as a new user without any roles or permissions.
+                      </div>
+                    </div>
+                  )}
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -1565,7 +1549,7 @@ const Admin = () => {
                       ? 'Processing...'
                       : userToRemove?.isPendingInvite
                         ? 'Cancel Invitation'
-                        : 'Remove User'
+                        : 'Remove from Database'
                     }
                   </AlertDialogAction>
                 </AlertDialogFooter>

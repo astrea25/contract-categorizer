@@ -24,21 +24,34 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CalendarIcon, FolderIcon, Plus, X } from 'lucide-react';
+import { CalendarIcon, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Contract, ContractStatus, ContractType, contractTypeLabels, Folder } from '@/lib/data';
+import {
+  Contract,
+  ContractStatus,
+  ContractType,
+  contractTypeLabels,
+  Folder,
+  ConsultancyFields,
+  WOSFields,
+  ServiceAgreementFields,
+  MOAMOUFields,
+  EmploymentFields,
+  AmendmentFields,
+  GrantAgreementFields,
+  SubgrantFields,
+  LeaseFields,
+  DonationFields,
+  ContractTypeFields
+} from '@/lib/data';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 
-type Party = {
-  name: string;
-  email: string;
-  role: string;
-};
+// Party type removed as it's not in the contract_types file
 
 interface ContractFormProps {
   initialData?: Partial<Contract>;
@@ -49,6 +62,503 @@ interface ContractFormProps {
 }
 
 // Helper function to determine if a contract is editable based on its status
+// Component to render type-specific fields based on contract type
+const TypeSpecificFields = ({
+  contractType,
+  typeSpecificFields,
+  handleInputChange,
+  handleNumberChange,
+  handleSelectChange,
+  disabled
+}: {
+  contractType: ContractType;
+  typeSpecificFields: any;
+  handleInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  handleNumberChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleSelectChange: (name: string, value: string) => void;
+  disabled: boolean;
+}) => {
+  switch (contractType) {
+    case 'consultancy':
+      return (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="consultantName" className="after:content-['*'] after:ml-0.5 after:text-red-500">Consultant Name</Label>
+              <Input
+                id="consultantName"
+                name="consultantName"
+                value={typeSpecificFields?.consultantName || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="positionTitle" className="after:content-['*'] after:ml-0.5 after:text-red-500">Position Title</Label>
+              <Input
+                id="positionTitle"
+                name="positionTitle"
+                value={typeSpecificFields?.positionTitle || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="grossProfessionalFee" className="after:content-['*'] after:ml-0.5 after:text-red-500">Gross Professional Fee</Label>
+              <Input
+                id="grossProfessionalFee"
+                name="grossProfessionalFee"
+                type="number"
+                value={typeSpecificFields?.grossProfessionalFee || ''}
+                onChange={handleNumberChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="costCenter" className="after:content-['*'] after:ml-0.5 after:text-red-500">Cost Center/Charging</Label>
+              <Input
+                id="costCenter"
+                name="costCenter"
+                value={typeSpecificFields?.costCenter || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="paymentSchedules" className="after:content-['*'] after:ml-0.5 after:text-red-500">Payment Schedules</Label>
+            <Textarea
+              id="paymentSchedules"
+              name="paymentSchedules"
+              value={typeSpecificFields?.paymentSchedules || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="termsOfReferenceLink">Terms of Reference (PDF Link)</Label>
+            <Input
+              id="termsOfReferenceLink"
+              name="termsOfReferenceLink"
+              type="url"
+              value={typeSpecificFields?.termsOfReferenceLink || ''}
+              onChange={handleInputChange}
+              placeholder="Enter link to Terms of Reference document"
+              disabled={disabled}
+            />
+          </div>
+        </>
+      );
+
+    case 'wos':
+      return (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="serviceProviderName" className="after:content-['*'] after:ml-0.5 after:text-red-500">Service Provider Name</Label>
+              <Input
+                id="serviceProviderName"
+                name="serviceProviderName"
+                value={typeSpecificFields?.serviceProviderName || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="positionTitle" className="after:content-['*'] after:ml-0.5 after:text-red-500">Position Title</Label>
+              <Input
+                id="positionTitle"
+                name="positionTitle"
+                value={typeSpecificFields?.positionTitle || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="grossTechnicalServiceFee" className="after:content-['*'] after:ml-0.5 after:text-red-500">Gross Technical Service Fee</Label>
+              <Input
+                id="grossTechnicalServiceFee"
+                name="grossTechnicalServiceFee"
+                type="number"
+                value={typeSpecificFields?.grossTechnicalServiceFee || ''}
+                onChange={handleNumberChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="costCenter" className="after:content-['*'] after:ml-0.5 after:text-red-500">Cost Center/Charging</Label>
+              <Input
+                id="costCenter"
+                name="costCenter"
+                value={typeSpecificFields?.costCenter || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="paymentSchedules" className="after:content-['*'] after:ml-0.5 after:text-red-500">Payment Schedules</Label>
+            <Textarea
+              id="paymentSchedules"
+              name="paymentSchedules"
+              value={typeSpecificFields?.paymentSchedules || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="scopeOfWorkLink">Scope of Work and Output (PDF Link)</Label>
+            <Input
+              id="scopeOfWorkLink"
+              name="scopeOfWorkLink"
+              type="url"
+              value={typeSpecificFields?.scopeOfWorkLink || ''}
+              onChange={handleInputChange}
+              placeholder="Enter link to Scope of Work document"
+              disabled={disabled}
+            />
+          </div>
+        </>
+      );
+
+    case 'service':
+      return (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="serviceProviderName" className="after:content-['*'] after:ml-0.5 after:text-red-500">Service Provider Name</Label>
+              <Input
+                id="serviceProviderName"
+                name="serviceProviderName"
+                value={typeSpecificFields?.serviceProviderName || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="positionTitle" className="after:content-['*'] after:ml-0.5 after:text-red-500">Position Title</Label>
+              <Input
+                id="positionTitle"
+                name="positionTitle"
+                value={typeSpecificFields?.positionTitle || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="grossTechnicalServiceFee" className="after:content-['*'] after:ml-0.5 after:text-red-500">Gross Technical Service Fee</Label>
+              <Input
+                id="grossTechnicalServiceFee"
+                name="grossTechnicalServiceFee"
+                type="number"
+                value={typeSpecificFields?.grossTechnicalServiceFee || ''}
+                onChange={handleNumberChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="costCenter" className="after:content-['*'] after:ml-0.5 after:text-red-500">Cost Center/Charging</Label>
+              <Input
+                id="costCenter"
+                name="costCenter"
+                value={typeSpecificFields?.costCenter || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="paymentSchedules" className="after:content-['*'] after:ml-0.5 after:text-red-500">Payment Schedules</Label>
+            <Textarea
+              id="paymentSchedules"
+              name="paymentSchedules"
+              value={typeSpecificFields?.paymentSchedules || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="scopeOfWorkLink">Scope of Work and Output (PDF Link)</Label>
+            <Input
+              id="scopeOfWorkLink"
+              name="scopeOfWorkLink"
+              type="url"
+              value={typeSpecificFields?.scopeOfWorkLink || ''}
+              onChange={handleInputChange}
+              placeholder="Enter link to Scope of Work document"
+              disabled={disabled}
+            />
+          </div>
+        </>
+      );
+
+    case 'moa_mou':
+      return (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="contractingPartyName" className="after:content-['*'] after:ml-0.5 after:text-red-500">Contracting Party Name</Label>
+              <Input
+                id="contractingPartyName"
+                name="contractingPartyName"
+                value={typeSpecificFields?.contractingPartyName || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="registeredAddress" className="after:content-['*'] after:ml-0.5 after:text-red-500">Registered Business/Office Address</Label>
+              <Input
+                id="registeredAddress"
+                name="registeredAddress"
+                value={typeSpecificFields?.registeredAddress || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="authorizedRepresentative" className="after:content-['*'] after:ml-0.5 after:text-red-500">Authorized Representative/Signatory</Label>
+              <Input
+                id="authorizedRepresentative"
+                name="authorizedRepresentative"
+                value={typeSpecificFields?.authorizedRepresentative || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="authorizedRepresentativeDesignation" className="after:content-['*'] after:ml-0.5 after:text-red-500">Designation of Authorized Representative</Label>
+              <Input
+                id="authorizedRepresentativeDesignation"
+                name="authorizedRepresentativeDesignation"
+                value={typeSpecificFields?.authorizedRepresentativeDesignation || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="recitals" className="after:content-['*'] after:ml-0.5 after:text-red-500">Recitals or Whereas Clauses</Label>
+            <Textarea
+              id="recitals"
+              name="recitals"
+              value={typeSpecificFields?.recitals || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="purpose" className="after:content-['*'] after:ml-0.5 after:text-red-500">Purpose of the Agreement</Label>
+            <Textarea
+              id="purpose"
+              name="purpose"
+              value={typeSpecificFields?.purpose || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="kkpfiRoles" className="after:content-['*'] after:ml-0.5 after:text-red-500">Roles of KKPFI</Label>
+            <Textarea
+              id="kkpfiRoles"
+              name="kkpfiRoles"
+              value={typeSpecificFields?.kkpfiRoles || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="contractingPartyRoles" className="after:content-['*'] after:ml-0.5 after:text-red-500">Roles of the Contracting Party</Label>
+            <Textarea
+              id="contractingPartyRoles"
+              name="contractingPartyRoles"
+              value={typeSpecificFields?.contractingPartyRoles || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="mutualObligations">Mutual Obligations (if any)</Label>
+            <Textarea
+              id="mutualObligations"
+              name="mutualObligations"
+              value={typeSpecificFields?.mutualObligations || ''}
+              onChange={handleInputChange}
+              disabled={disabled}
+            />
+          </div>
+        </>
+      );
+
+    case 'employment':
+      return (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="positionTitle" className="after:content-['*'] after:ml-0.5 after:text-red-500">Position Title</Label>
+              <Input
+                id="positionTitle"
+                name="positionTitle"
+                value={typeSpecificFields?.positionTitle || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="costCenter" className="after:content-['*'] after:ml-0.5 after:text-red-500">Cost Center/Charging</Label>
+              <Input
+                id="costCenter"
+                name="costCenter"
+                value={typeSpecificFields?.costCenter || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="numberOfStaff" className="after:content-['*'] after:ml-0.5 after:text-red-500">Number of Staff Needed</Label>
+              <Input
+                id="numberOfStaff"
+                name="numberOfStaff"
+                type="number"
+                value={typeSpecificFields?.numberOfStaff || ''}
+                onChange={handleNumberChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="salaryRate" className="after:content-['*'] after:ml-0.5 after:text-red-500">Salary Rate</Label>
+              <Input
+                id="salaryRate"
+                name="salaryRate"
+                type="number"
+                value={typeSpecificFields?.salaryRate || ''}
+                onChange={handleNumberChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="communicationAllowance">Communication Allowance</Label>
+              <Input
+                id="communicationAllowance"
+                name="communicationAllowance"
+                type="number"
+                value={typeSpecificFields?.communicationAllowance || ''}
+                onChange={handleNumberChange}
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="requisitionReason" className="after:content-['*'] after:ml-0.5 after:text-red-500">Reason for Requisition</Label>
+              <Select
+                value={typeSpecificFields?.requisitionReason || 'new_position'}
+                onValueChange={(value) => handleSelectChange('requisitionReason', value)}
+                disabled={disabled}
+              >
+                <SelectTrigger id="requisitionReason">
+                  <SelectValue placeholder="Select reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="new_position">New Position</SelectItem>
+                  <SelectItem value="additional">Additional</SelectItem>
+                  <SelectItem value="replacement">Replacement</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {typeSpecificFields?.requisitionReason === 'replacement' && (
+            <div className="space-y-2">
+              <Label htmlFor="replacementReason" className="after:content-['*'] after:ml-0.5 after:text-red-500">Replacement Reason</Label>
+              <Input
+                id="replacementReason"
+                name="replacementReason"
+                value={typeSpecificFields?.replacementReason || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="employmentClassification" className="after:content-['*'] after:ml-0.5 after:text-red-500">Classification of Employment</Label>
+              <Select
+                value={typeSpecificFields?.employmentClassification || 'core'}
+                onValueChange={(value) => handleSelectChange('employmentClassification', value)}
+                disabled={disabled}
+              >
+                <SelectTrigger id="employmentClassification">
+                  <SelectValue placeholder="Select classification" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="core">Core</SelectItem>
+                  <SelectItem value="project">Project</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {typeSpecificFields?.employmentClassification === 'project' && (
+              <div className="space-y-2">
+                <Label htmlFor="projectDurationMonths" className="after:content-['*'] after:ml-0.5 after:text-red-500">Project Duration (Months)</Label>
+                <Input
+                  id="projectDurationMonths"
+                  name="projectDurationMonths"
+                  type="number"
+                  value={typeSpecificFields?.projectDurationMonths || ''}
+                  onChange={handleNumberChange}
+                  required
+                  disabled={disabled}
+                />
+              </div>
+            )}
+          </div>
+        </>
+      );
+
+    // Add more cases for other contract types as needed
+
+    default:
+      return null;
+  }
+};
+
 const isContractEditable = (contract?: Partial<Contract>): boolean => {
   if (!contract || !contract.status) return true; // New contracts are always editable
 
@@ -83,26 +593,156 @@ const ContractForm = ({
 
   const [formData, setFormData] = useState<Partial<Contract>>(
     initialData || {
-      title: '',
       projectName: '',
-      type: 'service',
+      type: 'consultancy', // Default to consultancy as the first contract type
       status: 'draft',
       owner: currentUser?.email || 'Unassigned', // Ensure owner is never empty
-      parties: [
-        {
-          name: currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User',
-          email: currentUser?.email || '',
-          role: 'owner'
-        },
-        { name: '', email: '', role: 'client' }
-      ],
       startDate: new Date().toISOString().split('T')[0],
       endDate: null,
-      value: null,
-      description: '',
-      folderId: initialFolder || undefined
+      typeSpecificFields: {} // Initialize empty type-specific fields
     }
   );
+
+  // Initialize type-specific fields based on contract type
+  useEffect(() => {
+    if (formData.type && (!formData.typeSpecificFields || Object.keys(formData.typeSpecificFields).length === 0)) {
+      // Initialize type-specific fields based on the selected contract type
+      let typeFields: ContractTypeFields = {};
+
+      switch (formData.type) {
+        case 'consultancy':
+          typeFields = {
+            consultantName: '', // Name of Consultant
+            positionTitle: '', // Position Title
+            grossProfessionalFee: 0, // Gross Professional Fee
+            paymentSchedules: '', // Payment Schedules
+            costCenter: '', // Cost Center/Charging
+            termsOfReferenceLink: '' // Terms of Reference (attachable as PDF link)
+          } as ConsultancyFields;
+          break;
+        case 'wos':
+          typeFields = {
+            serviceProviderName: '', // Name of Service Provider
+            positionTitle: '', // Position Title
+            grossTechnicalServiceFee: 0, // Gross Technical Service Fee
+            paymentSchedules: '', // Payment Schedules
+            costCenter: '', // Cost Center/Charging
+            scopeOfWorkLink: '' // Scope of Work and Output (attachable as PDF link)
+          } as WOSFields;
+          break;
+        case 'service':
+          typeFields = {
+            serviceProviderName: '', // Name of Service Provider
+            positionTitle: '', // Position Title
+            grossTechnicalServiceFee: 0, // Gross Technical Service Fee
+            paymentSchedules: '', // Payment Schedules
+            costCenter: '', // Cost Center/Charging
+            scopeOfWorkLink: '' // Scope of Work and Output (attachable as PDF link)
+          } as ServiceAgreementFields;
+          break;
+        case 'moa_mou':
+          typeFields = {
+            contractingPartyName: '', // Name of Contracting Party
+            registeredAddress: '', // Registered Business/Office Address
+            authorizedRepresentative: '', // Name of Authorized Representative/Signatory
+            authorizedRepresentativeDesignation: '', // Designation of Authorized Representative
+            recitals: '', // Recitals or Whereas Clauses
+            purpose: '', // Purpose of the agreement
+            kkpfiRoles: '', // Roles of KKPFI
+            contractingPartyRoles: '', // Roles of the contracting party
+            mutualObligations: '' // Mutual obligations (if any)
+          } as MOAMOUFields;
+          break;
+        case 'employment':
+          typeFields = {
+            positionTitle: '', // Position Title
+            costCenter: '', // Cost Center/Charging
+            numberOfStaff: 1, // Number of staff needed
+            salaryRate: 0, // Salary Rate
+            communicationAllowance: 0, // Communication Allowance
+            requisitionReason: 'new_position', // Reason for Requisition
+            replacementReason: '', // Specify reason if replacement
+            employmentClassification: 'core', // Classification of employment
+            projectDurationMonths: 0 // Number of months if project
+          } as EmploymentFields;
+          break;
+        case 'amendment':
+          typeFields = {
+            originalContractType: 'consultancy', // Contract type
+            durationAmendment: '', // Duration
+            deliverablesAmendment: '', // Deliverables
+            paymentAmendment: '', // Payment
+            paymentSchedulesAmendment: '' // Schedules of Payment
+          } as AmendmentFields;
+          break;
+        case 'grant':
+          typeFields = {
+            donorName: '', // Name of Donor
+            donorAddress: '', // Registered Address of Donor
+            projectLocation: '', // Project Location
+            primaryDonor: '', // Primary Donor
+            primaryDonorFundingSourceAgreementNumber: '', // Primary Donor Funding Source Agreement Number
+            contractAmount: 0, // Contract Amount
+            bankAccountInformation: '', // Bank Account Information
+            paymentSchedules: '', // Payment Schedules
+            donorContacts: '', // Donor contacts
+            kkpfiContacts: '', // KKPFI contacts
+            deliverables: '', // Deliverables and dates of submission
+            authorizedSignatoryName: '', // Name of Authorized Signatory
+            authorizedSignatoryDesignation: '' // Designation of Authorized Signatory
+          } as GrantAgreementFields;
+          break;
+        case 'subgrant':
+          typeFields = {
+            recipientOrganizationName: '', // Name of Recipient Organization
+            recipientOrganizationAddress: '', // Registered Address of Recipient Organization
+            recipientOrganizationContact: '', // Contact Details of Recipient Organization
+            projectLocation: '', // Project Location
+            primaryDonor: '', // Primary Donor
+            primaryDonorFundingSourceAgreementNumber: '', // Primary Donor Funding Source Agreement Number
+            contractAmount: 0, // Contract Amount
+            bankAccountInformation: '', // Bank Account Information
+            paymentSchedules: '', // Payment Schedules
+            recipientOrganizationContacts: '', // Recipient Organization contacts
+            kkpfiContacts: '', // KKPFI contacts
+            deliverables: '', // Deliverables and dates of submission
+            authorizedSignatoryName: '', // Name of Authorized Signatory
+            authorizedSignatoryDesignation: '' // Designation of Authorized Signatory
+          } as SubgrantFields;
+          break;
+        case 'lease':
+          typeFields = {
+            lessorName: '', // Name of Lessor
+            lessorAddress: '', // Registered Address of Lessor
+            propertyDescription: '', // Description of Property to be Leased
+            propertyAddress: '', // Complete Address of Property
+            leasePurpose: '', // Purpose of Lease
+            monthlyRentalFee: 0, // Amount of Monthly Rental Fee
+            paymentDueDate: '', // Due Date of Payment
+            costCenter: '' // Cost Center/Charging
+          } as LeaseFields;
+          break;
+        case 'donation':
+          typeFields = {
+            recipientOrganizationName: '', // Name of Recipient Organization/Donee
+            authorizedRepresentative: '', // Name of Authorized Representative of Donee
+            recipientAddress: '', // Address of Donee
+            recipientEmail: '', // Email Address of Donee
+            transferPurpose: '', // Purpose for the transfer of item/equipment
+            donatedItems: '', // List of materials to be donated
+            doneeObligations: '' // Specific Donee Obligations
+          } as DonationFields;
+          break;
+        default:
+          typeFields = {};
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        typeSpecificFields: typeFields
+      }));
+    }
+  }, [formData.type]);
 
   // Update folder if initialFolder changes
   useEffect(() => {
@@ -114,16 +754,7 @@ const ContractForm = ({
     }
   }, [initialFolder]);
 
-  const [parties, setParties] = useState<Party[]>(
-    initialData?.parties || [
-      {
-        name: currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User',
-        email: currentUser?.email || '',
-        role: 'owner'
-      },
-      { name: '', email: '', role: 'client' }
-    ]
-  );
+  // Parties removed as they're not in the contract_types file
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -142,12 +773,54 @@ const ContractForm = ({
         ...prev,
         [name]: null
       }));
+    } else if (name === 'type') {
+      // When contract type changes, reset type-specific fields
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value === "none" ? undefined : value,
+        typeSpecificFields: {} // Reset type-specific fields
+      }));
     } else {
       setFormData((prev) => ({
         ...prev,
         [name]: value === "none" ? undefined : value
       }));
     }
+  };
+
+  // Handler for type-specific fields
+  const handleTypeSpecificInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      typeSpecificFields: {
+        ...prev.typeSpecificFields,
+        [name]: value
+      }
+    }));
+  };
+
+  // Handler for type-specific number fields
+  const handleTypeSpecificNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      typeSpecificFields: {
+        ...prev.typeSpecificFields,
+        [name]: value ? Number(value) : 0
+      }
+    }));
+  };
+
+  // Handler for type-specific select fields
+  const handleTypeSpecificSelectChange = (name: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      typeSpecificFields: {
+        ...prev.typeSpecificFields,
+        [name]: value
+      }
+    }));
   };
 
   const handleStartDateChange = (date: Date | undefined) => {
@@ -166,23 +839,7 @@ const ContractForm = ({
     }
   };
 
-  const handlePartyChange = (index: number, field: keyof Party, value: string) => {
-    const updatedParties = [...parties];
-    updatedParties[index] = { ...updatedParties[index], [field]: value };
-    setParties(updatedParties);
-  };
-
-  const addParty = () => {
-    setParties([...parties, { name: '', email: '', role: '' }]);
-  };
-
-  const removeParty = (index: number) => {
-    if (parties.length > 2) {
-      const updatedParties = [...parties];
-      updatedParties.splice(index, 1);
-      setParties(updatedParties);
-    }
-  };
+  // Party-related handlers removed as parties are not in the contract_types file
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,12 +850,142 @@ const ContractForm = ({
       return;
     }
 
-    if (!formData.title || !formData.projectName || !formData.startDate) {
+    // Validate required fields based on contract_types file
+    if (!formData.projectName || !formData.startDate || !formData.type) {
       toast.error('Please fill in all required fields');
       return;
     }
 
-    onSave({ ...formData, parties });
+    // Validate type-specific required fields
+    let missingRequiredFields = false;
+
+    if (formData.type) {
+      switch (formData.type) {
+        case 'consultancy':
+          if (!formData.typeSpecificFields?.consultantName ||
+              !formData.typeSpecificFields?.positionTitle ||
+              !formData.typeSpecificFields?.grossProfessionalFee ||
+              !formData.typeSpecificFields?.paymentSchedules ||
+              !formData.typeSpecificFields?.costCenter) {
+            missingRequiredFields = true;
+          }
+          break;
+        case 'wos':
+        case 'service':
+          if (!formData.typeSpecificFields?.serviceProviderName ||
+              !formData.typeSpecificFields?.positionTitle ||
+              !formData.typeSpecificFields?.grossTechnicalServiceFee ||
+              !formData.typeSpecificFields?.paymentSchedules ||
+              !formData.typeSpecificFields?.costCenter) {
+            missingRequiredFields = true;
+          }
+          break;
+        case 'moa_mou':
+          if (!formData.typeSpecificFields?.contractingPartyName ||
+              !formData.typeSpecificFields?.registeredAddress ||
+              !formData.typeSpecificFields?.authorizedRepresentative ||
+              !formData.typeSpecificFields?.authorizedRepresentativeDesignation ||
+              !formData.typeSpecificFields?.recitals ||
+              !formData.typeSpecificFields?.purpose ||
+              !formData.typeSpecificFields?.kkpfiRoles ||
+              !formData.typeSpecificFields?.contractingPartyRoles) {
+            missingRequiredFields = true;
+          }
+          break;
+        case 'employment':
+          if (!formData.typeSpecificFields?.positionTitle ||
+              !formData.typeSpecificFields?.costCenter ||
+              !formData.typeSpecificFields?.numberOfStaff ||
+              !formData.typeSpecificFields?.salaryRate ||
+              !formData.typeSpecificFields?.requisitionReason ||
+              !formData.typeSpecificFields?.employmentClassification ||
+              (formData.typeSpecificFields?.requisitionReason === 'replacement' && !formData.typeSpecificFields?.replacementReason) ||
+              (formData.typeSpecificFields?.employmentClassification === 'project' && !formData.typeSpecificFields?.projectDurationMonths)) {
+            missingRequiredFields = true;
+          }
+          break;
+        case 'amendment':
+          if (!formData.typeSpecificFields?.originalContractType ||
+              !formData.typeSpecificFields?.durationAmendment ||
+              !formData.typeSpecificFields?.deliverablesAmendment ||
+              !formData.typeSpecificFields?.paymentAmendment ||
+              !formData.typeSpecificFields?.paymentSchedulesAmendment) {
+            missingRequiredFields = true;
+          }
+          break;
+        case 'grant':
+          if (!formData.typeSpecificFields?.donorName ||
+              !formData.typeSpecificFields?.donorAddress ||
+              !formData.typeSpecificFields?.projectLocation ||
+              !formData.typeSpecificFields?.primaryDonor ||
+              !formData.typeSpecificFields?.primaryDonorFundingSourceAgreementNumber ||
+              !formData.typeSpecificFields?.contractAmount ||
+              !formData.typeSpecificFields?.bankAccountInformation ||
+              !formData.typeSpecificFields?.paymentSchedules ||
+              !formData.typeSpecificFields?.donorContacts ||
+              !formData.typeSpecificFields?.kkpfiContacts ||
+              !formData.typeSpecificFields?.deliverables ||
+              !formData.typeSpecificFields?.authorizedSignatoryName ||
+              !formData.typeSpecificFields?.authorizedSignatoryDesignation) {
+            missingRequiredFields = true;
+          }
+          break;
+        case 'subgrant':
+          if (!formData.typeSpecificFields?.recipientOrganizationName ||
+              !formData.typeSpecificFields?.recipientOrganizationAddress ||
+              !formData.typeSpecificFields?.recipientOrganizationContact ||
+              !formData.typeSpecificFields?.projectLocation ||
+              !formData.typeSpecificFields?.primaryDonor ||
+              !formData.typeSpecificFields?.primaryDonorFundingSourceAgreementNumber ||
+              !formData.typeSpecificFields?.contractAmount ||
+              !formData.typeSpecificFields?.bankAccountInformation ||
+              !formData.typeSpecificFields?.paymentSchedules ||
+              !formData.typeSpecificFields?.recipientOrganizationContacts ||
+              !formData.typeSpecificFields?.kkpfiContacts ||
+              !formData.typeSpecificFields?.deliverables ||
+              !formData.typeSpecificFields?.authorizedSignatoryName ||
+              !formData.typeSpecificFields?.authorizedSignatoryDesignation) {
+            missingRequiredFields = true;
+          }
+          break;
+        case 'lease':
+          if (!formData.typeSpecificFields?.lessorName ||
+              !formData.typeSpecificFields?.lessorAddress ||
+              !formData.typeSpecificFields?.propertyDescription ||
+              !formData.typeSpecificFields?.propertyAddress ||
+              !formData.typeSpecificFields?.leasePurpose ||
+              !formData.typeSpecificFields?.monthlyRentalFee ||
+              !formData.typeSpecificFields?.paymentDueDate ||
+              !formData.typeSpecificFields?.costCenter) {
+            missingRequiredFields = true;
+          }
+          break;
+        case 'donation':
+          if (!formData.typeSpecificFields?.recipientOrganizationName ||
+              !formData.typeSpecificFields?.authorizedRepresentative ||
+              !formData.typeSpecificFields?.recipientAddress ||
+              !formData.typeSpecificFields?.recipientEmail ||
+              !formData.typeSpecificFields?.transferPurpose ||
+              !formData.typeSpecificFields?.donatedItems ||
+              !formData.typeSpecificFields?.doneeObligations) {
+            missingRequiredFields = true;
+          }
+          break;
+      }
+    }
+
+    if (missingRequiredFields) {
+      toast.error('Please fill in all required fields for the selected contract type');
+      return;
+    }
+
+    // Use project name as the title
+    const updatedFormData = {
+      ...formData,
+      title: formData.projectName // Set title to be the same as project name
+    };
+
+    onSave(updatedFormData);
     toast.success('Contract saved successfully');
     setOpen(false);
   };
@@ -236,19 +1023,7 @@ const ContractForm = ({
           )}
 
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="title" className="after:content-['*'] after:ml-0.5 after:text-red-500">Title</Label>
-                <Input
-                  id="title"
-                  name="title"
-                  value={formData.title || ''}
-                  onChange={handleInputChange}
-                  required
-                  disabled={initialData && !isEditable}
-                />
-              </div>
-
+            <div className="grid grid-cols-1 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="projectName" className="after:content-['*'] after:ml-0.5 after:text-red-500">Project Name</Label>
                 <Input
@@ -264,7 +1039,7 @@ const ContractForm = ({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="type">Contract Type</Label>
+                <Label htmlFor="type" className="after:content-['*'] after:ml-0.5 after:text-red-500">Contract Type</Label>
                 <Select
                   value={formData.type as string || 'service'}
                   onValueChange={(value) => handleSelectChange('type', value)}
@@ -312,50 +1087,24 @@ const ContractForm = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="folder">Folder</Label>
-                <Select
-                  value={formData.folderId || "none"}
-                  onValueChange={(value) => handleSelectChange('folderId', value)}
-                  disabled={initialData && !isEditable}
-                >
-                  <SelectTrigger id="folder" className="flex items-center">
-                    <SelectValue placeholder="Select folder">
-                      <div className="flex items-center">
-                        <FolderIcon className="mr-2 h-4 w-4" />
-                        <span>
-                          {formData.folderId
-                            ? foldersList.find(f => f.id === formData.folderId)?.name || 'Select folder'
-                            : 'None (Unfiled)'}
-                        </span>
-                      </div>
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None (Unfiled)</SelectItem>
-                    {foldersList.map((folder) => (
-                      <SelectItem key={folder.id} value={folder.id}>
-                        {folder.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="value">Contract Value</Label>
-                <Input
-                  id="value"
-                  name="value"
-                  type="number"
-                  value={formData.value !== null ? formData.value : ''}
-                  onChange={handleNumberChange}
-                  placeholder="Enter contract value (optional)"
+            {/* Type-specific fields */}
+            {formData.type && (
+              <div className="border p-4 rounded-md bg-muted/20">
+                <h3 className="text-lg font-medium mb-4">
+                  {contractTypeLabels[formData.type as ContractType]} Details
+                </h3>
+                <TypeSpecificFields
+                  contractType={formData.type as ContractType}
+                  typeSpecificFields={formData.typeSpecificFields}
+                  handleInputChange={handleTypeSpecificInputChange}
+                  handleNumberChange={handleTypeSpecificNumberChange}
+                  handleSelectChange={handleTypeSpecificSelectChange}
                   disabled={initialData && !isEditable}
                 />
               </div>
-            </div>
+            )}
+
+            {/* Folder and Contract Value fields removed as they're not in the contract_types file */}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -421,101 +1170,9 @@ const ContractForm = ({
               </div>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Parties</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={addParty}
-                  className="h-8 gap-1"
-                  disabled={initialData && !isEditable}
-                >
-                  <Plus size={14} />
-                  Add Party
-                </Button>
-              </div>
+            {/* Parties section removed as it's not in the contract_types file */}
 
-              {parties.map((party, index) => (
-                <div key={index} className="space-y-3 border p-3 rounded-md">
-                  <div className="flex justify-between items-center">
-                    <Label>Party {index + 1}</Label>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeParty(index)}
-                      disabled={parties.length <= 2 || (initialData && !isEditable)}
-                      className="h-8 w-8"
-                    >
-                      <X size={14} />
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs">Name</Label>
-                    <Input
-                      placeholder="Party name"
-                      value={party.name}
-                      onChange={(e) => handlePartyChange(index, 'name', e.target.value)}
-                      disabled={initialData && !isEditable}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs">Email</Label>
-                    <Input
-                      placeholder="Party email"
-                      type="email"
-                      value={party.email}
-                      onChange={(e) => handlePartyChange(index, 'email', e.target.value)}
-                      disabled={initialData && !isEditable}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs">Role</Label>
-                    <Select
-                      value={party.role}
-                      onValueChange={(value) => handlePartyChange(index, 'role', value)}
-                      disabled={initialData && !isEditable}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="owner">Owner</SelectItem>
-                        <SelectItem value="client">Client</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                name="description"
-                value={formData.description || ''}
-                onChange={handleInputChange}
-                placeholder="Enter contract description"
-                className="min-h-[100px]"
-                disabled={initialData && !isEditable}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="documentLink">Document Link</Label>
-              <Input
-                id="documentLink"
-                name="documentLink"
-                type="url"
-                value={formData.documentLink || ''}
-                onChange={handleInputChange}
-                placeholder="Enter document link"
-                disabled={initialData && !isEditable}
-              />
-            </div>
+            {/* Description and Document Link fields removed as they're not in the contract_types file */}
           </div>
 
           <DialogFooter>

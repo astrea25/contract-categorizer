@@ -128,7 +128,7 @@ const Contracts = () => {
           } else {
             allContracts = await getArchivedContracts();
           }
-          
+
           // Directly set the contracts without filtering
           setContracts(allContracts);
           return; // Skip further processing for archive folder
@@ -156,7 +156,7 @@ const Contracts = () => {
             isManagementTeam,
             isApprover
           );
-          
+
           // Use these contracts instead of filtering the existing ones
           filteredContracts = contractsAwaitingResponse;
         }
@@ -239,9 +239,12 @@ const Contracts = () => {
         ];
       }
 
+      // Use project name as the title if title is not provided
+      const projectName = newContract.projectName || 'Unassigned';
+
       const contractToAdd = {
-        title: newContract.title || 'Untitled Contract',
-        projectName: newContract.projectName || 'Unassigned',
+        title: newContract.title || projectName, // Use project name as title if not provided
+        projectName: projectName,
         type: newContract.type || 'service',
         status: newContract.status || 'draft',
         owner: owner, // Use the explicitly set owner value
@@ -397,13 +400,13 @@ const Contracts = () => {
   // Apply filters and sorting
   const filteredAndSortedContracts = useMemo(() => {
     let result = [...contracts];
-    
+
     // For archive folder, skip all filtering except sorting
     if (selectedFolder === 'archive') {
       // Only apply sorting
       return sortContracts(result, sort);
     }
-    
+
     // Skip filtering when in approval folder since contracts are pre-filtered
     if (selectedFolder !== 'approval') {
       // Filter by folder first
@@ -431,11 +434,12 @@ const Contracts = () => {
         result = result.filter(
           contract =>
             contract.title.toLowerCase().includes(searchLower) ||
+            contract.projectName.toLowerCase().includes(searchLower) ||
             contract.description.toLowerCase().includes(searchLower)
         );
       }
     }
-    
+
     // Always apply sorting
     return sortContracts(result, sort);
   }, [contracts, filters, selectedFolder, sort]);
@@ -468,7 +472,7 @@ const Contracts = () => {
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
