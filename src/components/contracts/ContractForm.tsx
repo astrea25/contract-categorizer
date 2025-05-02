@@ -779,6 +779,12 @@ const ContractForm = ({
         [name]: null
       }));
     } else if (name === 'type') {
+      // Prevent changing contract type when editing an existing contract
+      if (initialData) {
+        toast.error('Contract type cannot be changed after creation');
+        return;
+      }
+
       // When contract type changes, reset type-specific fields
       setFormData((prev) => ({
         ...prev,
@@ -1104,13 +1110,16 @@ const ContractForm = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="type" className="after:content-['*'] after:ml-0.5 after:text-red-500">Contract Type</Label>
+              <Label htmlFor="type" className="after:content-['*'] after:ml-0.5 after:text-red-500">
+                Contract Type
+                {initialData && <span className="ml-2 text-amber-600 text-sm">(Cannot be changed after creation)</span>}
+              </Label>
               <Select
                 value={formData.type as string || 'service'}
                 onValueChange={(value) => handleSelectChange('type', value)}
-                disabled={initialData && !isEditable}
+                disabled={initialData ? true : false}
               >
-                <SelectTrigger id="type">
+                <SelectTrigger id="type" className={initialData ? "opacity-70 cursor-not-allowed" : ""}>
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1121,6 +1130,11 @@ const ContractForm = ({
                   ))}
                 </SelectContent>
               </Select>
+              {initialData && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Contract type cannot be changed after creation. To change the contract type, create a new contract.
+                </p>
+              )}
             </div>
 
             {/* Type-specific fields */}
