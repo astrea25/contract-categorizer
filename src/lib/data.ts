@@ -177,7 +177,7 @@ export interface DonationFields {
   recipientOrganizationName?: string; // Name of Recipient Organization/Donee
   authorizedRepresentative?: string; // Name of Authorized Representative of Donee
   recipientAddress?: string; // Address of Donee
-  recipientEmail?: string; // Email Address of Donee
+  // Email Address of Donee is already in the main Contract interface as recipientEmail
   transferPurpose?: string; // Purpose for the transfer of item/equipment
   donatedItems?: string; // List of materials to be donated
   doneeObligations?: string; // Specific Donee Obligations

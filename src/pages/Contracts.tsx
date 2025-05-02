@@ -254,6 +254,8 @@ const Contracts = () => {
         type: newContract.type || 'service',
         status: newContract.status || 'requested',
         owner: owner, // Use the explicitly set owner value
+        recipientEmail: newContract.recipientEmail || '', // Include recipient email
+        inactivityNotificationDays: newContract.inactivityNotificationDays || 30, // Include inactivity notification days
         parties: parties,
         startDate: newContract.startDate || new Date().toISOString().split('T')[0],
         endDate: newContract.endDate || null,

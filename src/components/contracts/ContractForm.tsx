@@ -552,7 +552,587 @@ const TypeSpecificFields = ({
         </>
       );
 
-    // Add more cases for other contract types as needed
+    case 'amendment':
+      return (
+        <>
+          <div className="space-y-2">
+            <Label htmlFor="originalContractType" className="after:content-['*'] after:ml-0.5 after:text-red-500">Contract Type</Label>
+            <Select
+              value={typeSpecificFields?.originalContractType || 'consultancy'}
+              onValueChange={(value) => handleSelectChange('originalContractType', value)}
+              disabled={disabled}
+            >
+              <SelectTrigger id="originalContractType">
+                <SelectValue placeholder="Select contract type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="consultancy">Consultancy</SelectItem>
+                <SelectItem value="wos">Work Order for Services (WOS)</SelectItem>
+                <SelectItem value="service">Service Agreement</SelectItem>
+                <SelectItem value="moa_mou">Memorandum of Agreement/Understanding (MOA/MOU)</SelectItem>
+                <SelectItem value="employment">Employment Contract</SelectItem>
+                <SelectItem value="grant">Grant Agreement</SelectItem>
+                <SelectItem value="subgrant">Subgrant Agreement</SelectItem>
+                <SelectItem value="lease">Lease Contract</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="durationAmendment" className="after:content-['*'] after:ml-0.5 after:text-red-500">Duration Amendment</Label>
+            <Textarea
+              id="durationAmendment"
+              name="durationAmendment"
+              value={typeSpecificFields?.durationAmendment || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+              placeholder="Enter 'None' if no amendment is needed"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="deliverablesAmendment" className="after:content-['*'] after:ml-0.5 after:text-red-500">Deliverables Amendment</Label>
+            <Textarea
+              id="deliverablesAmendment"
+              name="deliverablesAmendment"
+              value={typeSpecificFields?.deliverablesAmendment || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+              placeholder="Enter 'None' if no amendment is needed"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="paymentAmendment" className="after:content-['*'] after:ml-0.5 after:text-red-500">Payment Amendment</Label>
+            <Textarea
+              id="paymentAmendment"
+              name="paymentAmendment"
+              value={typeSpecificFields?.paymentAmendment || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+              placeholder="Enter 'None' if no amendment is needed"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="paymentSchedulesAmendment" className="after:content-['*'] after:ml-0.5 after:text-red-500">Payment Schedules Amendment</Label>
+            <Textarea
+              id="paymentSchedulesAmendment"
+              name="paymentSchedulesAmendment"
+              value={typeSpecificFields?.paymentSchedulesAmendment || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+              placeholder="Enter 'None' if no amendment is needed"
+            />
+          </div>
+        </>
+      );
+
+    case 'grant':
+      return (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="donorName" className="after:content-['*'] after:ml-0.5 after:text-red-500">Name of Donor</Label>
+              <Input
+                id="donorName"
+                name="donorName"
+                value={typeSpecificFields?.donorName || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="donorAddress" className="after:content-['*'] after:ml-0.5 after:text-red-500">Registered Address of Donor</Label>
+              <Input
+                id="donorAddress"
+                name="donorAddress"
+                value={typeSpecificFields?.donorAddress || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="projectLocation" className="after:content-['*'] after:ml-0.5 after:text-red-500">Project Location</Label>
+              <Input
+                id="projectLocation"
+                name="projectLocation"
+                value={typeSpecificFields?.projectLocation || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="primaryDonor" className="after:content-['*'] after:ml-0.5 after:text-red-500">Primary Donor</Label>
+              <Input
+                id="primaryDonor"
+                name="primaryDonor"
+                value={typeSpecificFields?.primaryDonor || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="primaryDonorFundingSourceAgreementNumber" className="after:content-['*'] after:ml-0.5 after:text-red-500">Primary Donor Funding Source Agreement Number</Label>
+              <Input
+                id="primaryDonorFundingSourceAgreementNumber"
+                name="primaryDonorFundingSourceAgreementNumber"
+                value={typeSpecificFields?.primaryDonorFundingSourceAgreementNumber || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contractAmount" className="after:content-['*'] after:ml-0.5 after:text-red-500">Contract Amount</Label>
+              <Input
+                id="contractAmount"
+                name="contractAmount"
+                type="number"
+                value={typeSpecificFields?.contractAmount || ''}
+                onChange={handleNumberChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="bankAccountInformation" className="after:content-['*'] after:ml-0.5 after:text-red-500">Bank Account Information (for transmittal of funds)</Label>
+            <Textarea
+              id="bankAccountInformation"
+              name="bankAccountInformation"
+              value={typeSpecificFields?.bankAccountInformation || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="paymentSchedules" className="after:content-['*'] after:ml-0.5 after:text-red-500">Payment Schedules</Label>
+            <Textarea
+              id="paymentSchedules"
+              name="paymentSchedules"
+              value={typeSpecificFields?.paymentSchedules || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="donorContacts" className="after:content-['*'] after:ml-0.5 after:text-red-500">Donor Contacts</Label>
+              <Textarea
+                id="donorContacts"
+                name="donorContacts"
+                value={typeSpecificFields?.donorContacts || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="kkpfiContacts" className="after:content-['*'] after:ml-0.5 after:text-red-500">KKPFI Contacts</Label>
+              <Textarea
+                id="kkpfiContacts"
+                name="kkpfiContacts"
+                value={typeSpecificFields?.kkpfiContacts || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="deliverables" className="after:content-['*'] after:ml-0.5 after:text-red-500">Deliverables and dates of submission</Label>
+            <Textarea
+              id="deliverables"
+              name="deliverables"
+              value={typeSpecificFields?.deliverables || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="authorizedSignatoryName" className="after:content-['*'] after:ml-0.5 after:text-red-500">Name of Authorized Signatory</Label>
+              <Input
+                id="authorizedSignatoryName"
+                name="authorizedSignatoryName"
+                value={typeSpecificFields?.authorizedSignatoryName || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="authorizedSignatoryDesignation" className="after:content-['*'] after:ml-0.5 after:text-red-500">Designation of Authorized Signatory</Label>
+              <Input
+                id="authorizedSignatoryDesignation"
+                name="authorizedSignatoryDesignation"
+                value={typeSpecificFields?.authorizedSignatoryDesignation || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+          </div>
+        </>
+      );
+
+    case 'subgrant':
+      return (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="recipientOrganizationName" className="after:content-['*'] after:ml-0.5 after:text-red-500">Name of Recipient Organization</Label>
+              <Input
+                id="recipientOrganizationName"
+                name="recipientOrganizationName"
+                value={typeSpecificFields?.recipientOrganizationName || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="recipientOrganizationAddress" className="after:content-['*'] after:ml-0.5 after:text-red-500">Registered Address of Recipient Organization</Label>
+              <Input
+                id="recipientOrganizationAddress"
+                name="recipientOrganizationAddress"
+                value={typeSpecificFields?.recipientOrganizationAddress || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="recipientOrganizationContact" className="after:content-['*'] after:ml-0.5 after:text-red-500">Contact Details of Recipient Organization</Label>
+            <Input
+              id="recipientOrganizationContact"
+              name="recipientOrganizationContact"
+              value={typeSpecificFields?.recipientOrganizationContact || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="projectLocation" className="after:content-['*'] after:ml-0.5 after:text-red-500">Project Location</Label>
+              <Input
+                id="projectLocation"
+                name="projectLocation"
+                value={typeSpecificFields?.projectLocation || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="primaryDonor" className="after:content-['*'] after:ml-0.5 after:text-red-500">Primary Donor</Label>
+              <Input
+                id="primaryDonor"
+                name="primaryDonor"
+                value={typeSpecificFields?.primaryDonor || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="primaryDonorFundingSourceAgreementNumber" className="after:content-['*'] after:ml-0.5 after:text-red-500">Primary Donor Funding Source Agreement Number</Label>
+              <Input
+                id="primaryDonorFundingSourceAgreementNumber"
+                name="primaryDonorFundingSourceAgreementNumber"
+                value={typeSpecificFields?.primaryDonorFundingSourceAgreementNumber || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contractAmount" className="after:content-['*'] after:ml-0.5 after:text-red-500">Contract Amount</Label>
+              <Input
+                id="contractAmount"
+                name="contractAmount"
+                type="number"
+                value={typeSpecificFields?.contractAmount || ''}
+                onChange={handleNumberChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="bankAccountInformation" className="after:content-['*'] after:ml-0.5 after:text-red-500">Bank Account Information (of recipient organization)</Label>
+            <Textarea
+              id="bankAccountInformation"
+              name="bankAccountInformation"
+              value={typeSpecificFields?.bankAccountInformation || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="paymentSchedules" className="after:content-['*'] after:ml-0.5 after:text-red-500">Payment Schedules</Label>
+            <Textarea
+              id="paymentSchedules"
+              name="paymentSchedules"
+              value={typeSpecificFields?.paymentSchedules || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="recipientOrganizationContacts" className="after:content-['*'] after:ml-0.5 after:text-red-500">Recipient Organization Contacts</Label>
+              <Textarea
+                id="recipientOrganizationContacts"
+                name="recipientOrganizationContacts"
+                value={typeSpecificFields?.recipientOrganizationContacts || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="kkpfiContacts" className="after:content-['*'] after:ml-0.5 after:text-red-500">KKPFI Contacts</Label>
+              <Textarea
+                id="kkpfiContacts"
+                name="kkpfiContacts"
+                value={typeSpecificFields?.kkpfiContacts || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="deliverables" className="after:content-['*'] after:ml-0.5 after:text-red-500">Deliverables and dates of submission</Label>
+            <Textarea
+              id="deliverables"
+              name="deliverables"
+              value={typeSpecificFields?.deliverables || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="authorizedSignatoryName" className="after:content-['*'] after:ml-0.5 after:text-red-500">Name of Authorized Signatory</Label>
+              <Input
+                id="authorizedSignatoryName"
+                name="authorizedSignatoryName"
+                value={typeSpecificFields?.authorizedSignatoryName || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="authorizedSignatoryDesignation" className="after:content-['*'] after:ml-0.5 after:text-red-500">Designation of Authorized Signatory</Label>
+              <Input
+                id="authorizedSignatoryDesignation"
+                name="authorizedSignatoryDesignation"
+                value={typeSpecificFields?.authorizedSignatoryDesignation || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+          </div>
+        </>
+      );
+
+    case 'lease':
+      return (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="lessorName" className="after:content-['*'] after:ml-0.5 after:text-red-500">Name of Lessor</Label>
+              <Input
+                id="lessorName"
+                name="lessorName"
+                value={typeSpecificFields?.lessorName || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lessorAddress" className="after:content-['*'] after:ml-0.5 after:text-red-500">Registered Address of Lessor</Label>
+              <Input
+                id="lessorAddress"
+                name="lessorAddress"
+                value={typeSpecificFields?.lessorAddress || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="propertyDescription" className="after:content-['*'] after:ml-0.5 after:text-red-500">Description of Property to be Leased</Label>
+            <Textarea
+              id="propertyDescription"
+              name="propertyDescription"
+              value={typeSpecificFields?.propertyDescription || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+              placeholder="e.g., apartment, lot"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="propertyAddress" className="after:content-['*'] after:ml-0.5 after:text-red-500">Complete Address of Property</Label>
+            <Input
+              id="propertyAddress"
+              name="propertyAddress"
+              value={typeSpecificFields?.propertyAddress || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="leasePurpose" className="after:content-['*'] after:ml-0.5 after:text-red-500">Purpose of Lease</Label>
+            <Input
+              id="leasePurpose"
+              name="leasePurpose"
+              value={typeSpecificFields?.leasePurpose || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+              placeholder="e.g., field office"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="monthlyRentalFee" className="after:content-['*'] after:ml-0.5 after:text-red-500">Amount of Monthly Rental Fee</Label>
+              <Input
+                id="monthlyRentalFee"
+                name="monthlyRentalFee"
+                type="number"
+                value={typeSpecificFields?.monthlyRentalFee || ''}
+                onChange={handleNumberChange}
+                required
+                disabled={disabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="paymentDueDate" className="after:content-['*'] after:ml-0.5 after:text-red-500">Due Date of Payment</Label>
+              <Input
+                id="paymentDueDate"
+                name="paymentDueDate"
+                value={typeSpecificFields?.paymentDueDate || ''}
+                onChange={handleInputChange}
+                required
+                disabled={disabled}
+                placeholder="e.g., 5th day of each month"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="costCenter" className="after:content-['*'] after:ml-0.5 after:text-red-500">Cost Center/Charging</Label>
+            <Input
+              id="costCenter"
+              name="costCenter"
+              value={typeSpecificFields?.costCenter || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+            />
+          </div>
+        </>
+      );
+
+    case 'donation':
+      return (
+        <>
+          <div className="space-y-2">
+            <Label htmlFor="recipientOrganizationName" className="after:content-['*'] after:ml-0.5 after:text-red-500">Name of Recipient Organization/Donee</Label>
+            <Input
+              id="recipientOrganizationName"
+              name="recipientOrganizationName"
+              value={typeSpecificFields?.recipientOrganizationName || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="authorizedRepresentative" className="after:content-['*'] after:ml-0.5 after:text-red-500">Name of Authorized Representative of Donee</Label>
+            <Input
+              id="authorizedRepresentative"
+              name="authorizedRepresentative"
+              value={typeSpecificFields?.authorizedRepresentative || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="recipientAddress" className="after:content-['*'] after:ml-0.5 after:text-red-500">Address of Donee</Label>
+            <Input
+              id="recipientAddress"
+              name="recipientAddress"
+              value={typeSpecificFields?.recipientAddress || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="transferPurpose" className="after:content-['*'] after:ml-0.5 after:text-red-500">Purpose for the transfer of item/equipment</Label>
+            <Textarea
+              id="transferPurpose"
+              name="transferPurpose"
+              value={typeSpecificFields?.transferPurpose || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="donatedItems" className="after:content-['*'] after:ml-0.5 after:text-red-500">List of materials to be donated</Label>
+            <Textarea
+              id="donatedItems"
+              name="donatedItems"
+              value={typeSpecificFields?.donatedItems || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+              placeholder="Include quantity and description"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="doneeObligations" className="after:content-['*'] after:ml-0.5 after:text-red-500">Specific Donee Obligations</Label>
+            <Textarea
+              id="doneeObligations"
+              name="doneeObligations"
+              value={typeSpecificFields?.doneeObligations || ''}
+              onChange={handleInputChange}
+              required
+              disabled={disabled}
+            />
+          </div>
+        </>
+      );
 
     default:
       return null;
@@ -979,7 +1559,6 @@ const ContractForm = ({
           if (!formData.typeSpecificFields?.recipientOrganizationName ||
               !formData.typeSpecificFields?.authorizedRepresentative ||
               !formData.typeSpecificFields?.recipientAddress ||
-              !formData.typeSpecificFields?.recipientEmail ||
               !formData.typeSpecificFields?.transferPurpose ||
               !formData.typeSpecificFields?.donatedItems ||
               !formData.typeSpecificFields?.doneeObligations) {
