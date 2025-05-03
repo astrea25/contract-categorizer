@@ -30,6 +30,8 @@ interface AuthContextType {
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   error: string | null;
+  // Add a method to manually update the passwordChangeRequired flag
+  updatePasswordChangeRequiredState: (required: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -44,7 +46,8 @@ const AuthContext = createContext<AuthContextType>({
   passwordChangeRequired: false,
   signInWithEmail: async () => {},
   signOut: async () => {},
-  error: null
+  error: null,
+  updatePasswordChangeRequiredState: () => {}
 });
 
 export const useAuth = () => {
@@ -242,6 +245,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Method to manually update the passwordChangeRequired flag in the state
+  const updatePasswordChangeRequiredState = (required: boolean) => {
+    setUserState(prev => ({
+      ...prev,
+      passwordChangeRequired: required
+    }));
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       // Set the user immediately to improve initial load time
@@ -325,7 +336,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         passwordChangeRequired: userState.passwordChangeRequired,
         signInWithEmail,
         signOut,
-        error
+        error,
+        updatePasswordChangeRequiredState
       }}
     >
       {children}

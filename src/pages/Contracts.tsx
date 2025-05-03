@@ -263,7 +263,8 @@ const Contracts = () => {
         description: newContract.description || '',
         documentLink: newContract.documentLink || '',
         folderId: newContract.folderId === null || newContract.folderId === "none" ? null : (newContract.folderId || (selectedFolder !== 'all' && selectedFolder !== 'archive' ? selectedFolder : null)),
-        typeSpecificFields: newContract.typeSpecificFields || {} // Include type-specific fields
+        typeSpecificFields: newContract.typeSpecificFields || {}, // Include type-specific fields
+        supportingDocuments: newContract.supportingDocuments || [] // Include supporting documents checklist
       } as Omit<Contract, 'id' | 'createdAt' | 'updatedAt'>;
 
       await createContract(contractToAdd, {

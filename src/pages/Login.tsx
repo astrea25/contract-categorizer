@@ -18,19 +18,20 @@ const Login = () => {
   const [password, setPassword] = useState("");
 
   useEffect(() => {
-    if (currentUser) {
+    // Only redirect if we have a user with email loaded (ensures auth is complete)
+    if (currentUser && currentUser.email) {
       if (passwordChangeRequired) {
         // Redirect to first-time setup if password change is required
         console.log('Redirecting to first-time setup');
-        // Use window.location for a hard redirect to ensure fresh state
-        window.location.href = "/first-time-setup";
+        // Use navigate instead of window.location for a cleaner redirect
+        navigate("/first-time-setup", { replace: true });
       } else {
         // Otherwise redirect to home
         console.log('Redirecting to home');
-        window.location.href = "/";
+        navigate("/", { replace: true });
       }
     }
-  }, [currentUser, passwordChangeRequired]);
+  }, [currentUser, passwordChangeRequired, navigate]);
 
   // Google login removed
 

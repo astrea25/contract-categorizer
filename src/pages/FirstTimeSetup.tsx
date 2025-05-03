@@ -13,7 +13,7 @@ import { updateUserProfile, updatePasswordChangeRequired } from '@/lib/data';
 import { updatePassword } from 'firebase/auth';
 
 const FirstTimeSetup = () => {
-  const { currentUser, passwordChangeRequired } = useAuth();
+  const { currentUser, passwordChangeRequired, updatePasswordChangeRequiredState } = useAuth();
   const navigate = useNavigate();
 
   // Profile information
@@ -28,8 +28,9 @@ const FirstTimeSetup = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   useEffect(() => {
-    // If user is not logged in or doesn't need to change password, redirect to home
-    if (currentUser && !passwordChangeRequired) {
+    // Only redirect if we have a user and the passwordChangeRequired flag has been properly loaded
+    // We can determine this by checking if the user's email has been loaded
+    if (currentUser && !passwordChangeRequired && email) {
       navigate('/');
     }
 
@@ -43,7 +44,7 @@ const FirstTimeSetup = () => {
 
       setEmail(currentUser.email || '');
     }
-  }, [currentUser, passwordChangeRequired, navigate]);
+  }, [currentUser, passwordChangeRequired, navigate, email]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,16 +102,17 @@ const FirstTimeSetup = () => {
         // Update password directly - no need to reauthenticate since user is freshly logged in
         await updatePassword(currentUser, newPassword);
 
-        // 3. Update the passwordChangeRequired flag
+        // 3. Update the passwordChangeRequired flag in the database
         await updatePasswordChangeRequired(currentUser.email, false);
+
+        // 4. Update the passwordChangeRequired flag in the AuthContext state
+        updatePasswordChangeRequiredState(false);
 
         // Success - redirect to home page
         toast.success('Setup completed successfully!');
 
-        // Force a hard redirect to ensure we get a fresh state
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 500);
+        // Use navigate for a cleaner redirect
+        navigate('/', { replace: true });
       } catch (passwordError: any) {
         console.error('Password update error:', passwordError);
 
@@ -126,12 +128,13 @@ const FirstTimeSetup = () => {
             // Mark the password change as completed to prevent getting stuck in this page
             await updatePasswordChangeRequired(currentUser.email, false);
 
+            // Update the passwordChangeRequired flag in the AuthContext state
+            updatePasswordChangeRequiredState(false);
+
             toast.warning('Your profile was updated, but password change failed. You can change your password later in the Profile page.');
 
-            // Force a hard redirect to ensure we get a fresh state
-            setTimeout(() => {
-              window.location.href = '/';
-            }, 500);
+            // Use navigate for a cleaner redirect
+            navigate('/', { replace: true });
           } catch (flagError) {
             console.error('Error updating password change flag:', flagError);
           }

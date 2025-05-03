@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -45,7 +46,9 @@ import {
   SubgrantFields,
   LeaseFields,
   DonationFields,
-  ContractTypeFields
+  ContractTypeFields,
+  SupportingDocument,
+  getSupportingDocuments
 } from '@/lib/data';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -1172,19 +1175,27 @@ const ContractForm = ({
   // Check if the contract should be editable based on its status
   const isEditable = isContractEditable(initialData);
 
-  const [formData, setFormData] = useState<Partial<Contract>>(
-    initialData || {
+  const [formData, setFormData] = useState<Partial<Contract>>(() => {
+    // If we have initial data, use it
+    if (initialData) {
+      return initialData;
+    }
+
+    // Otherwise create a new contract with default values
+    const defaultType = 'consultancy';
+    return {
       projectName: '',
-      type: 'consultancy', // Default to consultancy as the first contract type
+      type: defaultType, // Default to consultancy as the first contract type
       status: 'requested', // Automatically set status to requested
       owner: currentUser?.email || 'Unassigned', // Ensure owner is never empty
       recipientEmail: '', // Initialize recipient email field
       inactivityNotificationDays: 30, // Default to 30 days for inactivity notifications
       startDate: new Date().toISOString().split('T')[0],
       endDate: null,
-      typeSpecificFields: {} // Initialize empty type-specific fields
-    }
-  );
+      typeSpecificFields: {}, // Initialize empty type-specific fields
+      supportingDocuments: getSupportingDocuments(defaultType) // Initialize supporting documents based on type
+    };
+  });
 
   // Initialize type-specific fields based on contract type
   useEffect(() => {
@@ -1337,6 +1348,16 @@ const ContractForm = ({
     }
   }, [initialFolder]);
 
+  // Initialize supporting documents if they don't exist when editing a contract
+  useEffect(() => {
+    if (initialData && formData.type && (!formData.supportingDocuments || formData.supportingDocuments.length === 0)) {
+      setFormData(prev => ({
+        ...prev,
+        supportingDocuments: getSupportingDocuments(formData.type as ContractType)
+      }));
+    }
+  }, [initialData, formData.type]);
+
 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -1365,11 +1386,14 @@ const ContractForm = ({
         return;
       }
 
-      // When contract type changes, reset type-specific fields
+      const contractType = value as ContractType;
+
+      // When contract type changes, reset type-specific fields and update supporting documents
       setFormData((prev) => ({
         ...prev,
         [name]: value === "none" ? undefined : value,
-        typeSpecificFields: {} // Reset type-specific fields
+        typeSpecificFields: {}, // Reset type-specific fields
+        supportingDocuments: getSupportingDocuments(contractType) // Update supporting documents based on new type
       }));
     } else {
       setFormData((prev) => ({
@@ -1433,6 +1457,16 @@ const ContractForm = ({
     } else {
       setFormData((prev) => ({ ...prev, endDate: null }));
     }
+    setHasPendingChanges(true);
+  };
+
+  // Handler for supporting documents checkboxes
+  const handleSupportingDocumentChange = (index: number, checked: boolean) => {
+    setFormData((prev) => {
+      const updatedDocs = [...(prev.supportingDocuments || [])];
+      updatedDocs[index] = { ...updatedDocs[index], checked };
+      return { ...prev, supportingDocuments: updatedDocs };
+    });
     setHasPendingChanges(true);
   };
 
@@ -1730,6 +1764,33 @@ const ContractForm = ({
                   handleSelectChange={handleTypeSpecificSelectChange}
                   disabled={initialData && !isEditable}
                 />
+              </div>
+            )}
+
+            {/* Supporting Documents Checklist */}
+            {formData.type && formData.supportingDocuments && formData.supportingDocuments.length > 0 && (
+              <div className="border p-4 rounded-md bg-muted/20">
+                <h3 className="text-lg font-medium mb-4">
+                  Supporting Documents Checklist
+                </h3>
+                <div className="space-y-2">
+                  {formData.supportingDocuments.map((doc, index) => (
+                    <div key={index} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`supporting-doc-${index}`}
+                        checked={doc.checked}
+                        onCheckedChange={(checked) => handleSupportingDocumentChange(index, checked === true)}
+                        disabled={initialData && !isEditable}
+                      />
+                      <Label
+                        htmlFor={`supporting-doc-${index}`}
+                        className="text-sm font-normal cursor-pointer"
+                      >
+                        {doc.name}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 

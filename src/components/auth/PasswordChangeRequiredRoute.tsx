@@ -20,9 +20,8 @@ export const PasswordChangeRequiredRoute = () => {
   // If user needs to change password, redirect to first-time setup
   if (passwordChangeRequired) {
     console.log('PasswordChangeRequiredRoute: Redirecting to first-time setup');
-    // Use a more forceful redirect approach
-    window.location.href = "/first-time-setup";
-    return null;
+    // Use React Router's Navigate component instead of window.location for a cleaner redirect
+    return <Navigate to="/first-time-setup" replace />;
   }
 
   // Otherwise, render the child routes

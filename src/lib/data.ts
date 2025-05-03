@@ -198,6 +198,12 @@ export type ContractTypeFields =
   LeaseFields |
   DonationFields;
 
+// Interface for supporting document items
+export interface SupportingDocument {
+  name: string;
+  checked: boolean;
+}
+
 export interface Contract {
   id: string;
   title: string;
@@ -230,6 +236,8 @@ export interface Contract {
   originalStatus?: ContractStatus; // Original status before amendment started
   // Type-specific fields
   typeSpecificFields?: ContractTypeFields;
+  // Supporting documents checklist
+  supportingDocuments?: SupportingDocument[];
   // Timeline and comments
   timeline?: {
     timestamp: string;
@@ -388,6 +396,75 @@ export const contractTypeLabels: Record<ContractType, string> = {
   subgrant: 'Subgrant Agreement',
   lease: 'Lease Contract',
   donation: 'Deed of Donation'
+};
+
+// Supporting documents for each contract type
+export const getSupportingDocuments = (contractType: ContractType): SupportingDocument[] => {
+  switch (contractType) {
+    case 'consultancy':
+      return [
+        { name: 'Signed Personnel Request Form', checked: false },
+        { name: 'Terms of Reference', checked: false },
+        { name: 'Profile (CV for individuals, company profile for firms)', checked: false },
+        { name: 'BIR Certificate of Registration', checked: false },
+        { name: 'Sample Invoice or OR', checked: false },
+        { name: 'Sworn Declaration of Gross Receipts (if applicable)', checked: false },
+        { name: 'Canvass Summary', checked: false },
+        { name: 'Justification Form (if no canvass summary is provided)', checked: false },
+        { name: 'Proposals of all bidders', checked: false }
+      ];
+    case 'wos':
+      return [
+        { name: 'Signed Personnel Request Form', checked: false },
+        { name: 'Terms of Reference', checked: false },
+        { name: 'CV', checked: false },
+        { name: 'Valid ID', checked: false },
+        { name: 'NBI clearance/Barangay clearance', checked: false }
+      ];
+    case 'service':
+      return [
+        { name: 'Signed Service Request Form', checked: false },
+        { name: 'Terms of Reference', checked: false },
+        { name: 'Profile (CV for individuals, company profile for firms)', checked: false },
+        { name: 'BIR Certificate of Registration', checked: false },
+        { name: 'Sample Invoice or OR', checked: false },
+        { name: 'Sworn Declaration of Gross Receipts (if applicable)', checked: false },
+        { name: 'Canvass Summary', checked: false },
+        { name: 'Justification Form (if no canvass summary is provided)', checked: false },
+        { name: 'Proposals of all bidders', checked: false }
+      ];
+    case 'moa_mou':
+      return [
+        { name: 'Appendices to the agreement (Terms of Reference, Work and Financial Plan, Schedules, and other relevant documents)', checked: false }
+      ];
+    case 'employment':
+      return [
+        { name: 'Signed Personnel Request Form', checked: false },
+        { name: 'Terms of Reference/Job Description', checked: false }
+      ];
+    case 'amendment':
+      return []; // No supporting documents required
+    case 'grant':
+      return [
+        { name: 'Project Proposal/Terms of Reference', checked: false },
+        { name: 'Detailed Budget', checked: false }
+      ];
+    case 'subgrant':
+      return [
+        { name: 'Project Proposal/Terms of Reference and Workplan', checked: false },
+        { name: 'BIR Certificate of Registration', checked: false },
+        { name: 'Organizational Profile', checked: false }
+      ];
+    case 'lease':
+      return [
+        { name: 'BIR Certificate of Registration', checked: false },
+        { name: 'Sample Invoice/OR (if applicable)', checked: false }
+      ];
+    case 'donation':
+      return []; // No supporting documents required
+    default:
+      return [];
+  }
 };
 
 export const getContracts = async (includeArchived: boolean = false): Promise<Contract[]> => {
