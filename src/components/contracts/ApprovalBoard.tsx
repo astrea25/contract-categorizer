@@ -1442,9 +1442,8 @@ const ApprovalBoard = ({
   // Check if the amendment is in legal review stage
   const isAmendmentInLegalStage = isInAmendmentMode && contract.amendmentStage === 'legal';
 
-  // Determine if the user can edit approvers
-  const canEditApprovers = isAdmin || contract.status === 'requested' || contract.status === 'draft' ||
-    (isInAmendmentMode && contract.amendmentStage === 'amendment');
+  // Determine if the user can edit approvers - only admin can assign requestors/approvers
+  const canEditApprovers = isAdmin;
 
   return (
     <div className="mb-8">

@@ -596,7 +596,13 @@ const ContractDetail = () => {
   };
 
   // Helper function to determine if a contract is editable based on its status
+  // Only admin users can edit contracts
   const isContractEditable = (contract: Contract): boolean => {
+    // Only admin users can edit contracts
+    if (!isAdmin) {
+      return false;
+    }
+
     // Contract can be edited if it's in one of these statuses
     const editableStatuses: ContractStatus[] = ['requested', 'draft', 'legal_review', 'management_review', 'legal_send_back', 'management_send_back'];
 
@@ -614,7 +620,13 @@ const ContractDetail = () => {
   };
 
   // Helper function to determine if a contract can be amended
+  // Only admin users can amend contracts
   const canContractBeAmended = (contract: Contract): boolean => {
+    // Only admin users can amend contracts
+    if (!isAdmin) {
+      return false;
+    }
+
     // Contracts can be amended if they are in implementation, wwf_signing, or counterparty_signing status
     const amendableStatuses: ContractStatus[] = ['implementation', 'wwf_signing', 'counterparty_signing'];
 
@@ -881,7 +893,7 @@ const ContractDetail = () => {
                     Archive
                   </Button>
 
-                  {isContractEditable(contract) && (
+                  {isContractEditable(contract) && isAdmin && (
                     <ContractForm
                       initialData={contract}
                       onSave={handleSaveContract}
@@ -894,7 +906,7 @@ const ContractDetail = () => {
                     />
                   )}
 
-                  {canContractBeAmended(contract) && (
+                  {canContractBeAmended(contract) && isAdmin && (
                     <Button
                       variant="outline"
                       className="gap-1"

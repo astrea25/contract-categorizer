@@ -1142,10 +1142,16 @@ const TypeSpecificFields = ({
   }
 };
 
-const isContractEditable = (contract?: Partial<Contract>): boolean => {
+// Modified to only allow admin users to edit contracts
+const isContractEditable = (contract?: Partial<Contract>, isAdmin: boolean = false): boolean => {
+  // Only admin users can edit existing contracts
+  if (contract && contract.status && !isAdmin) {
+    return false; // Non-admin users cannot edit existing contracts
+  }
+
   if (!contract || !contract.status) return true; // New contracts are always editable
 
-  // Contract can be edited if it's in one of these statuses
+  // For admin users, check if the contract is in an editable status
   const editableStatuses: ContractStatus[] = ['requested', 'draft', 'legal_review', 'management_review', 'legal_send_back', 'management_send_back'];
 
   // Also allow editing if the contract is in amendment status
@@ -1169,11 +1175,11 @@ const ContractForm = ({
   trigger
 }: ContractFormProps) => {
   const [open, setOpen] = useState(false);
-  const { currentUser } = useAuth();
+  const { currentUser, isAdmin } = useAuth();
   const [hasPendingChanges, setHasPendingChanges] = useState(false);
 
-  // Check if the contract should be editable based on its status
-  const isEditable = isContractEditable(initialData);
+  // Check if the contract should be editable based on its status and user role
+  const isEditable = isContractEditable(initialData, isAdmin);
 
   const [formData, setFormData] = useState<Partial<Contract>>(() => {
     // If we have initial data, use it
@@ -1655,8 +1661,16 @@ const ContractForm = ({
             <Alert variant="destructive" className="mt-4">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Warning: This contract is in {initialData.status?.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} status and should not be edited.
-                Contracts should only be edited until after the Reviews. After that, contracts should only be edited through amendment.
+                {!isAdmin ? (
+                  <>
+                    Warning: Only administrators can edit contracts. Please contact an administrator if you need to make changes to this contract.
+                  </>
+                ) : (
+                  <>
+                    Warning: This contract is in {initialData.status?.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} status and should not be edited.
+                    Contracts should only be edited until after the Reviews. After that, contracts should only be edited through amendment.
+                  </>
+                )}
               </AlertDescription>
             </Alert>
           )}
@@ -1676,20 +1690,30 @@ const ContractForm = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="recipientEmail">Recipient Email</Label>
-                <Input
-                  id="recipientEmail"
-                  name="recipientEmail"
-                  type="email"
-                  value={formData.recipientEmail || ''}
-                  onChange={handleInputChange}
-                  disabled={initialData && !isEditable}
-                  placeholder="Enter recipient's email address"
-                />
+            {/* Show recipient email field to everyone when creating a new contract, but only to admins when editing */}
+            {(!initialData || isAdmin) && (
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="recipientEmail">
+                    Recipient Email {initialData && !isAdmin && <span className="text-amber-600 text-sm">(Admin only)</span>}
+                  </Label>
+                  <Input
+                    id="recipientEmail"
+                    name="recipientEmail"
+                    type="email"
+                    value={formData.recipientEmail || ''}
+                    onChange={handleInputChange}
+                    disabled={(initialData && !isAdmin) || (initialData && !isEditable)}
+                    placeholder="Enter recipient's email address (optional)"
+                  />
+                  {initialData && !isAdmin && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Only administrators can edit recipient email for existing contracts
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-2">
