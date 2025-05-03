@@ -325,6 +325,39 @@ const ContractDetail = () => {
     try {
       setUpdatingStatus(true);
 
+      // Check if all supporting documents are checked when moving from requested to draft
+      if (contract.status === 'requested' && newStatus === 'draft') {
+        console.log('Supporting documents check triggered in ContractDetail');
+        console.log('Contract ID:', contract.id);
+        console.log('Contract Type:', contract.type);
+        console.log('Supporting documents:', JSON.stringify(contract.supportingDocuments));
+
+        // Ensure we have the latest contract data
+        const latestContract = await getContract(id);
+        if (!latestContract) {
+          toast.error('Failed to fetch latest contract data');
+          setUpdatingStatus(false);
+          return;
+        }
+
+        // Use the latest contract data for validation
+        if (latestContract.supportingDocuments && latestContract.supportingDocuments.length > 0) {
+          console.log('Latest supporting documents:', JSON.stringify(latestContract.supportingDocuments));
+
+          const allDocumentsChecked = latestContract.supportingDocuments.every(doc => doc.checked);
+          console.log('All documents checked?', allDocumentsChecked);
+          console.log('Documents status:', latestContract.supportingDocuments.map(doc => `${doc.name}: ${doc.checked}`).join(', '));
+
+          if (!allDocumentsChecked) {
+            toast.error('All supporting documents must be checked before moving to Draft status.');
+            setUpdatingStatus(false);
+            return;
+          }
+        } else {
+          console.log('No supporting documents found or empty array');
+        }
+      }
+
       // Check if we need to reset approvals when changing to draft status
       if (newStatus === 'draft' &&
           (contract.status === 'wwf_signing' ||

@@ -497,8 +497,26 @@ export const getContracts = async (includeArchived: boolean = false): Promise<Co
       contracts = contracts.filter(contract => !contract.archived);
     }
 
+    // Initialize supporting documents for contracts that don't have them
+    for (const contract of contracts) {
+      if (contract.type && (!contract.supportingDocuments || contract.supportingDocuments.length === 0)) {
+        // Update the contract in memory
+        contract.supportingDocuments = getSupportingDocuments(contract.type);
+
+        // Update the contract in the database
+        const contractDoc = doc(db, 'contracts', contract.id);
+        await updateDoc(contractDoc, {
+          supportingDocuments: contract.supportingDocuments,
+          updatedAt: new Date().toISOString()
+        });
+
+        console.log(`Initialized supporting documents for contract ${contract.id} of type ${contract.type}`);
+      }
+    }
+
     return contracts;
   } catch (error) {
+    console.error('Error fetching contracts:', error);
     throw error;
   }
 };
@@ -515,6 +533,8 @@ export const getArchivedContracts = async (): Promise<Contract[]> => {
 
     const contractsSnapshot = await getDocs(contractsQuery);
 
+    let contracts: Contract[] = [];
+
     if (contractsSnapshot.empty) {
       // Double-check with a full query to see if there are any archived contracts at all
       const allContractsSnapshot = await getDocs(contractsCollection);
@@ -524,7 +544,7 @@ export const getArchivedContracts = async (): Promise<Contract[]> => {
 
       if (allContractsWithArchived.length > 0) {
         // Return manually filtered documents if the query isn't working
-        return allContractsWithArchived.map(doc => {
+        contracts = allContractsWithArchived.map(doc => {
           const data = doc.data();
           return {
             id: doc.id,
@@ -537,27 +557,45 @@ export const getArchivedContracts = async (): Promise<Contract[]> => {
             documentLink: data.documentLink,
           } as Contract;
         });
+      } else {
+        return [];
       }
-
-      return [];
+    } else {
+      contracts = contractsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate().toISOString() : data.createdAt) : null,
+          updatedAt: data.updatedAt ? (data.updatedAt.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt) : null,
+          archivedAt: data.archivedAt ? (data.archivedAt.toDate ? data.archivedAt.toDate().toISOString() : data.archivedAt) : null,
+          startDate: data.startDate,
+          endDate: data.endDate,
+          documentLink: data.documentLink,
+        } as Contract;
+      });
     }
 
-    const contracts = contractsSnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate().toISOString() : data.createdAt) : null,
-        updatedAt: data.updatedAt ? (data.updatedAt.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt) : null,
-        archivedAt: data.archivedAt ? (data.archivedAt.toDate ? data.archivedAt.toDate().toISOString() : data.archivedAt) : null,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        documentLink: data.documentLink,
-      } as Contract;
-    });
+    // Initialize supporting documents for contracts that don't have them
+    for (const contract of contracts) {
+      if (contract.type && (!contract.supportingDocuments || contract.supportingDocuments.length === 0)) {
+        // Update the contract in memory
+        contract.supportingDocuments = getSupportingDocuments(contract.type);
+
+        // Update the contract in the database
+        const contractDoc = doc(db, 'contracts', contract.id);
+        await updateDoc(contractDoc, {
+          supportingDocuments: contract.supportingDocuments,
+          updatedAt: new Date().toISOString()
+        });
+
+        console.log(`Initialized supporting documents for archived contract ${contract.id} of type ${contract.type}`);
+      }
+    }
 
     return contracts;
   } catch (error) {
+    console.error('Error fetching archived contracts:', error);
     throw error;
   }
 };
@@ -591,6 +629,19 @@ export const getContract = async (id: string): Promise<Contract | null> => {
       // Ensure comments are properly formatted
       comments: data.comments || []
     } as Contract;
+
+    // Initialize supporting documents if they don't exist but contract type is set
+    if (formattedContract.type && (!formattedContract.supportingDocuments || formattedContract.supportingDocuments.length === 0)) {
+      formattedContract.supportingDocuments = getSupportingDocuments(formattedContract.type);
+
+      // Update the contract in the database with the initialized supporting documents
+      await updateDoc(contractDoc, {
+        supportingDocuments: formattedContract.supportingDocuments,
+        updatedAt: new Date().toISOString()
+      });
+
+      console.log(`Initialized supporting documents for contract ${id} of type ${formattedContract.type}`);
+    }
 
     return formattedContract;
   } catch (error) {

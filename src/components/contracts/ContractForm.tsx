@@ -1480,7 +1480,7 @@ const ContractForm = ({
     }
 
     // Validate required fields based on contract_types file
-    if (!formData.projectName || !formData.startDate || !formData.type || !formData.recipientEmail) {
+    if (!formData.projectName || !formData.startDate || !formData.type) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -1678,14 +1678,13 @@ const ContractForm = ({
 
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="recipientEmail" className="after:content-['*'] after:ml-0.5 after:text-red-500">Recipient Email</Label>
+                <Label htmlFor="recipientEmail">Recipient Email</Label>
                 <Input
                   id="recipientEmail"
                   name="recipientEmail"
                   type="email"
                   value={formData.recipientEmail || ''}
                   onChange={handleInputChange}
-                  required
                   disabled={initialData && !isEditable}
                   placeholder="Enter recipient's email address"
                 />

@@ -111,6 +111,8 @@ const StatusSelectCard = ({ status, onStatusChange, isUpdating, contract }: Stat
       return;
     }
 
+    // Supporting documents validation is now handled in the ContractDetail component
+
     // Get the current and new stage indices
     const currentStageIndex = workflowStages.indexOf(contract.status);
     const newStageIndex = workflowStages.indexOf(newStatus);
@@ -135,8 +137,12 @@ const StatusSelectCard = ({ status, onStatusChange, isUpdating, contract }: Stat
       // If either approver type is missing, prevent status change
       if (!hasLegalApprovers || !hasManagementApprovers) {
         const missingApprovers = [];
-        if (!hasLegalApprovers) missingApprovers.push('legal team');
-        if (!hasManagementApprovers) missingApprovers.push('management team');
+        if (!hasLegalApprovers) {
+          missingApprovers.push('legal team');
+        }
+        if (!hasManagementApprovers) {
+          missingApprovers.push('management team');
+        }
 
         toast({
           title: "Cannot change status",
@@ -191,8 +197,12 @@ const StatusSelectCard = ({ status, onStatusChange, isUpdating, contract }: Stat
       // Check if either approver has sent back the contract
       if (isEitherSentBack) {
         const sentBackBy = [];
-        if (contract.approvers?.legal?.declined) sentBackBy.push('Legal');
-        if (contract.approvers?.management?.declined) sentBackBy.push('Management');
+        if (contract.approvers?.legal?.declined) {
+          sentBackBy.push('Legal');
+        }
+        if (contract.approvers?.management?.declined) {
+          sentBackBy.push('Management');
+        }
 
         toast({
           title: "Cannot change status to WWF Signing",
@@ -207,12 +217,20 @@ const StatusSelectCard = ({ status, onStatusChange, isUpdating, contract }: Stat
       if (!areBothApproved) {
         // Check what approvals are missing
         const missingApprovals = [];
-        if (!contract.approvers?.legal?.approved) missingApprovals.push('Legal');
-        if (!contract.approvers?.management?.approved) missingApprovals.push('Management');
+        if (!contract.approvers?.legal?.approved) {
+          missingApprovals.push('Legal');
+        }
+        if (!contract.approvers?.management?.approved) {
+          missingApprovals.push('Management');
+        }
 
         // If approvers aren't even assigned
-        if (!contract.approvers?.legal) missingApprovals.push('Legal (not assigned)');
-        if (!contract.approvers?.management) missingApprovals.push('Management (not assigned)');
+        if (!contract.approvers?.legal) {
+          missingApprovals.push('Legal (not assigned)');
+        }
+        if (!contract.approvers?.management) {
+          missingApprovals.push('Management (not assigned)');
+        }
 
         toast({
           title: "Cannot change status to WWF Signing",
