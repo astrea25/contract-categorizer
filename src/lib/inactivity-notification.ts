@@ -4,6 +4,39 @@ import { sendNotificationEmail } from './brevoService';
 import { Contract, getContract } from './data';
 import { differenceInDays } from 'date-fns';
 
+const ADMIN_EMAIL = 'aster.mangabat@student.ateneo.edu';
+
+// Helper function to get approvers based on contract status
+const getApproversForStatus = (contract: Contract): string[] => {
+  const approvers: string[] = [ADMIN_EMAIL]; // Admin always gets notifications
+
+  const status = contract.status || '';
+
+  if (status === 'requested' || status === 'draft') {
+    if (contract.owner) {
+      approvers.push(contract.owner);
+    }
+  } else if (status.includes('legal')) {
+    if (contract.approvers?.legal) {
+      const legalTeam = Array.isArray(contract.approvers.legal)
+        ? contract.approvers.legal
+        : [contract.approvers.legal];
+      approvers.push(...legalTeam.map(member => member.email));
+    }
+  } else if (status.includes('management')) {
+    if (contract.approvers?.management) {
+      const managementTeam = Array.isArray(contract.approvers.management)
+        ? contract.approvers.management
+        : [contract.approvers.management];
+      approvers.push(...managementTeam.map(member => member.email));
+    }
+  } else if (status === 'approval' && contract.approvers?.approver) {
+    approvers.push(...contract.approvers.approver.map(member => member.email));
+  }
+
+  return [...new Set(approvers)]; // Remove duplicates
+};
+
 /**
  * Checks for contracts that have been inactive for a specified number of days
  * and sends notification emails to the contract owner and recipient.
@@ -69,13 +102,14 @@ export const sendInactivityNotification = async (contract: Contract): Promise<vo
     const inactivityDays = contract.inactivityNotificationDays || 30;
 
     // Prepare email content
-    const subject = `Inactive Contract Notification: ${contract.title}`;
+    const subject = `Inactive Contract Notification: ${contract.title} (ID: ${contract.id})`;
     const htmlContent = `
       <div style="font-family: sans-serif;">
         <h2>Contract Inactivity Notification</h2>
         <p>This is an automated notification from the Contract Management System.</p>
         <p>The following contract has not had any activity for ${inactivityDays} days:</p>
         <ul>
+          <li><strong>Contract ID:</strong> ${contract.id}</li>
           <li><strong>Contract Title:</strong> ${contract.title}</li>
           <li><strong>Project Name:</strong> ${contract.projectName}</li>
           <li><strong>Contract Type:</strong> ${contract.type}</li>
@@ -97,6 +131,7 @@ This is an automated notification from the Contract Management System.
 
 The following contract has not had any activity for ${inactivityDays} days:
 
+Contract ID: ${contract.id}
 Contract Title: ${contract.title}
 Project Name: ${contract.projectName}
 Contract Type: ${contract.type}
@@ -112,24 +147,10 @@ This is an automated message. Please do not reply to this email.
 Sent by Contract Management System
     `;
 
-    // Send to owner
-    if (contract.owner) {
-      await sendNotificationEmail(
-        contract.owner,
-        subject,
-        htmlContent,
-        textContent
-      );
-    }
-
-    // Send to recipient if available
-    if (contract.recipientEmail) {
-      await sendNotificationEmail(
-        contract.recipientEmail,
-        subject,
-        htmlContent,
-        textContent
-      );
+    // Get list of approvers based on contract status and send notifications
+    const approvers = getApproversForStatus(contract);
+    for (const email of approvers) {
+      await sendNotificationEmail(email, subject, htmlContent, textContent);
     }
   } catch (error) {
     console.error('Error sending inactivity notification:', error);
