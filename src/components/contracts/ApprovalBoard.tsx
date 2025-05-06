@@ -8,6 +8,7 @@ import { Check, Search, UserPlus, X, ThumbsDown } from 'lucide-react';
 import { Contract, ContractStatus, getLegalTeamMembers, getManagementTeamMembers, getApprovers, normalizeApprovers, updateContract } from '@/lib/data';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/components/ui/use-toast';
+import { notifyAdminOfSentBack } from '@/lib/approval-notifications';
 
 interface TeamMember {
   id: string;
@@ -544,6 +545,14 @@ const ApprovalBoard = ({
 
     // Update approvers with custom timeline entry
     await onUpdateApprovers(updateData);
+
+    // Notify admin of contract being sent back
+    try {
+      await notifyAdminOfSentBack(normalizedContract);
+    } catch (error) {
+      console.error('Failed to send admin notification:', error);
+      // Don't block the flow if notification fails
+    }
   };
 
   // Handle withdrawing approver approval or rejection
@@ -842,6 +851,14 @@ const ApprovalBoard = ({
 
     // Update approvers with custom timeline entry and status change
     await onUpdateApprovers(updateData);
+
+    // Notify admin of contract being sent back
+    try {
+      await notifyAdminOfSentBack(normalizedContract);
+    } catch (error) {
+      console.error('Failed to send admin notification:', error);
+      // Don't block the flow if notification fails
+    }
 
     if (isInAmendmentMode) {
       toast({
@@ -1244,6 +1261,14 @@ const ApprovalBoard = ({
 
     // Update approvers with custom timeline entry
     await onUpdateApprovers(updateData);
+
+    // Notify admin of contract being sent back
+    try {
+      await notifyAdminOfSentBack(normalizedContract);
+    } catch (error) {
+      console.error('Failed to send admin notification:', error);
+      // Don't block the flow if notification fails
+    }
 
     toast({
       title: 'Contract Sent Back',

@@ -1,5 +1,7 @@
 import { Contract } from './data';
 import { sendNotificationEmail } from './brevoService';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from './firebase';
 
 /**
  * Formats the approval history into HTML for email
@@ -147,5 +149,48 @@ export const notifyApproversOfManagementApproval = async (contract: Contract): P
     `;
 
     await sendNotificationEmail(approver.email, subject, htmlContent);
+  }
+};
+
+/**
+ * Notifies the first admin when a contract is sent back by any approver
+ */
+export const notifyAdminOfSentBack = async (contract: Contract): Promise<void> => {
+  const appUrl = import.meta.env.VITE_APP_URL || 'https://contract-management-system-omega.vercel.app';
+  const contractUrl = `${appUrl}/contracts/${contract.id}`;
+
+  try {
+    // Hardcoded admin email for now
+    const adminEmail = 'aster.mangabat@student.ateneo.edu';
+    console.log('Sending contract send-back notification to admin:', adminEmail);
+
+    const approvalHistory = formatApprovalHistory(contract);
+    const contractDetails = getContractDetails(contract);
+
+    // Send email to the first admin
+    const subject = `Contract Sent Back: ${contract.title}`;
+    const htmlContent = `
+      <div style="font-family: sans-serif;">
+        <h2>Contract Has Been Sent Back</h2>
+        <p>A contract has been sent back by one or more approvers:</p>
+        
+        <h3>Contract Details</h3>
+        ${contractDetails}
+        
+        <h3>Approval History</h3>
+        ${approvalHistory}
+        
+        <h3>Review Required</h3>
+        <p>Please review the contract and take appropriate action:</p>
+        <p><a href="${contractUrl}">Click here to review the contract</a></p>
+        
+        <hr>
+        <p style="font-size: 12px; color: #666;">This is an automated message from the Contract Management System.</p>
+      </div>
+    `;
+
+    await sendNotificationEmail(adminEmail, subject, htmlContent);
+  } catch (error) {
+    console.error('Error sending admin notification:', error);
   }
 };
