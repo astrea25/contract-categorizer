@@ -154,26 +154,7 @@ const StatusSelectCard = ({ status, onStatusChange, isUpdating, contract }: Stat
       }
     }
 
-    // Additional specific validations for legal_review and management_review
-    if (newStatus === 'legal_review') {
-      // Check if legal approvers are assigned
-      const hasLegalApprovers = contract.approvers?.legal &&
-        (Array.isArray(contract.approvers.legal)
-          ? contract.approvers.legal.length > 0
-          : true);
-
-      if (!hasLegalApprovers) {
-        toast({
-          title: "Cannot change status to Legal Review",
-          description: "You must assign at least one legal team approver before moving to Legal Review status.",
-          variant: "destructive"
-        });
-        setIsOpen(false);
-        return;
-      }
-    }
-
-    // If trying to change to management_review status, check if management approvers are assigned
+    // Check if management approvers are assigned when moving to management_review
     if (newStatus === 'management_review') {
       // Check if management approvers are assigned
       const hasManagementApprovers = contract.approvers?.management &&
@@ -197,10 +178,19 @@ const StatusSelectCard = ({ status, onStatusChange, isUpdating, contract }: Stat
       // Check if either approver has sent back the contract
       if (isEitherSentBack) {
         const sentBackBy = [];
-        if (contract.approvers?.legal?.declined) {
+        // Check legal approvers
+        const legalApprovers = contract.approvers?.legal && (Array.isArray(contract.approvers.legal)
+          ? contract.approvers.legal
+          : [contract.approvers.legal]);
+        if (legalApprovers?.some(a => a.declined)) {
           sentBackBy.push('Legal');
         }
-        if (contract.approvers?.management?.declined) {
+
+        // Check management approvers
+        const managementApprovers = contract.approvers?.management && (Array.isArray(contract.approvers.management)
+          ? contract.approvers.management
+          : [contract.approvers.management]);
+        if (managementApprovers?.some(a => a.declined)) {
           sentBackBy.push('Management');
         }
 
@@ -217,19 +207,20 @@ const StatusSelectCard = ({ status, onStatusChange, isUpdating, contract }: Stat
       if (!areBothApproved) {
         // Check what approvals are missing
         const missingApprovals = [];
-        if (!contract.approvers?.legal?.approved) {
-          missingApprovals.push('Legal');
-        }
-        if (!contract.approvers?.management?.approved) {
-          missingApprovals.push('Management');
+        // Check legal approvers
+        const legalApprovers = contract.approvers?.legal && (Array.isArray(contract.approvers.legal)
+          ? contract.approvers.legal
+          : [contract.approvers.legal]);
+        if (!legalApprovers || !legalApprovers.every(a => a.approved)) {
+          missingApprovals.push(legalApprovers ? 'Legal' : 'Legal (not assigned)');
         }
 
-        // If approvers aren't even assigned
-        if (!contract.approvers?.legal) {
-          missingApprovals.push('Legal (not assigned)');
-        }
-        if (!contract.approvers?.management) {
-          missingApprovals.push('Management (not assigned)');
+        // Check management approvers
+        const managementApprovers = contract.approvers?.management && (Array.isArray(contract.approvers.management)
+          ? contract.approvers.management
+          : [contract.approvers.management]);
+        if (!managementApprovers || !managementApprovers.every(a => a.approved)) {
+          missingApprovals.push(managementApprovers ? 'Management' : 'Management (not assigned)');
         }
 
         toast({

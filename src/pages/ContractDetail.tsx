@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { sendNotificationEmail } from '@/lib/brevoService';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import AuthNavbar from '@/components/layout/AuthNavbar';
@@ -325,9 +326,9 @@ const ContractDetail = () => {
     try {
       setUpdatingStatus(true);
 
-      // Check if all supporting documents are checked when moving from requested to draft
+      // Check if all supporting documents are checked and legal approvers are assigned when moving from requested to draft
       if (contract.status === 'requested' && newStatus === 'draft') {
-        console.log('Supporting documents check triggered in ContractDetail');
+        console.log('Supporting documents and legal approvers check triggered in ContractDetail');
         console.log('Contract ID:', contract.id);
         console.log('Contract Type:', contract.type);
         console.log('Supporting documents:', JSON.stringify(contract.supportingDocuments));
@@ -340,7 +341,19 @@ const ContractDetail = () => {
           return;
         }
 
-        // Use the latest contract data for validation
+        // Check if legal approvers are assigned
+        const hasLegalApprovers = latestContract.approvers?.legal &&
+          (Array.isArray(latestContract.approvers.legal)
+            ? latestContract.approvers.legal.length > 0
+            : true);
+
+        if (!hasLegalApprovers) {
+          toast.error('At least one legal team approver must be assigned before moving to Draft status.');
+          setUpdatingStatus(false);
+          return;
+        }
+
+        // Check supporting documents
         if (latestContract.supportingDocuments && latestContract.supportingDocuments.length > 0) {
           console.log('Latest supporting documents:', JSON.stringify(latestContract.supportingDocuments));
 
@@ -355,6 +368,37 @@ const ContractDetail = () => {
           }
         } else {
           console.log('No supporting documents found or empty array');
+        }
+
+        // At this point all validations have passed, send emails to legal approvers
+        try {
+          const legalApprovers = latestContract.approvers?.legal &&
+            (Array.isArray(latestContract.approvers.legal)
+              ? latestContract.approvers.legal
+              : [latestContract.approvers.legal]);
+
+          if (legalApprovers) {
+            for (const approver of legalApprovers) {
+              await sendNotificationEmail(
+                approver.email,
+                `Contract Ready for Review: ${latestContract.title}`,
+                `
+                <p>Hello,</p>
+                <p>A contract has been moved to Draft status and is ready for your review:</p>
+                <ul>
+                  <li><strong>Contract Title:</strong> ${latestContract.title}</li>
+                  <li><strong>Project Name:</strong> ${latestContract.projectName}</li>
+                  <li><strong>Contract Type:</strong> ${latestContract.type}</li>
+                </ul>
+                <p>You will be notified again when the contract reaches Legal Review stage.</p>
+                `
+              );
+            }
+            console.log('Notification emails sent to legal approvers');
+          }
+        } catch (error) {
+          console.error('Error sending notification emails:', error);
+          // Don't block the status change if email sending fails
         }
       }
 
@@ -461,6 +505,9 @@ const ContractDetail = () => {
 
   const handleUpdateApprovers = async (approversData: any) => {
     if (!contract || !id || !currentUser?.email || !isAuthorized) return;
+
+    // Import notification functions
+    const { notifyManagementOfLegalApproval, notifyApproversOfManagementApproval } = await import('@/lib/approval-notifications');
 
     console.log('ContractDetail - handleUpdateApprovers - Received data:', JSON.stringify(approversData, null, 2));
 
@@ -581,6 +628,35 @@ const ContractDetail = () => {
         console.log('ContractDetail - handleUpdateApprovers - Full contract:', JSON.stringify(updatedContract, null, 2));
         setContract(updatedContract);
         lastUpdatedTimestamp.current = Date.now(); // Update the timestamp
+
+        // Check if all legal team members have approved
+        if (updatedContract.approvers?.legal) {
+          const legalApprovers = Array.isArray(updatedContract.approvers.legal)
+            ? updatedContract.approvers.legal
+            : [updatedContract.approvers.legal];
+
+          const allLegalApproved = legalApprovers.every(approver => approver.approved);
+          
+          if (allLegalApproved && updatedContract.status === 'legal_review') {
+            console.log('ContractDetail - All legal approvers have approved, sending notification to management');
+            await notifyManagementOfLegalApproval(updatedContract);
+          }
+        }
+
+        // Check if all management team members have approved
+        if (updatedContract.approvers?.management) {
+          const managementApprovers = Array.isArray(updatedContract.approvers.management)
+            ? updatedContract.approvers.management
+            : [updatedContract.approvers.management];
+
+          const allManagementApproved = managementApprovers.every(approver => approver.approved);
+          
+          if (allManagementApproved && updatedContract.status === 'management_review') {
+            console.log('ContractDetail - All management approvers have approved, sending notification to approvers');
+            await notifyApproversOfManagementApproval(updatedContract);
+          }
+        }
+
         toast.success('Approvers updated successfully');
       }
 
