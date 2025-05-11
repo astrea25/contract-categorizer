@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 import { PrivateRoute } from "@/components/auth/PrivateRoute";
 import { AdminRoute } from "@/components/auth/AdminRoute";
 import { PasswordChangeRequiredRoute } from "@/components/auth/PasswordChangeRequiredRoute";
@@ -22,20 +23,22 @@ import Profile from "./pages/Profile";
 import SystemSettings from "./pages/SystemSettings";
 import AdminTools from "./pages/AdminTools";
 import FirstTimeSetup from "./pages/FirstTimeSetup";
+import Inbox from "./pages/Inbox";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        {/* Custom toast component with dismiss all button */}
-        <Toaster />
-        {/* Sonner toast with close button and shorter duration */}
-        <Sonner position="top-right" expand={false} closeButton={true} />
-        <RoleLoadingOverlay />
-        <BrowserRouter>
-          <Routes>
+      <NotificationProvider>
+        <TooltipProvider>
+          {/* Custom toast component with dismiss all button */}
+          <Toaster />
+          {/* Sonner toast with close button and shorter duration */}
+          <Sonner position="top-right" expand={false} closeButton={true} />
+          <RoleLoadingOverlay />
+          <BrowserRouter>
+            <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/first-time-setup" element={<FirstTimeSetup />} />
@@ -48,6 +51,7 @@ const App = () => (
                 <Route path="/contracts" element={<Contracts />} />
                 <Route path="/contract/:id" element={<ContractDetail />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/inbox" element={<Inbox />} />
               </Route>
             </Route>
 
@@ -62,7 +66,8 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
-      </TooltipProvider>
+        </TooltipProvider>
+      </NotificationProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

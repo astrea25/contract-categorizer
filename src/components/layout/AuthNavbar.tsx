@@ -1,11 +1,12 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { LogOut, Menu, X, Shield } from "lucide-react";
+import { LogOut, Menu, X, Shield, Inbox as InboxIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 // Role checking functions are no longer needed here
 import UserRoleBadge from "@/components/ui/UserRoleBadge";
+import NotificationDropdown from "@/components/notifications/NotificationDropdown";
 
 const AuthNavbar = () => {
   const { currentUser, signOut, isAdmin, isLegalTeam, isManagementTeam, userRole } = useAuth();
@@ -72,11 +73,20 @@ const AuthNavbar = () => {
               <div className="flex items-center space-x-4">
                 {currentUser && (
                   <div className="flex items-center">
-                    <div className="flex items-center gap-2 mr-4">
-                      <span className="text-sm text-muted-foreground">
-                        {userDisplayName}
-                      </span>
-                      <UserRoleBadge role={userRole} />
+                    <div className="flex items-center gap-4 mr-4">
+                      <NotificationDropdown />
+                      <Link
+                        to="/inbox"
+                        className="inline-flex items-center text-muted-foreground hover:text-foreground"
+                      >
+                        <InboxIcon className="h-5 w-5" />
+                      </Link>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {userDisplayName}
+                        </span>
+                        <UserRoleBadge role={userRole} />
+                      </div>
                     </div>
                     <Button variant="outline" size="sm" onClick={handleSignOut}>
                       <LogOut className="h-4 w-4 mr-2" />
@@ -128,6 +138,16 @@ const AuthNavbar = () => {
               onClick={() => setIsOpen(false)}
             >
               Profile
+            </Link>
+            <Link
+              to="/inbox"
+              className="block border-l-4 border-transparent py-2 pl-3 pr-4 text-base font-medium hover:border-primary hover:bg-muted hover:text-foreground"
+              onClick={() => setIsOpen(false)}
+            >
+              <div className="flex items-center">
+                <InboxIcon className="h-4 w-4 mr-2" />
+                Inbox
+              </div>
             </Link>
             {isAdmin && (
               <Link

@@ -25,6 +25,7 @@ import { getAuth, deleteUser, updateProfile } from "firebase/auth";
 import { auth as firebaseAuth } from "./firebase";
 import { createUserAccountViaAPI } from "./auth-api";
 import { FirebaseError } from "firebase/app";
+import { addNotification } from './notifications';
 
 export interface ContractStats {
   totalContracts: number;
@@ -727,6 +728,24 @@ export const createContract = async (
   }
 
   const docRef = await addDoc(collection(db, 'contracts'), newContract);
+
+  // Add a notification for admins about the new contract
+  try {
+    await addNotification({
+      contractId: docRef.id,
+      contractTitle: newContract.title,
+      type: 'contract_created',
+      message: `New contract "${newContract.title}" created by ${creator.displayName || creator.email}`,
+      recipientRole: 'admin',
+      createdBy: creator.email,
+      createdByName: creator.displayName || creator.email.split('@')[0] || 'User',
+      read: false // Explicitly set to false
+    });
+  } catch (error) {
+    console.error('Error creating notification for new contract:', error);
+    // Continue even if notification creation fails - the contract is still created
+  }
+
   return docRef.id;
 };
 
@@ -915,6 +934,25 @@ export const updateContract = async (
 
   try {
     await updateDoc(contractDoc, updateData);
+
+    // Add a notification for admins if the contract status is changed to "requested"
+    if (contractUpdates.status === 'requested' && currentContractData.status !== 'requested') {
+      try {
+        await addNotification({
+          contractId: id,
+          contractTitle: currentContractData.title,
+          type: 'contract_requested',
+          message: `Contract "${currentContractData.title}" status changed to Requested by ${editor.displayName || editor.email}`,
+          recipientRole: 'admin',
+          createdBy: editor.email,
+          createdByName: editor.displayName || editor.email.split('@')[0] || 'User',
+          read: false
+        });
+      } catch (notificationError) {
+        console.error('Error creating notification for contract status change:', notificationError);
+        // Continue even if notification creation fails - the contract is still updated
+      }
+    }
   } catch (error) {
     console.error('Error updating contract:', error);
     throw error;
