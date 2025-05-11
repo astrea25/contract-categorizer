@@ -1718,26 +1718,68 @@ const ContractForm = ({
             {initialData && isAdmin && (
               <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="inactivityNotificationDays">Inactivity Notification Days</Label>
-                  <Input
-                    id="inactivityNotificationDays"
-                    name="inactivityNotificationDays"
-                    type="number"
-                    min="1"
-                    max="365"
-                    value={formData.inactivityNotificationDays || 30}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value);
-                      if (!isNaN(value) && value > 0) {
-                        setFormData((prev) => ({ ...prev, inactivityNotificationDays: value }));
-                        setHasPendingChanges(true);
-                      }
-                    }}
-                    disabled={!isEditable}
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    Number of days of inactivity before sending a notification email (default: 30)
-                  </p>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="reviewerInactivityDays">Reviewer/Approver Inactivity Threshold</Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Input
+                          id="reviewerInactivityDays"
+                          name="reviewerInactivityDays"
+                          type="number"
+                          min="1"
+                          max="365"
+                          value={formData.reviewerInactivityDays || ''}
+                          placeholder="3"
+                          onChange={(e) => {
+                            const value = e.target.value === '' ? null : parseInt(e.target.value);
+                            setFormData((prev) => ({ ...prev, reviewerInactivityDays: value }));
+                            setHasPendingChanges(true);
+                          }}
+                          disabled={!isEditable}
+                          className="w-24"
+                        />
+                        <span className="text-sm text-muted-foreground">business days</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Default: 3 business days (72 hours) for legal team, management team, and approvers
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="regularInactivityDays">Regular User Inactivity Threshold</Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Input
+                          id="regularInactivityDays"
+                          name="regularInactivityDays"
+                          type="number"
+                          min="1"
+                          max="365"
+                          value={formData.regularInactivityDays || ''}
+                          placeholder="1"
+                          onChange={(e) => {
+                            const value = e.target.value === '' ? null : parseInt(e.target.value);
+                            setFormData((prev) => ({ ...prev, regularInactivityDays: value }));
+                            setHasPendingChanges(true);
+                          }}
+                          disabled={!isEditable}
+                          className="w-24"
+                        />
+                        <span className="text-sm text-muted-foreground">business days</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Default: 1 business day (24 hours) for all other users
+                      </p>
+                    </div>
+
+                    <div className="text-sm text-muted-foreground space-y-1 pt-2 border-t border-gray-200">
+                      <p>
+                        <strong>Note:</strong> These thresholds count only business days (excluding weekends).
+                      </p>
+                      <p>
+                        If left empty, the system will use the default values shown above.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

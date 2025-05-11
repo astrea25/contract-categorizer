@@ -13,18 +13,18 @@ import { useNavigate } from 'react-router-dom';
 import AuthNavbar from '@/components/layout/AuthNavbar';
 
 const AdminTools = () => {
-  const [inactivityDays, setInactivityDays] = useState<number>(30);
+  // No longer need inactivityDays as we use role-based thresholds
   const [isRunningInactivityCheck, setIsRunningInactivityCheck] = useState<boolean>(false);
   const [inactivityResult, setInactivityResult] = useState<string | null>(null);
   const [inactivityError, setInactivityError] = useState<string | null>(null);
-  
+
   const [isRunningDeletion, setIsRunningDeletion] = useState<boolean>(false);
   const [deletionResult, setDeletionResult] = useState<string | null>(null);
   const [deletionError, setDeletionError] = useState<string | null>(null);
-  
+
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-  
+
   // Check if user is admin
   React.useEffect(() => {
     const checkAdmin = async () => {
@@ -32,24 +32,24 @@ const AdminTools = () => {
         navigate('/login');
         return;
       }
-      
+
       const admin = await isUserAdmin(currentUser.email);
       if (!admin) {
         navigate('/');
       }
     };
-    
+
     checkAdmin();
   }, [currentUser, navigate]);
-  
+
   const handleInactivityCheck = async () => {
     try {
       setIsRunningInactivityCheck(true);
       setInactivityResult(null);
       setInactivityError(null);
-      
-      const result = await runInactivityNotificationTask(inactivityDays);
-      
+
+      const result = await runInactivityNotificationTask();
+
       if (result.success) {
         setInactivityResult(`Successfully sent ${result.notificationsSent} inactivity notifications.`);
       } else {
@@ -61,15 +61,15 @@ const AdminTools = () => {
       setIsRunningInactivityCheck(false);
     }
   };
-  
+
   const handleContractDeletion = async () => {
     try {
       setIsRunningDeletion(true);
       setDeletionResult(null);
       setDeletionError(null);
-      
+
       const result = await runContractDeletionTask();
-      
+
       if (result.success) {
         setDeletionResult(`Successfully deleted ${result.deletedCount} expired archived contracts.`);
       } else {
@@ -81,43 +81,42 @@ const AdminTools = () => {
       setIsRunningDeletion(false);
     }
   };
-  
+
   return (
     <div className="min-h-screen bg-background">
       <AuthNavbar />
       <div className="container mx-auto py-10">
         <h1 className="text-3xl font-bold mb-6">Admin Tools</h1>
-        
+
         <Tabs defaultValue="inactivity">
           <TabsList className="mb-4">
             <TabsTrigger value="inactivity">Inactivity Notifications</TabsTrigger>
             <TabsTrigger value="deletion">Contract Deletion</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="inactivity">
             <Card>
               <CardHeader>
                 <CardTitle>Contract Inactivity Check</CardTitle>
                 <CardDescription>
-                  Check for contracts that have been inactive for a specified number of days and send notification emails.
+                  Check for contracts that have been inactive for a specified number of business days and send notification emails.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="inactivityDays">Inactivity Days</Label>
-                    <Input
-                      id="inactivityDays"
-                      type="number"
-                      value={inactivityDays}
-                      onChange={(e) => setInactivityDays(parseInt(e.target.value) || 30)}
-                      min={1}
-                    />
-                    <p className="text-sm text-muted-foreground">
-                      Contracts with no activity for this many days will trigger a notification.
+                    <p className="text-sm">
+                      This tool checks for contracts that have been inactive for a specified number of <strong>business days</strong> (excluding weekends) and sends notification emails.
                     </p>
+                    <p className="text-sm text-muted-foreground">
+                      <strong>Role-based thresholds:</strong>
+                    </p>
+                    <ul className="text-sm text-muted-foreground list-disc pl-5">
+                      <li>For reviewers and approvers: 3 business days (72 hours)</li>
+                      <li>For all other users: 1 business day (24 hours)</li>
+                    </ul>
                   </div>
-                  
+
                   {inactivityResult && (
                     <Alert className="bg-green-50 border-green-200">
                       <CheckCircle className="h-4 w-4 text-green-600" />
@@ -125,7 +124,7 @@ const AdminTools = () => {
                       <AlertDescription>{inactivityResult}</AlertDescription>
                     </Alert>
                   )}
-                  
+
                   {inactivityError && (
                     <Alert variant="destructive">
                       <AlertCircle className="h-4 w-4" />
@@ -136,8 +135,8 @@ const AdminTools = () => {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button 
-                  onClick={handleInactivityCheck} 
+                <Button
+                  onClick={handleInactivityCheck}
                   disabled={isRunningInactivityCheck}
                 >
                   {isRunningInactivityCheck ? 'Running...' : 'Run Inactivity Check'}
@@ -145,7 +144,7 @@ const AdminTools = () => {
               </CardFooter>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="deletion">
             <Card>
               <CardHeader>
@@ -159,7 +158,7 @@ const AdminTools = () => {
                   <p className="text-sm text-muted-foreground">
                     This will permanently delete archived contracts that have been expired for the period specified in system settings.
                   </p>
-                  
+
                   {deletionResult && (
                     <Alert className="bg-green-50 border-green-200">
                       <CheckCircle className="h-4 w-4 text-green-600" />
@@ -167,7 +166,7 @@ const AdminTools = () => {
                       <AlertDescription>{deletionResult}</AlertDescription>
                     </Alert>
                   )}
-                  
+
                   {deletionError && (
                     <Alert variant="destructive">
                       <AlertCircle className="h-4 w-4" />
@@ -178,8 +177,8 @@ const AdminTools = () => {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button 
-                  onClick={handleContractDeletion} 
+                <Button
+                  onClick={handleContractDeletion}
                   disabled={isRunningDeletion}
                   variant="destructive"
                 >

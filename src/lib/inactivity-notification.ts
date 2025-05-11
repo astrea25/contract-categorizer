@@ -2,7 +2,7 @@ import { db } from './firebase';
 import { collection, query, where, getDocs, Timestamp, orderBy, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { sendNotificationEmail } from './brevoService';
 import { Contract, getContract } from './data';
-import { differenceInDays } from 'date-fns';
+import { differenceInBusinessDays, getInactivityThreshold } from './date-utils';
 
 const ADMIN_EMAIL = 'aster.mangabat@student.ateneo.edu';
 
@@ -38,13 +38,13 @@ const getApproversForStatus = (contract: Contract): string[] => {
 };
 
 /**
- * Checks for contracts that have been inactive for a specified number of days
- * and sends notification emails to the contract owner and recipient.
+ * Checks for contracts that have been inactive for a specified number of business days
+ * and sends notification emails to relevant users based on contract status.
+ * Uses role-based thresholds: 3 business days for approvers/reviewers, 1 business day for others.
  *
- * @param inactivityDays Number of days of inactivity before sending a notification (default: 30)
  * @returns Promise resolving to the number of notifications sent
  */
-export const checkInactiveContractsAndNotify = async (inactivityDays: number = 30): Promise<number> => {
+export const checkInactiveContractsAndNotify = async (): Promise<number> => {
   try {
     // Get current date
     const now = new Date();
@@ -67,15 +67,23 @@ export const checkInactiveContractsAndNotify = async (inactivityDays: number = 3
       if (!contract.lastActivityAt) continue;
 
       const lastActivityDate = new Date(contract.lastActivityAt);
-      const daysSinceLastActivity = differenceInDays(now, lastActivityDate);
 
-      // Use contract-specific inactivity days if available, otherwise use the default
-      const contractInactivityDays = contract.inactivityNotificationDays || inactivityDays;
+      // Calculate business days since last activity (excluding weekends)
+      const businessDaysSinceLastActivity = differenceInBusinessDays(lastActivityDate, now);
 
-      // Check if contract has been inactive for the specified period
-      if (daysSinceLastActivity >= contractInactivityDays) {
-        // Send notifications to both owner and recipient if available
-        await sendInactivityNotification(contract);
+      // Determine if the contract is in an approval/review stage
+      const isInApprovalStage =
+        contract.status?.includes('review') ||
+        contract.status?.includes('approval') ||
+        contract.status?.includes('send_back');
+
+      // Get appropriate threshold based on contract status and role
+      const thresholdDays = getInactivityThreshold(contract, isInApprovalStage);
+
+      // Check if contract has been inactive for the specified period of business days
+      if (businessDaysSinceLastActivity >= thresholdDays) {
+        // Send notifications to relevant users
+        await sendInactivityNotification(contract, businessDaysSinceLastActivity);
         notificationsSent++;
       }
     }
@@ -91,15 +99,34 @@ export const checkInactiveContractsAndNotify = async (inactivityDays: number = 3
  * Sends an inactivity notification email for a specific contract
  *
  * @param contract The contract that has been inactive
+ * @param businessDaysSinceActivity Number of business days since last activity (optional)
  * @returns Promise resolving when all notifications have been sent
  */
-export const sendInactivityNotification = async (contract: Contract): Promise<void> => {
+export const sendInactivityNotification = async (contract: Contract, businessDaysSinceActivity?: number): Promise<void> => {
   try {
     const appUrl = import.meta.env.VITE_APP_URL || 'https://contract-management-system-omega.vercel.app';
     const contractUrl = `${appUrl}/contracts/${contract.id}`;
 
-    // Get the contract-specific inactivity days or use default
-    const inactivityDays = contract.inactivityNotificationDays || 30;
+    // If business days weren't provided, calculate them
+    let daysSinceActivity = businessDaysSinceActivity;
+    if (daysSinceActivity === undefined && contract.lastActivityAt) {
+      daysSinceActivity = differenceInBusinessDays(new Date(contract.lastActivityAt), new Date());
+    }
+
+    // Determine if the contract is in an approval/review stage
+    const isInApprovalStage =
+      contract.status?.includes('review') ||
+      contract.status?.includes('approval') ||
+      contract.status?.includes('send_back');
+
+    // Get the appropriate thresholds for display
+    const reviewerThreshold = contract.reviewerInactivityDays !== undefined
+      ? contract.reviewerInactivityDays
+      : 3;
+
+    const regularThreshold = contract.regularInactivityDays !== undefined
+      ? contract.regularInactivityDays
+      : 1;
 
     // Prepare email content
     const subject = `Inactive Contract Notification: ${contract.title} (ID: ${contract.id})`;
@@ -107,7 +134,8 @@ export const sendInactivityNotification = async (contract: Contract): Promise<vo
       <div style="font-family: sans-serif;">
         <h2>Contract Inactivity Notification</h2>
         <p>This is an automated notification from the Contract Management System.</p>
-        <p>The following contract has not had any activity for ${inactivityDays} days:</p>
+        <p>The following contract has not had any activity for ${daysSinceActivity || 'several'} <strong>business days</strong> (excluding weekends):</p>
+        <p><strong>Current thresholds:</strong> ${reviewerThreshold} business days for reviewers/approvers, ${regularThreshold} business days for other users</p>
         <ul>
           <li><strong>Contract ID:</strong> ${contract.id}</li>
           <li><strong>Contract Title:</strong> ${contract.title}</li>
@@ -129,7 +157,9 @@ Contract Inactivity Notification
 
 This is an automated notification from the Contract Management System.
 
-The following contract has not had any activity for ${inactivityDays} days:
+The following contract has not had any activity for ${daysSinceActivity || 'several'} business days (excluding weekends):
+
+Current thresholds: ${reviewerThreshold} business days for reviewers/approvers, ${regularThreshold} business days for other users
 
 Contract ID: ${contract.id}
 Contract Title: ${contract.title}

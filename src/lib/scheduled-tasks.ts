@@ -42,6 +42,7 @@ export const runContractDeletionTask = async (): Promise<{
 
 /**
  * This function checks for inactive contracts and sends notification emails.
+ * It uses role-based thresholds: 3 business days for approvers/reviewers, 1 business day for others.
  * It would typically be called by a cloud function or scheduled task runner.
  *
  * For example in Firebase, you could use Cloud Functions with Pub/Sub:
@@ -52,14 +53,14 @@ export const runContractDeletionTask = async (): Promise<{
  *     return null;
  *   });
  */
-export const runInactivityNotificationTask = async (inactivityDays: number = 30): Promise<{
+export const runInactivityNotificationTask = async (): Promise<{
   success: boolean;
   notificationsSent: number;
   message: string;
 }> => {
   try {
     // Check for inactive contracts and send notifications
-    const notificationsSent = await checkInactiveContractsAndNotify(inactivityDays);
+    const notificationsSent = await checkInactiveContractsAndNotify();
 
     console.log(`Successfully sent ${notificationsSent} inactivity notifications`);
 

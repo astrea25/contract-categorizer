@@ -636,7 +636,7 @@ const ContractDetail = () => {
             : [updatedContract.approvers.legal];
 
           const allLegalApproved = legalApprovers.every(approver => approver.approved);
-          
+
           if (allLegalApproved && updatedContract.status === 'legal_review') {
             console.log('ContractDetail - All legal approvers have approved, sending notification to management');
             await notifyManagementOfLegalApproval(updatedContract);
@@ -650,7 +650,7 @@ const ContractDetail = () => {
             : [updatedContract.approvers.management];
 
           const allManagementApproved = managementApprovers.every(approver => approver.approved);
-          
+
           if (allManagementApproved && updatedContract.status === 'management_review') {
             console.log('ContractDetail - All management approvers have approved, sending notification to approvers');
             await notifyApproversOfManagementApproval(updatedContract);
@@ -1100,8 +1100,17 @@ const ContractDetail = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="text-sm">
-                      <div className="font-medium">
-                        {contract.inactivityNotificationDays || 30} days
+                      <div className="space-y-1">
+                        <div className="font-medium">
+                          <span className="text-sm text-muted-foreground">Reviewers/Approvers:</span> {contract.reviewerInactivityDays !== undefined
+                            ? `${contract.reviewerInactivityDays} business days (custom)`
+                            : '3 business days (default)'}
+                        </div>
+                        <div className="font-medium">
+                          <span className="text-sm text-muted-foreground">Regular Users:</span> {contract.regularInactivityDays !== undefined
+                            ? `${contract.regularInactivityDays} business days (custom)`
+                            : '1 business day (default)'}
+                        </div>
                       </div>
                       <p className="text-muted-foreground mt-1">
                         {contract.lastActivityAt
@@ -1119,8 +1128,23 @@ const ContractDetail = () => {
                 </Card>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Notifications will be sent to the contract owner and recipient after {contract.inactivityNotificationDays || 30} days of inactivity</p>
-                <p className="text-xs mt-1 text-amber-600">Only the contract creator can modify this setting</p>
+                <div className="space-y-2 max-w-xs">
+                  <p>Current thresholds (business days only):</p>
+                  <ul className="list-disc pl-5 text-xs">
+                    <li>
+                      <strong>Reviewers/Approvers:</strong> {contract.reviewerInactivityDays !== undefined
+                        ? `${contract.reviewerInactivityDays} business days (custom)`
+                        : '3 business days (default)'}
+                    </li>
+                    <li>
+                      <strong>Regular Users:</strong> {contract.regularInactivityDays !== undefined
+                        ? `${contract.regularInactivityDays} business days (custom)`
+                        : '1 business day (default)'}
+                    </li>
+                  </ul>
+                  <p className="text-xs mt-1">Business days exclude weekends</p>
+                  <p className="text-xs mt-1 text-amber-600">Only admins can modify these settings</p>
+                </div>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

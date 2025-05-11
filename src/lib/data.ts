@@ -229,7 +229,9 @@ export interface Contract {
   archivedAt?: string; // When the contract was archived
   archivedBy?: string; // Who archived the contract
   lastActivityAt?: string; // Timestamp of the last activity on the contract
-  inactivityNotificationDays?: number; // Number of days of inactivity before sending a notification
+  inactivityNotificationDays?: number; // Legacy field: Number of days of inactivity before sending a notification
+  reviewerInactivityDays?: number; // Number of business days of inactivity for reviewers/approvers before sending a notification
+  regularInactivityDays?: number; // Number of business days of inactivity for regular users before sending a notification
   // Amendment tracking
   isAmended?: boolean; // Flag to indicate if contract has been amended
   amendmentStage?: 'amendment' | 'legal' | 'wwf' | 'counterparty'; // Current stage in the amendment process
@@ -692,6 +694,13 @@ export const createContract = async (
     }));
   }
 
+  // Set inactivity notification thresholds if provided
+  if (cleanContract.reviewerInactivityDays === undefined && cleanContract.regularInactivityDays === undefined) {
+    // If neither field is set, use default values
+    cleanContract.reviewerInactivityDays = 3; // Default: 3 business days for reviewers/approvers
+    cleanContract.regularInactivityDays = 1;  // Default: 1 business day for regular users
+  }
+
   const newContract = {
     ...cleanContract,
     status: initialStatus,
@@ -843,6 +852,29 @@ export const updateContract = async (
       action: 'Document Link Updated',
       userEmail: editor.email,
       userName: editor.displayName || editor.email.split('@')[0] || 'User' // Use email username or 'User' as fallback
+    });
+  }
+
+  // Check for changes in inactivity notification thresholds
+  if (contractUpdates.reviewerInactivityDays !== undefined &&
+      contractUpdates.reviewerInactivityDays !== currentContractData.reviewerInactivityDays) {
+    newTimelineEntries.push({
+      timestamp: now.toDate().toISOString(),
+      action: 'Reviewer Inactivity Threshold Updated',
+      userEmail: editor.email,
+      userName: editor.displayName || editor.email.split('@')[0] || 'User',
+      details: `Changed from ${currentContractData.reviewerInactivityDays || '3 (default)'} to ${contractUpdates.reviewerInactivityDays} business days`
+    });
+  }
+
+  if (contractUpdates.regularInactivityDays !== undefined &&
+      contractUpdates.regularInactivityDays !== currentContractData.regularInactivityDays) {
+    newTimelineEntries.push({
+      timestamp: now.toDate().toISOString(),
+      action: 'Regular User Inactivity Threshold Updated',
+      userEmail: editor.email,
+      userName: editor.displayName || editor.email.split('@')[0] || 'User',
+      details: `Changed from ${currentContractData.regularInactivityDays || '1 (default)'} to ${contractUpdates.regularInactivityDays} business days`
     });
   }
   // Check if we have a custom timeline entry
