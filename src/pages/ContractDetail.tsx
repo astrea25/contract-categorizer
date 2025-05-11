@@ -736,6 +736,9 @@ const ContractDetail = () => {
     try {
       setUpdatingStatus(true);
 
+      // Import the notification function
+      const { notifyRequesterOfAmendment } = await import('@/lib/approval-notifications');
+
       // Store the original status before moving to amendment
       const originalStatus = contract.status;
 
@@ -799,6 +802,15 @@ const ContractDetail = () => {
       if (updatedContract) {
         setContract(updatedContract);
         toast.success('Contract amendment process started - All approvals have been reset');
+
+        // Send notification email to the contract requester/creator
+        try {
+          await notifyRequesterOfAmendment(updatedContract);
+          console.log('Amendment notification sent to contract requester:', updatedContract.owner);
+        } catch (notificationError) {
+          console.error('Failed to send amendment notification to requester:', notificationError);
+          // Don't block the amendment process if notification fails
+        }
       }
 
       // Close the dialog

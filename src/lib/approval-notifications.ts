@@ -8,13 +8,13 @@ import { db } from './firebase';
  */
 const formatApprovalHistory = (contract: Contract): string => {
   const history = [];
-  
+
   // Format legal team approvals
   if (contract.approvers?.legal) {
-    const legalApprovers = Array.isArray(contract.approvers.legal) 
-      ? contract.approvers.legal 
+    const legalApprovers = Array.isArray(contract.approvers.legal)
+      ? contract.approvers.legal
       : [contract.approvers.legal];
-    
+
     legalApprovers.forEach(approver => {
       if (approver.approved) {
         history.push(`Legal Team: ${approver.name} (${approver.email}) - Approved on ${new Date(approver.approvedAt!).toLocaleString()}`);
@@ -29,7 +29,7 @@ const formatApprovalHistory = (contract: Contract): string => {
     const managementApprovers = Array.isArray(contract.approvers.management)
       ? contract.approvers.management
       : [contract.approvers.management];
-    
+
     managementApprovers.forEach(approver => {
       if (approver.approved) {
         history.push(`Management Team: ${approver.name} (${approver.email}) - Approved on ${new Date(approver.approvedAt!).toLocaleString()}`);
@@ -92,17 +92,17 @@ export const notifyManagementOfLegalApproval = async (contract: Contract): Promi
       <div style="font-family: sans-serif;">
         <h2>Contract Ready for Management Review</h2>
         <p>The legal team has approved the following contract and it requires your review:</p>
-        
+
         <h3>Contract Details</h3>
         ${contractDetails}
-        
+
         <h3>Approval History</h3>
         ${approvalHistory}
-        
+
         <h3>Next Steps</h3>
         <p>Please review the contract and either approve or send it back:</p>
         <p><a href="${contractUrl}">Click here to review the contract</a></p>
-        
+
         <hr>
         <p style="font-size: 12px; color: #666;">This is an automated message from the Contract Management System.</p>
       </div>
@@ -132,17 +132,17 @@ export const notifyApproversOfManagementApproval = async (contract: Contract): P
       <div style="font-family: sans-serif;">
         <h2>Contract Ready for Final Review</h2>
         <p>The management team has approved the following contract and it requires your final review:</p>
-        
+
         <h3>Contract Details</h3>
         ${contractDetails}
-        
+
         <h3>Approval History</h3>
         ${approvalHistory}
-        
+
         <h3>Next Steps</h3>
         <p>Please review the contract and either approve or send it back:</p>
         <p><a href="${contractUrl}">Click here to review the contract</a></p>
-        
+
         <hr>
         <p style="font-size: 12px; color: #666;">This is an automated message from the Contract Management System.</p>
       </div>
@@ -173,17 +173,17 @@ export const notifyAdminOfSentBack = async (contract: Contract): Promise<void> =
       <div style="font-family: sans-serif;">
         <h2>Contract Has Been Sent Back</h2>
         <p>A contract has been sent back by one or more approvers:</p>
-        
+
         <h3>Contract Details</h3>
         ${contractDetails}
-        
+
         <h3>Approval History</h3>
         ${approvalHistory}
-        
+
         <h3>Review Required</h3>
         <p>Please review the contract and take appropriate action:</p>
         <p><a href="${contractUrl}">Click here to review the contract</a></p>
-        
+
         <hr>
         <p style="font-size: 12px; color: #666;">This is an automated message from the Contract Management System.</p>
       </div>
@@ -192,5 +192,61 @@ export const notifyAdminOfSentBack = async (contract: Contract): Promise<void> =
     await sendNotificationEmail(adminEmail, subject, htmlContent);
   } catch (error) {
     console.error('Error sending admin notification:', error);
+  }
+};
+
+/**
+ * Notifies the contract requester/creator when a contract enters amendment process
+ */
+export const notifyRequesterOfAmendment = async (contract: Contract): Promise<void> => {
+  const appUrl = import.meta.env.VITE_APP_URL || 'https://contract-management-system-omega.vercel.app';
+  const contractUrl = `${appUrl}/contracts/${contract.id}`;
+
+  try {
+    // Get the contract owner/creator email
+    const requesterEmail = contract.owner;
+
+    // If there's no owner email, we can't send a notification
+    if (!requesterEmail) {
+      console.error('Cannot send amendment notification: No requester email found in contract');
+      return;
+    }
+
+    console.log('Sending contract amendment notification to requester:', requesterEmail);
+
+    const contractDetails = getContractDetails(contract);
+
+    // Send email to the contract requester/creator
+    const subject = `Contract Amendment Started: ${contract.title}`;
+    const htmlContent = `
+      <div style="font-family: sans-serif;">
+        <h2>Contract Amendment Process Started</h2>
+        <p>A contract that you requested/created has entered the amendment process:</p>
+
+        <h3>Contract Details</h3>
+        ${contractDetails}
+
+        <h3>Amendment Process</h3>
+        <p>The contract has been moved to the amendment status. The amendment will go through the following stages:</p>
+        <ol>
+          <li>Amendment (current stage)</li>
+          <li>Management Review</li>
+          <li>WWF Signing</li>
+          <li>Counterparty Signing</li>
+        </ol>
+
+        <h3>View Contract</h3>
+        <p>You can view the contract and track its progress through the amendment process:</p>
+        <p><a href="${contractUrl}">Click here to view the contract</a></p>
+
+        <hr>
+        <p style="font-size: 12px; color: #666;">This is an automated message from the Contract Management System.</p>
+      </div>
+    `;
+
+    await sendNotificationEmail(requesterEmail, subject, htmlContent);
+  } catch (error) {
+    console.error('Error sending requester amendment notification:', error);
+    // Don't throw the error - we don't want to block the amendment process if the email fails
   }
 };

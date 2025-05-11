@@ -16,6 +16,7 @@ import {
 import { Contract, ContractStatus } from '@/lib/data';
 import { toast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { sendNotificationEmail } from '@/lib/brevoService';
 
 interface AmendmentStatusCardProps {
   contract: Contract;
@@ -44,10 +45,53 @@ const AmendmentStatusCard = ({ contract, onStatusChange, isUpdating }: Amendment
     const isAmendmentStage = amendmentStageOptions.some(option => option.value === value);
 
     if (isAmendmentStage) {
+      // Get the stage label for the notification
+      const newStageLabel = amendmentStageOptions.find(option => option.value === value)?.label || 'Unknown';
+
       // Update the amendment stage without changing the contract status
       await onStatusChange('amendment', {
-        amendmentStage: value as 'amendment' | 'management' | 'wwf' | 'counterparty'
+        amendmentStage: value as 'amendment' | 'management' | 'wwf' | 'counterparty',
+        _customTimelineEntry: {
+          action: 'Amendment Stage Changed',
+          details: `Amendment stage changed to ${newStageLabel}`
+        }
       });
+
+      // Send notification to the contract requester/creator about the stage change
+      try {
+        if (contract.owner) {
+          const appUrl = import.meta.env.VITE_APP_URL || 'https://contract-management-system-omega.vercel.app';
+          const contractUrl = `${appUrl}/contracts/${contract.id}`;
+
+          await sendNotificationEmail(
+            contract.owner,
+            `Contract Amendment Stage Updated: ${contract.title}`,
+            `
+            <div style="font-family: sans-serif;">
+              <h2>Contract Amendment Stage Updated</h2>
+              <p>The amendment stage for your contract has been updated:</p>
+
+              <ul>
+                <li><strong>Contract Title:</strong> ${contract.title}</li>
+                <li><strong>Project Name:</strong> ${contract.projectName}</li>
+                <li><strong>New Amendment Stage:</strong> ${newStageLabel}</li>
+              </ul>
+
+              <p>You can view the contract and track its progress through the amendment process:</p>
+              <p><a href="${contractUrl}">Click here to view the contract</a></p>
+
+              <hr>
+              <p style="font-size: 12px; color: #666;">This is an automated message from the Contract Management System.</p>
+            </div>
+            `
+          );
+          console.log(`Amendment stage change notification sent to requester: ${contract.owner}`);
+        }
+      } catch (error) {
+        console.error('Failed to send amendment stage change notification:', error);
+        // Don't block the stage change if notification fails
+      }
+
       setIsOpen(false);
       return;
     }
@@ -65,15 +109,53 @@ const AmendmentStatusCard = ({ contract, onStatusChange, isUpdating }: Amendment
 
     // If amendment is complete, restore the original status if available
     if (contract.originalStatus) {
+      const originalStatusLabel = contract.originalStatus.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+
       await onStatusChange(contract.originalStatus, {
         isAmended: false,
         amendmentStage: undefined,
         originalStatus: undefined,
         _customTimelineEntry: {
           action: 'Amendment Completed',
-          details: `Contract returned to original status: ${contract.originalStatus.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}`
+          details: `Contract returned to original status: ${originalStatusLabel}`
         }
       });
+
+      // Send notification to the contract requester/creator about amendment completion
+      try {
+        if (contract.owner) {
+          const appUrl = import.meta.env.VITE_APP_URL || 'https://contract-management-system-omega.vercel.app';
+          const contractUrl = `${appUrl}/contracts/${contract.id}`;
+
+          await sendNotificationEmail(
+            contract.owner,
+            `Contract Amendment Completed: ${contract.title}`,
+            `
+            <div style="font-family: sans-serif;">
+              <h2>Contract Amendment Process Completed</h2>
+              <p>The amendment process for your contract has been completed:</p>
+
+              <ul>
+                <li><strong>Contract Title:</strong> ${contract.title}</li>
+                <li><strong>Project Name:</strong> ${contract.projectName}</li>
+                <li><strong>New Status:</strong> ${originalStatusLabel}</li>
+              </ul>
+
+              <p>The contract has been returned to its original status after completing the amendment process.</p>
+              <p><a href="${contractUrl}">Click here to view the contract</a></p>
+
+              <hr>
+              <p style="font-size: 12px; color: #666;">This is an automated message from the Contract Management System.</p>
+            </div>
+            `
+          );
+          console.log(`Amendment completion notification sent to requester: ${contract.owner}`);
+        }
+      } catch (error) {
+        console.error('Failed to send amendment completion notification:', error);
+        // Don't block the status change if notification fails
+      }
+
       setIsOpen(false);
       return;
     }
