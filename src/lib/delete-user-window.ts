@@ -2,7 +2,6 @@
  * This file contains a solution for deleting Firebase Auth users
  * using a popup window to avoid affecting the current user's session
  */
-
 /**
  * Creates a popup window and uses it to delete a user from Firebase Authentication
  * This approach completely isolates the authentication contexts
@@ -11,23 +10,28 @@
  * @param password The password of the user (default is '12345678')
  * @returns A promise that resolves to true if successful, false otherwise
  */
-export const deleteUserWithPopup = async (email: string, password: string = '12345678'): Promise<boolean> => {
-  return new Promise((resolve) => {
-    try {
-      // Generate a unique ID for this deletion operation
-      const operationId = `delete-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      
-      // Store the callback in window object so the popup can access it
-      (window as any)[operationId] = {
-        resolve: (success: boolean) => {
-          // Clean up
-          delete (window as any)[operationId];
-          resolve(success);
-        }
-      };
-      
-      // Create the HTML content for the popup
-      const popupContent = `
+// Generate a unique ID for this deletion operation
+// Store the callback in window object so the popup can access it
+// Clean up
+// Create the HTML content for the popup
+// Create a blob URL for the HTML content
+// Open a popup window with the content
+// Set a timeout in case the popup is closed without resolving
+// 1 minute timeout
+// Override the resolve function to clear the timeout
+export const deleteUserWithPopup = async (email: string, password: string = "12345678"): Promise<boolean> => {
+    return new Promise(resolve => {
+        try {
+            const operationId = `delete-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+            (window as any)[operationId] = {
+                resolve: (success: boolean) => {
+                    delete (window as any)[operationId];
+                    resolve(success);
+                }
+            };
+
+            const popupContent = `
         <!DOCTYPE html>
         <html>
         <head>
@@ -125,41 +129,39 @@ export const deleteUserWithPopup = async (email: string, password: string = '123
         </body>
         </html>
       `;
-      
-      // Create a blob URL for the HTML content
-      const blob = new Blob([popupContent], { type: 'text/html' });
-      const blobUrl = URL.createObjectURL(blob);
-      
-      // Open a popup window with the content
-      const popup = window.open(
-        blobUrl,
-        'UserDeletion',
-        'width=500,height=400,resizable=yes,scrollbars=yes,status=yes'
-      );
-      
-      if (!popup) {
-        console.error('Popup blocked. Please allow popups for this site.');
-        resolve(false);
-        return;
-      }
-      
-      // Set a timeout in case the popup is closed without resolving
-      const timeoutId = setTimeout(() => {
-        if ((window as any)[operationId]) {
-          delete (window as any)[operationId];
-          resolve(false);
+
+            const blob = new Blob([popupContent], {
+                type: "text/html"
+            });
+
+            const blobUrl = URL.createObjectURL(blob);
+
+            const popup = window.open(
+                blobUrl,
+                "UserDeletion",
+                "width=500,height=400,resizable=yes,scrollbars=yes,status=yes"
+            );
+
+            if (!popup) {
+                resolve(false);
+                return;
+            }
+
+            const timeoutId = setTimeout(() => {
+                if ((window as any)[operationId]) {
+                    delete (window as any)[operationId];
+                    resolve(false);
+                }
+            }, 60000);
+
+            const originalResolve = (window as any)[operationId].resolve;
+
+            (window as any)[operationId].resolve = (success: boolean) => {
+                clearTimeout(timeoutId);
+                originalResolve(success);
+            };
+        } catch (error) {
+            resolve(false);
         }
-      }, 60000); // 1 minute timeout
-      
-      // Override the resolve function to clear the timeout
-      const originalResolve = (window as any)[operationId].resolve;
-      (window as any)[operationId].resolve = (success: boolean) => {
-        clearTimeout(timeoutId);
-        originalResolve(success);
-      };
-    } catch (error) {
-      console.error('Error setting up popup for user deletion:', error);
-      resolve(false);
-    }
-  });
+    });
 };

@@ -1,3 +1,8 @@
+// AcceptInvite import removed
+// SignUp page removed
+/* Custom toast component with dismiss all button */
+/* Sonner toast with close button and shorter duration */
+/* AcceptInvite route removed */
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,10 +17,8 @@ import RoleLoadingOverlay from "@/components/ui/role-loading-overlay";
 import Index from "./pages/Index";
 import Contracts from "./pages/Contracts";
 import ContractDetail from "./pages/ContractDetail";
-// AcceptInvite import removed
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
-// SignUp page removed
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import MakeAdmin from "./pages/MakeAdmin";
@@ -24,52 +27,46 @@ import SystemSettings from "./pages/SystemSettings";
 import AdminTools from "./pages/AdminTools";
 import FirstTimeSetup from "./pages/FirstTimeSetup";
 import Inbox from "./pages/Inbox";
-
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
+const App = () => (<QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <NotificationProvider>
-        <TooltipProvider>
-          {/* Custom toast component with dismiss all button */}
-          <Toaster />
-          {/* Sonner toast with close button and shorter duration */}
-          <Sonner position="top-right" expand={false} closeButton={true} />
-          <RoleLoadingOverlay />
-          <BrowserRouter>
-            <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/first-time-setup" element={<FirstTimeSetup />} />
-            {/* AcceptInvite route removed */}
-            <Route path="/make-admin" element={<MakeAdmin />} />
-
-            <Route element={<PrivateRoute />}>
-              <Route element={<PasswordChangeRequiredRoute />}>
-                <Route path="/" element={<Index />} />
-                <Route path="/contracts" element={<Contracts />} />
-                <Route path="/contract/:id" element={<ContractDetail />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/inbox" element={<Inbox />} />
-              </Route>
-            </Route>
-
-            <Route element={<AdminRoute />}>
-              <Route element={<PasswordChangeRequiredRoute />}>
-                <Route path="/admin" element={<Admin />} />
-                <Route path="/system-settings" element={<SystemSettings />} />
-                <Route path="/admin-tools" element={<AdminTools />} />
-              </Route>
-            </Route>
-
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-        </TooltipProvider>
-      </NotificationProvider>
+        <NotificationProvider>
+            <TooltipProvider>
+                {}
+                <Toaster />
+                {}
+                <Sonner position="top-right" expand={false} closeButton={true} />
+                <RoleLoadingOverlay />
+                <BrowserRouter>
+                    <Routes>
+                        <Route path="/login" element={<Login />} />
+                        <Route path="/forgot-password" element={<ForgotPassword />} />
+                        <Route path="/first-time-setup" element={<FirstTimeSetup />} />
+                        {}
+                        <Route path="/make-admin" element={<MakeAdmin />} />
+                        <Route element={<PrivateRoute />}>
+                            <Route element={<PasswordChangeRequiredRoute />}>
+                                <Route path="/" element={<Index />} />
+                                <Route path="/contracts" element={<Contracts />} />
+                                <Route path="/contract/:id" element={<ContractDetail />} />
+                                <Route path="/profile" element={<Profile />} />
+                                <Route path="/inbox" element={<Inbox />} />
+                            </Route>
+                        </Route>
+                        <Route element={<AdminRoute />}>
+                            <Route element={<PasswordChangeRequiredRoute />}>
+                                <Route path="/admin" element={<Admin />} />
+                                <Route path="/system-settings" element={<SystemSettings />} />
+                                <Route path="/admin-tools" element={<AdminTools />} />
+                            </Route>
+                        </Route>
+                        <Route path="*" element={<NotFound />} />
+                    </Routes>
+                </BrowserRouter>
+            </TooltipProvider>
+        </NotificationProvider>
     </AuthProvider>
-  </QueryClientProvider>
-);
+</QueryClientProvider>);
 
 export default App;

@@ -1,346 +1,340 @@
+// Add a method to manually update the passwordChangeRequired flag
+// Define a user state interface to hold all user-related state
+// Initial user state
+// Use a single state object for all user-related state
+// Try with the provided password first
+// If wrong password, try with the default password (12345678)
+// Try with default password as a fallback
+// If default password also fails, show the original error
+// Re-throw other errors
+// Check user roles and update state directly - skip the isUserAllowed check
+// Show message about default password if it was used
+// For simplicity, we'll rely on the existing toast system in the app
+// Use single API call to fetch all roles at once - much faster than separate calls
+// If roles is null, fall back to parallel checks (though this should be rare)
+// Run all role checks in parallel as a fallback
+// Determine primary display role (for UI purposes)
+// Check if password change is required
+// If we got consolidated roles, use them
+// Check if password change is required
+// Method to manually update the passwordChangeRequired flag in the state
+// Set the user immediately to improve initial load time
+// Set basic user state immediately
+// Will be updated after role check
+// Then check roles asynchronously - skip the permission check
+// Check user roles and update state
+// Register or update user data
+// Extract name from display name if available
+// Register or update user data
+// Reset to initial state
 import React, { createContext, useContext, useEffect, useState } from "react";
+
 import {
-  User,
-  signOut as firebaseSignOut,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  updateProfile
+    User,
+    signOut as firebaseSignOut,
+    onAuthStateChanged,
+    signInWithEmailAndPassword,
+    updateProfile,
 } from "firebase/auth";
+
 import { auth } from "@/lib/firebase";
+
 import {
-  registerUser,
-  isUserAdmin,
-  isUserLegalTeam,
-  isUserManagementTeam,
-  isUserApprover,
-  getUserRoles,
-  isPasswordChangeRequired
+    registerUser,
+    isUserAdmin,
+    isUserLegalTeam,
+    isUserManagementTeam,
+    isUserApprover,
+    getUserRoles,
+    isPasswordChangeRequired,
 } from "@/lib/data";
 
 interface AuthContextType {
-  currentUser: User | null;
-  loading: boolean;
-  roleCheckLoading: boolean;
-  isAdmin: boolean;
-  isLegalTeam: boolean;
-  isManagementTeam: boolean;
-  isApprover: boolean;
-  userRole: string;
-  passwordChangeRequired: boolean;
-  signInWithEmail: (email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  error: string | null;
-  // Add a method to manually update the passwordChangeRequired flag
-  updatePasswordChangeRequiredState: (required: boolean) => void;
+    currentUser: User | null;
+    loading: boolean;
+    roleCheckLoading: boolean;
+    isAdmin: boolean;
+    isLegalTeam: boolean;
+    isManagementTeam: boolean;
+    isApprover: boolean;
+    userRole: string;
+    passwordChangeRequired: boolean;
+    signInWithEmail: (email: string, password: string) => Promise<void>;
+    signOut: () => Promise<void>;
+    error: string | null;
+    updatePasswordChangeRequiredState: (required: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
-  currentUser: null,
-  loading: true,
-  roleCheckLoading: false,
-  isAdmin: false,
-  isLegalTeam: false,
-  isManagementTeam: false,
-  isApprover: false,
-  userRole: "",
-  passwordChangeRequired: false,
-  signInWithEmail: async () => {},
-  signOut: async () => {},
-  error: null,
-  updatePasswordChangeRequiredState: () => {}
+    currentUser: null,
+    loading: true,
+    roleCheckLoading: false,
+    isAdmin: false,
+    isLegalTeam: false,
+    isManagementTeam: false,
+    isApprover: false,
+    userRole: "",
+    passwordChangeRequired: false,
+    signInWithEmail: async () => {},
+    signOut: async () => {},
+    error: null,
+    updatePasswordChangeRequiredState: () => {}
 });
 
 export const useAuth = () => {
-  return useContext(AuthContext);
+    return useContext(AuthContext);
 };
 
-// Define a user state interface to hold all user-related state
 interface UserState {
-  currentUser: User | null;
-  isAdmin: boolean;
-  isLegalTeam: boolean;
-  isManagementTeam: boolean;
-  isApprover: boolean;
-  userRole: string;
-  passwordChangeRequired: boolean;
+    currentUser: User | null;
+    isAdmin: boolean;
+    isLegalTeam: boolean;
+    isManagementTeam: boolean;
+    isApprover: boolean;
+    userRole: string;
+    passwordChangeRequired: boolean;
 }
 
-// Initial user state
 const initialUserState: UserState = {
-  currentUser: null,
-  isAdmin: false,
-  isLegalTeam: false,
-  isManagementTeam: false,
-  isApprover: false,
-  userRole: "user",
-  passwordChangeRequired: false
+    currentUser: null,
+    isAdmin: false,
+    isLegalTeam: false,
+    isManagementTeam: false,
+    isApprover: false,
+    userRole: "user",
+    passwordChangeRequired: false
 };
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Use a single state object for all user-related state
-  const [userState, setUserState] = useState<UserState>(initialUserState);
-  const [loading, setLoading] = useState(true);
-  const [roleCheckLoading, setRoleCheckLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export const AuthProvider: React.FC<{
+    children: React.ReactNode;
+}> = (
+    {
+        children
+    }
+) => {
+    const [userState, setUserState] = useState<UserState>(initialUserState);
+    const [loading, setLoading] = useState(true);
+    const [roleCheckLoading, setRoleCheckLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-  const signInWithEmail = async (email: string, password: string) => {
-    try {
-      // Try with the provided password first
-      let result;
-      let usedDefaultPassword = false;
+    const signInWithEmail = async (email: string, password: string) => {
+        try {
+            let result;
+            let usedDefaultPassword = false;
 
-      try {
-        result = await signInWithEmailAndPassword(auth, email, password);
-      } catch (error: any) {
-        // If wrong password, try with the default password (12345678)
-        if (error.code === 'auth/wrong-password') {
-          try {
-            // Try with default password as a fallback
-            result = await signInWithEmailAndPassword(auth, email, '12345678');
-            usedDefaultPassword = true;
-          } catch (defaultPasswordError) {
-            // If default password also fails, show the original error
-            setError('Invalid email or password.');
-            return;
-          }
-        } else if (error.code === 'auth/user-not-found') {
-          setError('Invalid email or password.');
-          return;
-        } else if (error.code === 'auth/too-many-requests') {
-          setError('Too many unsuccessful login attempts. Please try again later.');
-          return;
-        } else {
-          throw error; // Re-throw other errors
+            try {
+                result = await signInWithEmailAndPassword(auth, email, password);
+            } catch (error: any) {
+                if (error.code === "auth/wrong-password") {
+                    try {
+                        result = await signInWithEmailAndPassword(auth, email, "12345678");
+                        usedDefaultPassword = true;
+                    } catch (defaultPasswordError) {
+                        setError("Invalid email or password.");
+                        return;
+                    }
+                } else if (error.code === "auth/user-not-found") {
+                    setError("Invalid email or password.");
+                    return;
+                } else if (error.code === "auth/too-many-requests") {
+                    setError("Too many unsuccessful login attempts. Please try again later.");
+                    return;
+                } else {
+                    throw error;
+                }
+            }
+
+            if (!result) {
+                setError("Failed to sign in.");
+                return;
+            }
+
+            if (result.user) {
+                setRoleCheckLoading(true);
+                const newUserState = await checkUserRoles(result.user);
+                setUserState(newUserState);
+                setRoleCheckLoading(false);
+                setError(null);
+
+                if (usedDefaultPassword)
+                    {}
+            }
+        } catch (error: any) {
+            let message = "Failed to sign in.";
+
+            if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password") {
+                message = "Invalid email or password.";
+            } else if (error.code === "auth/too-many-requests") {
+                message = "Too many unsuccessful login attempts. Please try again later.";
+            } else if (error.code === "auth/user-disabled") {
+                message = "This account has been disabled. Please contact support.";
+            }
+
+            setError(message);
         }
-      }
-
-      if (!result) {
-        setError('Failed to sign in.');
-        return;
-      }
-
-      // Check user roles and update state directly - skip the isUserAllowed check
-      if (result.user) {
-        setRoleCheckLoading(true);
-        const newUserState = await checkUserRoles(result.user);
-        setUserState(newUserState);
-        setRoleCheckLoading(false);
-
-        setError(null);
-
-        // Show message about default password if it was used
-        if (usedDefaultPassword) {
-          // For simplicity, we'll rely on the existing toast system in the app
-        }
-      }
-    } catch (error: any) {
-      let message = 'Failed to sign in.';
-
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        message = 'Invalid email or password.';
-      } else if (error.code === 'auth/too-many-requests') {
-        message = 'Too many unsuccessful login attempts. Please try again later.';
-      } else if (error.code === 'auth/user-disabled') {
-        message = 'This account has been disabled. Please contact support.';
-      }
-
-      setError(message);
-    }
-  };
-
-  const checkUserRoles = async (user: User): Promise<UserState> => {
-    if (!user || !user.email) {
-      return {
-        currentUser: user,
-        isAdmin: false,
-        isLegalTeam: false,
-        isManagementTeam: false,
-        isApprover: false,
-        userRole: "user",
-        passwordChangeRequired: false
-      };
-    }
-
-    const email = user.email.toLowerCase();
-    const roleCheckStartTime = performance.now();
-
-    // Use single API call to fetch all roles at once - much faster than separate calls
-    const roles = await getUserRoles(email);
-
-    // If roles is null, fall back to parallel checks (though this should be rare)
-    if (roles === null) {
-
-      // Run all role checks in parallel as a fallback
-      const [admin, legal, management, approver] = await Promise.all([
-        isUserAdmin(email),
-        isUserLegalTeam(email),
-        isUserManagementTeam(email),
-        isUserApprover(email)
-      ]);
-
-
-      // Determine primary display role (for UI purposes)
-      let role = "user";
-      if (admin) {
-        role = "admin";
-      } else if (legal) {
-        role = "Legal Team";
-      } else if (management) {
-        role = "Management Team";
-      } else if (approver) {
-        role = "Approver";
-      }
-
-      // Check if password change is required
-      const passwordChangeRequired = await isPasswordChangeRequired(email);
-
-      return {
-        currentUser: user,
-        isAdmin: admin,
-        isLegalTeam: legal,
-        isManagementTeam: management,
-        isApprover: approver,
-        userRole: role,
-        passwordChangeRequired
-      };
-    }
-
-    // If we got consolidated roles, use them
-    let role = "user";
-    if (roles.isAdmin) {
-      role = "admin";
-    } else if (roles.isLegalTeam) {
-      role = "Legal Team";
-    } else if (roles.isManagementTeam) {
-      role = "Management Team";
-    } else if (roles.isApprover) {
-      role = "Approver";
-    }
-
-    const roleCheckEndTime = performance.now();
-    const totalRoleCheckTime = roleCheckEndTime - roleCheckStartTime;
-
-    // Check if password change is required
-    const passwordChangeRequired = await isPasswordChangeRequired(email);
-
-    return {
-      currentUser: user,
-      isAdmin: roles.isAdmin,
-      isLegalTeam: roles.isLegalTeam,
-      isManagementTeam: roles.isManagementTeam,
-      isApprover: roles.isApprover,
-      userRole: role,
-      passwordChangeRequired
     };
-  };
 
-  const signOut = async () => {
-    try {
-      await firebaseSignOut(auth);
-      setUserState(initialUserState);
-      setError(null);
-    } catch (error) {
-      console.error('Error signing out:', error);
-      setError('Failed to sign out. Please try again.');
-    }
-  };
+    const checkUserRoles = async (user: User): Promise<UserState> => {
+        if (!user || !user.email) {
+            return {
+                currentUser: user,
+                isAdmin: false,
+                isLegalTeam: false,
+                isManagementTeam: false,
+                isApprover: false,
+                userRole: "user",
+                passwordChangeRequired: false
+            };
+        }
 
-  // Method to manually update the passwordChangeRequired flag in the state
-  const updatePasswordChangeRequiredState = (required: boolean) => {
-    setUserState(prev => ({
-      ...prev,
-      passwordChangeRequired: required
-    }));
-  };
+        const email = user.email.toLowerCase();
+        const roleCheckStartTime = performance.now();
+        const roles = await getUserRoles(email);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      // Set the user immediately to improve initial load time
-      if (user) {
-        const authStateChangeTime = performance.now();
+        if (roles === null) {
+            const [admin, legal, management, approver] = await Promise.all([
+                isUserAdmin(email),
+                isUserLegalTeam(email),
+                isUserManagementTeam(email),
+                isUserApprover(email)
+            ]);
 
-        // Set basic user state immediately
-        setUserState({
-          currentUser: user,
-          isAdmin: false,
-          isLegalTeam: false,
-          isManagementTeam: false,
-          isApprover: false,
-          userRole: "user",
-          passwordChangeRequired: false // Will be updated after role check
-        });
-        setLoading(false);
-        setRoleCheckLoading(true);
+            let role = "user";
 
-        // Then check roles asynchronously - skip the permission check
-        (async () => {
-          try {
-            const roleCheckStartTime = performance.now();
+            if (admin) {
+                role = "admin";
+            } else if (legal) {
+                role = "Legal Team";
+            } else if (management) {
+                role = "Management Team";
+            } else if (approver) {
+                role = "Approver";
+            }
 
-            // Check user roles and update state
-            const newUserState = await checkUserRoles(user);
+            const passwordChangeRequired = await isPasswordChangeRequired(email);
 
-            const roleCheckEndTime = performance.now();
-            const roleAssignmentTime = roleCheckEndTime - roleCheckStartTime;
+            return {
+                currentUser: user,
+                isAdmin: admin,
+                isLegalTeam: legal,
+                isManagementTeam: management,
+                isApprover: approver,
+                userRole: role,
+                passwordChangeRequired
+            };
+        }
 
-            setUserState(newUserState);
-            setRoleCheckLoading(false);
+        let role = "user";
+
+        if (roles.isAdmin) {
+            role = "admin";
+        } else if (roles.isLegalTeam) {
+            role = "Legal Team";
+        } else if (roles.isManagementTeam) {
+            role = "Management Team";
+        } else if (roles.isApprover) {
+            role = "Approver";
+        }
+
+        const roleCheckEndTime = performance.now();
+        const totalRoleCheckTime = roleCheckEndTime - roleCheckStartTime;
+        const passwordChangeRequired = await isPasswordChangeRequired(email);
+
+        return {
+            currentUser: user,
+            isAdmin: roles.isAdmin,
+            isLegalTeam: roles.isLegalTeam,
+            isManagementTeam: roles.isManagementTeam,
+            isApprover: roles.isApprover,
+            userRole: role,
+            passwordChangeRequired
+        };
+    };
+
+    const signOut = async () => {
+        try {
+            await firebaseSignOut(auth);
+            setUserState(initialUserState);
             setError(null);
-
-            // Register or update user data
-            const registrationStartTime = performance.now();
-
-            // Extract name from display name if available
-            const displayName = user.displayName || '';
-            const nameArray = displayName.split(' ');
-            const firstName = nameArray[0] || '';
-            const lastName = nameArray.slice(1).join(' ') || '';
-
-            // Register or update user data
-            await registerUser(
-              user.uid,
-              user.email || '',
-              firstName,
-              lastName,
-              displayName
-            );
-
-          } catch (error) {
-            console.error("Error in auth state change:", error);
-            setRoleCheckLoading(false);
-          }
-        })();
-      } else {
-        setUserState(initialUserState); // Reset to initial state
-        setLoading(false);
-        setRoleCheckLoading(false);
-      }
-    });
-
-    return () => {
-      unsubscribe();
+        } catch (error) {
+            setError("Failed to sign out. Please try again.");
+        }
     };
-  }, []);
 
-  return (
-    <AuthContext.Provider
-      value={{
-        currentUser: userState.currentUser,
-        loading,
-        roleCheckLoading,
-        isAdmin: userState.isAdmin,
-        isLegalTeam: userState.isLegalTeam,
-        isManagementTeam: userState.isManagementTeam,
-        isApprover: userState.isApprover,
-        userRole: userState.userRole,
-        passwordChangeRequired: userState.passwordChangeRequired,
-        signInWithEmail,
-        signOut,
-        error,
-        updatePasswordChangeRequiredState
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+    const updatePasswordChangeRequiredState = (required: boolean) => {
+        setUserState(prev => ({
+            ...prev,
+            passwordChangeRequired: required
+        }));
+    };
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, user => {
+            if (user) {
+                const authStateChangeTime = performance.now();
+
+                setUserState({
+                    currentUser: user,
+                    isAdmin: false,
+                    isLegalTeam: false,
+                    isManagementTeam: false,
+                    isApprover: false,
+                    userRole: "user",
+                    passwordChangeRequired: false
+                });
+
+                setLoading(false);
+                setRoleCheckLoading(true);
+
+                (async () => {
+                    try {
+                        const roleCheckStartTime = performance.now();
+                        const newUserState = await checkUserRoles(user);
+                        const roleCheckEndTime = performance.now();
+                        const roleAssignmentTime = roleCheckEndTime - roleCheckStartTime;
+                        setUserState(newUserState);
+                        setRoleCheckLoading(false);
+                        setError(null);
+                        const registrationStartTime = performance.now();
+                        const displayName = user.displayName || "";
+                        const nameArray = displayName.split(" ");
+                        const firstName = nameArray[0] || "";
+                        const lastName = nameArray.slice(1).join(" ") || "";
+                        await registerUser(user.uid, user.email || "", firstName, lastName, displayName);
+                    } catch (error) {
+                        setRoleCheckLoading(false);
+                    }
+                })();
+            } else {
+                setUserState(initialUserState);
+                setLoading(false);
+                setRoleCheckLoading(false);
+            }
+        });
+
+        return () => {
+            unsubscribe();
+        };
+    }, []);
+
+    return (
+        <AuthContext.Provider
+            value={{
+                currentUser: userState.currentUser,
+                loading,
+                roleCheckLoading,
+                isAdmin: userState.isAdmin,
+                isLegalTeam: userState.isLegalTeam,
+                isManagementTeam: userState.isManagementTeam,
+                isApprover: userState.isApprover,
+                userRole: userState.userRole,
+                passwordChangeRequired: userState.passwordChangeRequired,
+                signInWithEmail,
+                signOut,
+                error,
+                updatePasswordChangeRequiredState
+            }}>
+            {children}
+        </AuthContext.Provider>
+    );
 };

@@ -1,80 +1,83 @@
+/**
+ * Example component showing how to use the different toast options
+ * This is for demonstration purposes only
+ */
+// Show 3 toasts in quick succession
 import { Button } from "@/components/ui/button";
 import { useCustomToast } from "@/hooks/use-custom-toast";
 import { toast as sonnerToast } from "sonner";
 import { useToast } from "@/hooks/use-toast";
 
-/**
- * Example component showing how to use the different toast options
- * This is for demonstration purposes only
- */
 export function ToastExample() {
-  const { toast } = useCustomToast();
-  const { toast: uiToast, dismiss } = useToast();
+    const {
+        toast
+    } = useCustomToast();
 
-  const showDefaultToast = () => {
-    toast({
-      title: "Default Toast",
-      description: "This is a default toast with dismiss button",
-    });
-  };
+    const {
+        toast: uiToast,
+        dismiss
+    } = useToast();
 
-  const showCustomDurationToast = () => {
-    toast({
-      title: "Custom Duration",
-      description: "This toast will disappear in 10 seconds",
-      duration: 10000,
-    });
-  };
-
-  const showPositionedToast = () => {
-    toast({
-      title: "Custom Position",
-      description: "This toast appears at the bottom left",
-      position: "bottom-left",
-    });
-  };
-
-  const showDestructiveToast = () => {
-    toast({
-      title: "Error Toast",
-      description: "Something went wrong!",
-      variant: "destructive",
-    });
-  };
-
-  const showMultipleToasts = () => {
-    // Show 3 toasts in quick succession
-    for (let i = 1; i <= 3; i++) {
-      setTimeout(() => {
-        uiToast({
-          title: `Toast ${i}`,
-          description: `This is toast number ${i}`,
+    const showDefaultToast = () => {
+        toast({
+            title: "Default Toast",
+            description: "This is a default toast with dismiss button"
         });
-      }, i * 100);
-    }
-  };
+    };
 
-  const dismissAllToasts = () => {
-    dismiss();
-  };
+    const showCustomDurationToast = () => {
+        toast({
+            title: "Custom Duration",
+            description: "This toast will disappear in 10 seconds",
+            duration: 10000
+        });
+    };
 
-  return (
-    <div className="flex flex-col gap-4 p-4">
-      <h2 className="text-xl font-bold">Toast Examples</h2>
-      <div className="flex flex-wrap gap-2">
-        <Button onClick={showDefaultToast}>Show Default Toast</Button>
-        <Button onClick={showCustomDurationToast}>Custom Duration (10s)</Button>
-        <Button onClick={showPositionedToast}>Custom Position</Button>
-        <Button onClick={showDestructiveToast} variant="destructive">
-          Error Toast
-        </Button>
-        <Button onClick={showMultipleToasts} variant="outline">
-          Show Multiple Toasts
-        </Button>
-        <Button onClick={dismissAllToasts} variant="secondary">
-          Dismiss All
-        </Button>
-      </div>
-    </div>
-  );
+    const showPositionedToast = () => {
+        toast({
+            title: "Custom Position",
+            description: "This toast appears at the bottom left",
+            position: "bottom-left"
+        });
+    };
+
+    const showDestructiveToast = () => {
+        toast({
+            title: "Error Toast",
+            description: "Something went wrong!",
+            variant: "destructive"
+        });
+    };
+
+    const showMultipleToasts = () => {
+        for (let i = 1; i <= 3; i++) {
+            setTimeout(() => {
+                uiToast({
+                    title: `Toast ${i}`,
+                    description: `This is toast number ${i}`
+                });
+            }, i * 100);
+        }
+    };
+
+    const dismissAllToasts = () => {
+        dismiss();
+    };
+
+    return (
+        <div className="flex flex-col gap-4 p-4">
+            <h2 className="text-xl font-bold">Toast Examples</h2>
+            <div className="flex flex-wrap gap-2">
+                <Button onClick={showDefaultToast}>Show Default Toast</Button>
+                <Button onClick={showCustomDurationToast}>Custom Duration (10s)</Button>
+                <Button onClick={showPositionedToast}>Custom Position</Button>
+                <Button onClick={showDestructiveToast} variant="destructive">Error Toast
+                            </Button>
+                <Button onClick={showMultipleToasts} variant="outline">Show Multiple Toasts
+                            </Button>
+                <Button onClick={dismissAllToasts} variant="secondary">Dismiss All
+                            </Button>
+            </div>
+        </div>
+    );
 }

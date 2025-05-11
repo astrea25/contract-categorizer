@@ -1,23 +1,28 @@
+// Show loading when initial auth loading or role check is still in progress
+// Only allow users with admin privileges
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
 export const AdminRoute = () => {
-  const { currentUser, isAdmin, loading, roleCheckLoading } = useAuth();
+    const {
+        currentUser,
+        isAdmin,
+        loading,
+        roleCheckLoading
+    } = useAuth();
 
-  // Show loading when initial auth loading or role check is still in progress
-  if (loading || roleCheckLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="flex flex-col items-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Verifying permissions...</p>
-        </div>
-      </div>
-    );
-  }
+    if (loading || roleCheckLoading) {
+        return (
+            <div className="flex min-h-screen items-center justify-center">
+                <div className="flex flex-col items-center space-y-4">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="text-muted-foreground">Verifying permissions...</p>
+                </div>
+            </div>
+        );
+    }
 
-  // Only allow users with admin privileges
-  return currentUser && isAdmin ? <Outlet /> : <Navigate to="/" />;
-}; 
+    return currentUser && isAdmin ? <Outlet /> : <Navigate to="/" />;
+};

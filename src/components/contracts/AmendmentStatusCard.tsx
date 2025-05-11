@@ -1,72 +1,86 @@
-import { useState } from 'react';
-import { FilePenLine } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Contract, ContractStatus } from '@/lib/data';
-import { toast } from '@/components/ui/use-toast';
-import { Badge } from '@/components/ui/badge';
-import { sendNotificationEmail } from '@/lib/brevoService';
+// Amendment stage options
+// Only show the card if the contract is in amendment mode
+// Check if the value is one of the amendment stages
+// Get the stage label for the notification
+// Update the amendment stage without changing the contract status
+// Send notification to the contract requester/creator about the stage change
+// Don't block the stage change if notification fails
+// If trying to exit amendment mode, check if amendment is complete
+// If amendment is complete, restore the original status if available
+// Send notification to the contract requester/creator about amendment completion
+// Don't block the status change if notification fails
+// Get the current amendment stage
+// Get the label for the current stage
+// Check if approvals are in progress
+// Only disable when updating
+// Only show current stage, next stage, or previous stage
+// If amendment is complete (counterparty stage), also show the original status option
+import { useState } from "react";
+import { FilePenLine } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Contract, ContractStatus } from "@/lib/data";
+import { toast } from "@/components/ui/use-toast";
+import { Badge } from "@/components/ui/badge";
+import { sendNotificationEmail } from "@/lib/brevoService";
 
 interface AmendmentStatusCardProps {
-  contract: Contract;
-  onStatusChange: (status: ContractStatus, additionalData?: Partial<Contract>) => Promise<void>;
-  isUpdating: boolean;
+    contract: Contract;
+    onStatusChange: (status: ContractStatus, additionalData?: Partial<Contract>) => Promise<void>;
+    isUpdating: boolean;
 }
 
-const AmendmentStatusCard = ({ contract, onStatusChange, isUpdating }: AmendmentStatusCardProps) => {
-  const [isOpen, setIsOpen] = useState(false);
+const AmendmentStatusCard = (
+    {
+        contract,
+        onStatusChange,
+        isUpdating
+    }: AmendmentStatusCardProps
+) => {
+    const [isOpen, setIsOpen] = useState(false);
 
-  // Amendment stage options
-  const amendmentStageOptions: { value: string; label: string }[] = [
-    { value: 'amendment', label: 'Amendment' },
-    { value: 'management', label: 'Management Review' },
-    { value: 'wwf', label: 'WWF Signing' },
-    { value: 'counterparty', label: 'Counterparty Signing' },
-  ];
+    const amendmentStageOptions: {
+        value: string;
+        label: string;
+    }[] = [{
+        value: "amendment",
+        label: "Amendment"
+    }, {
+        value: "management",
+        label: "Management Review"
+    }, {
+        value: "wwf",
+        label: "WWF Signing"
+    }, {
+        value: "counterparty",
+        label: "Counterparty Signing"
+    }];
 
-  // Only show the card if the contract is in amendment mode
-  if (!contract.isAmended || contract.status !== 'amendment') {
-    return null;
-  }
+    if (!contract.isAmended || contract.status !== "amendment") {
+        return null;
+    }
 
-  const handleAmendmentStageChange = async (value: string) => {
-    // Check if the value is one of the amendment stages
-    const isAmendmentStage = amendmentStageOptions.some(option => option.value === value);
+    const handleAmendmentStageChange = async (value: string) => {
+        const isAmendmentStage = amendmentStageOptions.some(option => option.value === value);
 
-    if (isAmendmentStage) {
-      // Get the stage label for the notification
-      const newStageLabel = amendmentStageOptions.find(option => option.value === value)?.label || 'Unknown';
+        if (isAmendmentStage) {
+            const newStageLabel = amendmentStageOptions.find(option => option.value === value)?.label || "Unknown";
 
-      // Update the amendment stage without changing the contract status
-      await onStatusChange('amendment', {
-        amendmentStage: value as 'amendment' | 'management' | 'wwf' | 'counterparty',
-        _customTimelineEntry: {
-          action: 'Amendment Stage Changed',
-          details: `Amendment stage changed to ${newStageLabel}`
-        }
-      });
+            await onStatusChange("amendment", {
+                amendmentStage: value as "amendment" | "management" | "wwf" | "counterparty",
 
-      // Send notification to the contract requester/creator about the stage change
-      try {
-        if (contract.owner) {
-          const appUrl = import.meta.env.VITE_APP_URL || 'https://contract-management-system-omega.vercel.app';
-          const contractUrl = `${appUrl}/contracts/${contract.id}`;
+                _customTimelineEntry: {
+                    action: "Amendment Stage Changed",
+                    details: `Amendment stage changed to ${newStageLabel}`
+                }
+            });
 
-          await sendNotificationEmail(
-            contract.owner,
-            `Contract Amendment Stage Updated: ${contract.title}`,
-            `
+            try {
+                if (contract.owner) {
+                    const appUrl = import.meta.env.VITE_APP_URL || "https://contract-management-system-omega.vercel.app";
+                    const contractUrl = `${appUrl}/contracts/${contract.id}`;
+
+                    await sendNotificationEmail(contract.owner, `Contract Amendment Stage Updated: ${contract.title}`, `
             <div style="font-family: sans-serif;">
               <h2>Contract Amendment Stage Updated</h2>
               <p>The amendment stage for your contract has been updated:</p>
@@ -83,53 +97,45 @@ const AmendmentStatusCard = ({ contract, onStatusChange, isUpdating }: Amendment
               <hr>
               <p style="font-size: 12px; color: #666;">This is an automated message from the Contract Management System.</p>
             </div>
-            `
-          );
+            `);
+                }
+            } catch (error) {}
+
+            setIsOpen(false);
+            return;
         }
-      } catch (error) {
-        console.error('Failed to send amendment stage change notification:', error);
-        // Don't block the stage change if notification fails
-      }
 
-      setIsOpen(false);
-      return;
-    }
+        if (contract.amendmentStage !== "counterparty") {
+            toast({
+                title: "Cannot exit amendment mode",
+                description: "The amendment process must be completed (reach Counterparty stage) before changing the contract status.",
+                variant: "destructive"
+            });
 
-    // If trying to exit amendment mode, check if amendment is complete
-    if (contract.amendmentStage !== 'counterparty') {
-      toast({
-        title: "Cannot exit amendment mode",
-        description: "The amendment process must be completed (reach Counterparty stage) before changing the contract status.",
-        variant: "destructive"
-      });
-      setIsOpen(false);
-      return;
-    }
-
-    // If amendment is complete, restore the original status if available
-    if (contract.originalStatus) {
-      const originalStatusLabel = contract.originalStatus.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-
-      await onStatusChange(contract.originalStatus, {
-        isAmended: false,
-        amendmentStage: undefined,
-        originalStatus: undefined,
-        _customTimelineEntry: {
-          action: 'Amendment Completed',
-          details: `Contract returned to original status: ${originalStatusLabel}`
+            setIsOpen(false);
+            return;
         }
-      });
 
-      // Send notification to the contract requester/creator about amendment completion
-      try {
-        if (contract.owner) {
-          const appUrl = import.meta.env.VITE_APP_URL || 'https://contract-management-system-omega.vercel.app';
-          const contractUrl = `${appUrl}/contracts/${contract.id}`;
+        if (contract.originalStatus) {
+            const originalStatusLabel = contract.originalStatus.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
 
-          await sendNotificationEmail(
-            contract.owner,
-            `Contract Amendment Completed: ${contract.title}`,
-            `
+            await onStatusChange(contract.originalStatus, {
+                isAmended: false,
+                amendmentStage: undefined,
+                originalStatus: undefined,
+
+                _customTimelineEntry: {
+                    action: "Amendment Completed",
+                    details: `Contract returned to original status: ${originalStatusLabel}`
+                }
+            });
+
+            try {
+                if (contract.owner) {
+                    const appUrl = import.meta.env.VITE_APP_URL || "https://contract-management-system-omega.vercel.app";
+                    const contractUrl = `${appUrl}/contracts/${contract.id}`;
+
+                    await sendNotificationEmail(contract.owner, `Contract Amendment Completed: ${contract.title}`, `
             <div style="font-family: sans-serif;">
               <h2>Contract Amendment Process Completed</h2>
               <p>The amendment process for your contract has been completed:</p>
@@ -146,131 +152,87 @@ const AmendmentStatusCard = ({ contract, onStatusChange, isUpdating }: Amendment
               <hr>
               <p style="font-size: 12px; color: #666;">This is an automated message from the Contract Management System.</p>
             </div>
-            `
-          );
-        }
-      } catch (error) {
-        console.error('Failed to send amendment completion notification:', error);
-        // Don't block the status change if notification fails
-      }
-
-      setIsOpen(false);
-      return;
-    }
-  };
-
-  // Get the current amendment stage
-  const currentStage = contract.amendmentStage || 'amendment';
-
-  // Get the label for the current stage
-  const currentStageLabel = amendmentStageOptions.find(option => option.value === currentStage)?.label || 'Amendment';
-
-  // Check if approvals are in progress
-  const hasManagementApprovers = contract.approvers?.management &&
-    (Array.isArray(contract.approvers.management)
-      ? contract.approvers.management.length > 0
-      : true);
-
-  const hasApproverTeam = contract.approvers?.approver &&
-    (Array.isArray(contract.approvers.approver)
-      ? contract.approvers.approver.length > 0
-      : true);
-
-  // Only disable when updating
-  const disableManualStageChange = isUpdating;
-
-  return (
-    <Card className="overflow-hidden transition-all duration-300 hover:shadow-md bg-amber-50 border-amber-200">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium">Amendment Stage</CardTitle>
-        <FilePenLine className="h-4 w-4 text-amber-600" />
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          <div className="flex items-center space-x-2">
-            <Badge className="bg-amber-100 text-amber-800 border-amber-200">
-              {currentStageLabel}
-            </Badge>
-          </div>
-
-          <Select
-            value={currentStage}
-            onValueChange={handleAmendmentStageChange}
-            disabled={disableManualStageChange}
-            onOpenChange={setIsOpen}
-            open={isOpen}
-          >
-            <SelectTrigger className="w-full mt-2">
-              <SelectValue placeholder="Change amendment stage" />
-            </SelectTrigger>
-            <SelectContent>
-              {amendmentStageOptions.map((option) => {
-                const isCurrentStage = currentStage === option.value;
-                const stageIndex = amendmentStageOptions.findIndex(stage => stage.value === option.value);
-                const currentStageIndex = amendmentStageOptions.findIndex(stage => stage.value === currentStage);
-
-                // Only show current stage, next stage, or previous stage
-                const isValidOption =
-                  isCurrentStage ||
-                  stageIndex === currentStageIndex + 1 ||
-                  stageIndex === currentStageIndex - 1;
-
-                // If amendment is complete (counterparty stage), also show the original status option
-                if (currentStage === 'counterparty' && option.value === 'counterparty') {
-                  return (
-                    <>
-                      <SelectItem
-                        key={option.value}
-                        value={option.value}
-                        className={isCurrentStage ? 'bg-secondary/40' : ''}
-                      >
-                        {option.label}
-                      </SelectItem>
-                      {contract.originalStatus && (
-                        <SelectItem
-                          key="restore-original"
-                          value={contract.originalStatus}
-                          className="text-green-600 font-medium"
-                        >
-                          Complete Amendment (Return to {contract.originalStatus.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')})
-                        </SelectItem>
-                      )}
-                    </>
-                  );
+            `);
                 }
+            } catch (error) {}
 
-                return isValidOption ? (
-                  <SelectItem
-                    key={option.value}
-                    value={option.value}
-                    className={isCurrentStage ? 'bg-secondary/40' : ''}
-                  >
-                    {option.label}
-                  </SelectItem>
-                ) : null;
-              })}
-            </SelectContent>
-          </Select>
+            setIsOpen(false);
+            return;
+        }
+    };
 
-          {isUpdating && (
-            <p className="text-xs text-muted-foreground">Updating amendment stage...</p>
-          )}
+    const currentStage = contract.amendmentStage || "amendment";
+    const currentStageLabel = amendmentStageOptions.find(option => option.value === currentStage)?.label || "Amendment";
+    const hasManagementApprovers = contract.approvers?.management && (Array.isArray(contract.approvers.management) ? contract.approvers.management.length > 0 : true);
+    const hasApproverTeam = contract.approvers?.approver && (Array.isArray(contract.approvers.approver) ? contract.approvers.approver.length > 0 : true);
+    const disableManualStageChange = isUpdating;
 
-          {(hasManagementApprovers && hasApproverTeam) && (
-            <p className="text-xs text-amber-600 mt-2">
-              Amendment stage will automatically progress based on approvals, but you can still manually change it if needed.
-            </p>
-          )}
+    return (
+        <Card
+            className="overflow-hidden transition-all duration-300 hover:shadow-md bg-amber-50 border-amber-200">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Amendment Stage</CardTitle>
+                <FilePenLine className="h-4 w-4 text-amber-600" />
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                        <Badge className="bg-amber-100 text-amber-800 border-amber-200">
+                            {currentStageLabel}
+                        </Badge>
+                    </div>
+                    <Select
+                        value={currentStage}
+                        onValueChange={handleAmendmentStageChange}
+                        disabled={disableManualStageChange}
+                        onOpenChange={setIsOpen}
+                        open={isOpen}>
+                        <SelectTrigger className="w-full mt-2">
+                            <SelectValue placeholder="Change amendment stage" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {amendmentStageOptions.map(option => {
+                                const isCurrentStage = currentStage === option.value;
+                                const stageIndex = amendmentStageOptions.findIndex(stage => stage.value === option.value);
+                                const currentStageIndex = amendmentStageOptions.findIndex(stage => stage.value === currentStage);
+                                const isValidOption = isCurrentStage || stageIndex === currentStageIndex + 1 || stageIndex === currentStageIndex - 1;
 
-          {contract.originalStatus && (
-            <p className="text-xs text-amber-600 mt-2">
-              Original status: {contract.originalStatus.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-            </p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
+                                if (currentStage === "counterparty" && option.value === "counterparty") {
+                                    return (
+                                        <>
+                                            <SelectItem
+                                                key={option.value}
+                                                value={option.value}
+                                                className={isCurrentStage ? "bg-secondary/40" : ""}>
+                                                {option.label}
+                                            </SelectItem>
+                                            {contract.originalStatus && (<SelectItem
+                                                key="restore-original"
+                                                value={contract.originalStatus}
+                                                className="text-green-600 font-medium">Complete Amendment (Return to {contract.originalStatus.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")})
+                                                                        </SelectItem>)}
+                                        </>
+                                    );
+                                }
+
+                                return isValidOption ? (<SelectItem
+                                    key={option.value}
+                                    value={option.value}
+                                    className={isCurrentStage ? "bg-secondary/40" : ""}>
+                                    {option.label}
+                                </SelectItem>) : null;
+                            })}
+                        </SelectContent>
+                    </Select>
+                    {isUpdating && (<p className="text-xs text-muted-foreground">Updating amendment stage...</p>)}
+                    {(hasManagementApprovers && hasApproverTeam) && (<p className="text-xs text-amber-600 mt-2">Amendment stage will automatically progress based on approvals, but you can still manually change it if needed.
+                                    </p>)}
+                    {contract.originalStatus && (<p className="text-xs text-amber-600 mt-2">Original status: {contract.originalStatus.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")}
+                    </p>)}
+                </div>
+            </CardContent>
+        </Card>
+    );
 };
 
 export default AmendmentStatusCard;

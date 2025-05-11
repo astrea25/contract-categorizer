@@ -1,347 +1,317 @@
-import { useState } from 'react';
-import { FileText, AlertCircle } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Contract, ContractStatus } from '@/lib/data';
-import ContractStatusBadge from './ContractStatusBadge';
-import { toast } from '@/components/ui/use-toast';
+// Define the workflow stages in order
+// Status options and their formatted labels, ordered according to the workflow
+// Special statuses that are not part of the normal flow
+// Amendment stage options
+// Check if both legal and management have approved the contract
+// Check if either legal or management have sent back the contract
+// If the contract is in amendment process, don't allow changing the main status
+// Supporting documents validation is now handled in the ContractDetail component
+// Get the current and new stage indices
+// Check if we're trying to move forward in the workflow (not to draft or requested)
+// If moving forward in the workflow, check if both legal and management approvers are assigned
+// Check if legal approvers are assigned
+// Check if management approvers are assigned
+// If either approver type is missing, prevent status change
+// Check if management approvers are assigned when moving to management_review
+// Check if management approvers are assigned
+// If trying to change to WWF Signing status, check if both approvers have approved
+// Check if either approver has sent back the contract
+// Check legal approvers
+// Check management approvers
+// Check if both approvers have approved
+// Check what approvals are missing
+// Check legal approvers
+// Check management approvers
+// If changing to amendment status, validate and set isAmended flag and amendmentStage
+// Validate that amendment is only allowed from WWF Signing status and if contract is marked as amended
+// Simply change the status to amendment
+// The contract should already be marked as amended
+/* Show a message when in amendment mode */
+/* Always show normal status options */
+// Get the current status index in the workflow
+// Special statuses that can be selected from any stage
+// Amendment is only available during WWF Signing phase AND if the contract is marked as amended
+// Only show options that are:
+// 1. The current status
+// 2. The next status in the workflow
+// 3. The previous status in the workflow
+// 4. Special statuses like draft, etc.
+// 5. Amendment status if conditions are met
+// Only render the option if it's valid
+import { useState } from "react";
+import { FileText, AlertCircle } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Contract, ContractStatus } from "@/lib/data";
+import ContractStatusBadge from "./ContractStatusBadge";
+import { toast } from "@/components/ui/use-toast";
 
 interface StatusSelectCardProps {
-  status: ContractStatus;
-  onStatusChange: (status: ContractStatus, additionalData?: Partial<Contract>) => Promise<void>;
-  isUpdating: boolean;
-  contract: Contract;
+    status: ContractStatus;
+    onStatusChange: (status: ContractStatus, additionalData?: Partial<Contract>) => Promise<void>;
+    isUpdating: boolean;
+    contract: Contract;
 }
 
-const StatusSelectCard = ({ status, onStatusChange, isUpdating, contract }: StatusSelectCardProps) => {
-  const [isOpen, setIsOpen] = useState(false);
+const StatusSelectCard = (
+    {
+        status,
+        onStatusChange,
+        isUpdating,
+        contract
+    }: StatusSelectCardProps
+) => {
+    const [isOpen, setIsOpen] = useState(false);
 
-  // Define the workflow stages in order
-  const workflowStages: ContractStatus[] = [
-    'requested',
-    'draft',
-    'legal_review',
-    'management_review',
-    'wwf_signing',
-    'counterparty_signing',
-    'implementation',
-    'contract_end'
-  ];
+    const workflowStages: ContractStatus[] = [
+        "requested",
+        "draft",
+        "legal_review",
+        "management_review",
+        "wwf_signing",
+        "counterparty_signing",
+        "implementation",
+        "contract_end"
+    ];
 
-  // Status options and their formatted labels, ordered according to the workflow
-  const statusOptions: { value: ContractStatus; label: string }[] = [
-    { value: 'requested', label: 'Requested' },
-    { value: 'draft', label: 'Draft' },
-    { value: 'legal_review', label: 'Legal Review' },
-    { value: 'management_review', label: 'Management Review' },
-    { value: 'wwf_signing', label: 'WWF Signing' },
-    { value: 'counterparty_signing', label: 'Counterparty Signing' },
-    { value: 'implementation', label: 'Implementation' },
-    { value: 'contract_end', label: 'Contract End' },
-    // Special statuses that are not part of the normal flow
-    { value: 'amendment', label: 'Amendment' },
-  ];
+    const statusOptions: {
+        value: ContractStatus;
+        label: string;
+    }[] = [{
+        value: "requested",
+        label: "Requested"
+    }, {
+        value: "draft",
+        label: "Draft"
+    }, {
+        value: "legal_review",
+        label: "Legal Review"
+    }, {
+        value: "management_review",
+        label: "Management Review"
+    }, {
+        value: "wwf_signing",
+        label: "WWF Signing"
+    }, {
+        value: "counterparty_signing",
+        label: "Counterparty Signing"
+    }, {
+        value: "implementation",
+        label: "Implementation"
+    }, {
+        value: "contract_end",
+        label: "Contract End"
+    }, {
+        value: "amendment",
+        label: "Amendment"
+    }];
 
-  // Amendment stage options
-  const amendmentStageOptions: { value: string; label: string }[] = [
-    { value: 'amendment', label: 'Amendment' },
-    { value: 'legal', label: 'Legal Review' },
-    { value: 'wwf', label: 'WWF Signing' },
-    { value: 'counterparty', label: 'Counterparty Signing' },
-  ];
+    const amendmentStageOptions: {
+        value: string;
+        label: string;
+    }[] = [{
+        value: "amendment",
+        label: "Amendment"
+    }, {
+        value: "legal",
+        label: "Legal Review"
+    }, {
+        value: "wwf",
+        label: "WWF Signing"
+    }, {
+        value: "counterparty",
+        label: "Counterparty Signing"
+    }];
 
-  // Check if both legal and management have approved the contract
-  const areBothApproved =
-    contract.approvers && (() => {
-      const legalApproved = contract.approvers.legal
-        ? Array.isArray(contract.approvers.legal)
-          ? contract.approvers.legal.every(a => a.approved)
-          : contract.approvers.legal.approved
-        : false;
-
-      const managementApproved = contract.approvers.management
-        ? Array.isArray(contract.approvers.management)
-          ? contract.approvers.management.every(a => a.approved)
-          : contract.approvers.management.approved
-        : false;
-
-      return legalApproved && managementApproved;
+    const areBothApproved = contract.approvers && (() => {
+        const legalApproved = contract.approvers.legal ? Array.isArray(contract.approvers.legal) ? contract.approvers.legal.every(a => a.approved) : contract.approvers.legal.approved : false;
+        const managementApproved = contract.approvers.management ? Array.isArray(contract.approvers.management) ? contract.approvers.management.every(a => a.approved) : contract.approvers.management.approved : false;
+        return legalApproved && managementApproved;
     })();
 
-  // Check if either legal or management have sent back the contract
-  const isEitherSentBack =
-    contract.approvers && (() => {
-      const legalSentBack = contract.approvers.legal
-        ? Array.isArray(contract.approvers.legal)
-          ? contract.approvers.legal.some(a => a.declined)
-          : contract.approvers.legal.declined
-        : false;
-
-      const managementSentBack = contract.approvers.management
-        ? Array.isArray(contract.approvers.management)
-          ? contract.approvers.management.some(a => a.declined)
-          : contract.approvers.management.declined
-        : false;
-
-      return legalSentBack || managementSentBack;
+    const isEitherSentBack = contract.approvers && (() => {
+        const legalSentBack = contract.approvers.legal ? Array.isArray(contract.approvers.legal) ? contract.approvers.legal.some(a => a.declined) : contract.approvers.legal.declined : false;
+        const managementSentBack = contract.approvers.management ? Array.isArray(contract.approvers.management) ? contract.approvers.management.some(a => a.declined) : contract.approvers.management.declined : false;
+        return legalSentBack || managementSentBack;
     })();
 
-  const handleStatusChange = async (value: string) => {
-    const newStatus = value as ContractStatus;
+    const handleStatusChange = async (value: string) => {
+        const newStatus = value as ContractStatus;
 
-    // If the contract is in amendment process, don't allow changing the main status
-    if (contract.isAmended && contract.status === 'amendment') {
-      toast({
-        title: "Cannot change status during amendment",
-        description: "Please use the Amendment Stage card to manage the amendment process.",
-        variant: "destructive"
-      });
-      setIsOpen(false);
-      return;
-    }
+        if (contract.isAmended && contract.status === "amendment") {
+            toast({
+                title: "Cannot change status during amendment",
+                description: "Please use the Amendment Stage card to manage the amendment process.",
+                variant: "destructive"
+            });
 
-    // Supporting documents validation is now handled in the ContractDetail component
-
-    // Get the current and new stage indices
-    const currentStageIndex = workflowStages.indexOf(contract.status);
-    const newStageIndex = workflowStages.indexOf(newStatus);
-
-    // Check if we're trying to move forward in the workflow (not to draft or requested)
-    const isMovingForward = newStageIndex > 1 && newStageIndex > currentStageIndex;
-
-    // If moving forward in the workflow, check if both legal and management approvers are assigned
-    if (isMovingForward) {
-      // Check if legal approvers are assigned
-      const hasLegalApprovers = contract.approvers?.legal &&
-        (Array.isArray(contract.approvers.legal)
-          ? contract.approvers.legal.length > 0
-          : true);
-
-      // Check if management approvers are assigned
-      const hasManagementApprovers = contract.approvers?.management &&
-        (Array.isArray(contract.approvers.management)
-          ? contract.approvers.management.length > 0
-          : true);
-
-      // If either approver type is missing, prevent status change
-      if (!hasLegalApprovers || !hasManagementApprovers) {
-        const missingApprovers = [];
-        if (!hasLegalApprovers) {
-          missingApprovers.push('legal team');
-        }
-        if (!hasManagementApprovers) {
-          missingApprovers.push('management team');
+            setIsOpen(false);
+            return;
         }
 
-        toast({
-          title: "Cannot change status",
-          description: `You must assign at least one ${missingApprovers.join(' and ')} approver before moving forward in the contract workflow.`,
-          variant: "destructive"
-        });
+        const currentStageIndex = workflowStages.indexOf(contract.status);
+        const newStageIndex = workflowStages.indexOf(newStatus);
+        const isMovingForward = newStageIndex > 1 && newStageIndex > currentStageIndex;
+
+        if (isMovingForward) {
+            const hasLegalApprovers = contract.approvers?.legal && (Array.isArray(contract.approvers.legal) ? contract.approvers.legal.length > 0 : true);
+            const hasManagementApprovers = contract.approvers?.management && (Array.isArray(contract.approvers.management) ? contract.approvers.management.length > 0 : true);
+
+            if (!hasLegalApprovers || !hasManagementApprovers) {
+                const missingApprovers = [];
+
+                if (!hasLegalApprovers) {
+                    missingApprovers.push("legal team");
+                }
+
+                if (!hasManagementApprovers) {
+                    missingApprovers.push("management team");
+                }
+
+                toast({
+                    title: "Cannot change status",
+                    description: `You must assign at least one ${missingApprovers.join(" and ")} approver before moving forward in the contract workflow.`,
+                    variant: "destructive"
+                });
+
+                setIsOpen(false);
+                return;
+            }
+        }
+
+        if (newStatus === "management_review") {
+            const hasManagementApprovers = contract.approvers?.management && (Array.isArray(contract.approvers.management) ? contract.approvers.management.length > 0 : true);
+
+            if (!hasManagementApprovers) {
+                toast({
+                    title: "Cannot change status to Management Review",
+                    description: "You must assign at least one management team approver before moving to Management Review status.",
+                    variant: "destructive"
+                });
+
+                setIsOpen(false);
+                return;
+            }
+        }
+
+        if (newStatus === "wwf_signing") {
+            if (isEitherSentBack) {
+                const sentBackBy = [];
+                const legalApprovers = contract.approvers?.legal && (Array.isArray(contract.approvers.legal) ? contract.approvers.legal : [contract.approvers.legal]);
+
+                if (legalApprovers?.some(a => a.declined)) {
+                    sentBackBy.push("Legal");
+                }
+
+                const managementApprovers = contract.approvers?.management && (Array.isArray(contract.approvers.management) ? contract.approvers.management : [contract.approvers.management]);
+
+                if (managementApprovers?.some(a => a.declined)) {
+                    sentBackBy.push("Management");
+                }
+
+                toast({
+                    title: "Cannot change status to WWF Signing",
+                    description: `This contract has been sent back by: ${sentBackBy.join(", ")}. The approver(s) who sent it back must approve the contract before it can move to WWF Signing status.`,
+                    variant: "destructive"
+                });
+
+                setIsOpen(false);
+                return;
+            }
+
+            if (!areBothApproved) {
+                const missingApprovals = [];
+                const legalApprovers = contract.approvers?.legal && (Array.isArray(contract.approvers.legal) ? contract.approvers.legal : [contract.approvers.legal]);
+
+                if (!legalApprovers || !legalApprovers.every(a => a.approved)) {
+                    missingApprovals.push(legalApprovers ? "Legal" : "Legal (not assigned)");
+                }
+
+                const managementApprovers = contract.approvers?.management && (Array.isArray(contract.approvers.management) ? contract.approvers.management : [contract.approvers.management]);
+
+                if (!managementApprovers || !managementApprovers.every(a => a.approved)) {
+                    missingApprovals.push(managementApprovers ? "Management" : "Management (not assigned)");
+                }
+
+                toast({
+                    title: "Cannot change status to WWF Signing",
+                    description: `This contract requires approval from both legal and management teams before it can move to WWF Signing status. Missing approvals: ${missingApprovals.join(", ")}.`,
+                    variant: "destructive"
+                });
+
+                setIsOpen(false);
+                return;
+            }
+        }
+
+        if (newStatus === "amendment") {
+            if (contract.status !== "wwf_signing" || contract.isAmended !== true) {
+                toast({
+                    title: "Cannot change status to Amendment",
+                    description: "Amendment status is only available during the WWF Signing phase and only for contracts that have been marked for amendment.",
+                    variant: "destructive"
+                });
+
+                setIsOpen(false);
+                return;
+            }
+
+            await onStatusChange(newStatus, {
+                amendmentStage: "amendment"
+            });
+        } else {
+            await onStatusChange(newStatus);
+        }
+
         setIsOpen(false);
-        return;
-      }
-    }
+    };
 
-    // Check if management approvers are assigned when moving to management_review
-    if (newStatus === 'management_review') {
-      // Check if management approvers are assigned
-      const hasManagementApprovers = contract.approvers?.management &&
-        (Array.isArray(contract.approvers.management)
-          ? contract.approvers.management.length > 0
-          : true);
+    return (
+        <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Status</CardTitle>
+                <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                        <ContractStatusBadge status={status} />
+                    </div>
+                    {}
+                    {contract.isAmended && contract.status === "amendment" && (<p className="text-xs text-amber-600 mt-2 mb-1">Contract is in amendment mode. Original status: {contract.originalStatus?.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")}
+                    </p>)}
+                    <Select
+                        value={status}
+                        onValueChange={handleStatusChange}
+                        disabled={isUpdating || (contract.isAmended && contract.status === "amendment")}
+                        onOpenChange={setIsOpen}
+                        open={isOpen}>
+                        <SelectTrigger className="w-full mt-2">
+                            <SelectValue placeholder="Change status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {}
+                            {statusOptions.map(option => {
+                                const currentIndex = workflowStages.indexOf(status);
+                                const optionIndex = workflowStages.indexOf(option.value);
+                                const isSpecialStatus = option.value === "draft" || option.value === "management_review" || option.value === "wwf_signing" || option.value === "counterparty_signing" || option.value === "implementation" || option.value === "contract_end";
+                                const canAmend = option.value === "amendment" && (status === "wwf_signing") && contract.isAmended === true;
+                                const isValidOption = option.value === status || (optionIndex !== -1 && (optionIndex === currentIndex + 1 || optionIndex === currentIndex - 1)) || isSpecialStatus || canAmend;
 
-      if (!hasManagementApprovers) {
-        toast({
-          title: "Cannot change status to Management Review",
-          description: "You must assign at least one management team approver before moving to Management Review status.",
-          variant: "destructive"
-        });
-        setIsOpen(false);
-        return;
-      }
-    }
-
-    // If trying to change to WWF Signing status, check if both approvers have approved
-    if (newStatus === 'wwf_signing') {
-      // Check if either approver has sent back the contract
-      if (isEitherSentBack) {
-        const sentBackBy = [];
-        // Check legal approvers
-        const legalApprovers = contract.approvers?.legal && (Array.isArray(contract.approvers.legal)
-          ? contract.approvers.legal
-          : [contract.approvers.legal]);
-        if (legalApprovers?.some(a => a.declined)) {
-          sentBackBy.push('Legal');
-        }
-
-        // Check management approvers
-        const managementApprovers = contract.approvers?.management && (Array.isArray(contract.approvers.management)
-          ? contract.approvers.management
-          : [contract.approvers.management]);
-        if (managementApprovers?.some(a => a.declined)) {
-          sentBackBy.push('Management');
-        }
-
-        toast({
-          title: "Cannot change status to WWF Signing",
-          description: `This contract has been sent back by: ${sentBackBy.join(', ')}. The approver(s) who sent it back must approve the contract before it can move to WWF Signing status.`,
-          variant: "destructive"
-        });
-        setIsOpen(false);
-        return;
-      }
-
-      // Check if both approvers have approved
-      if (!areBothApproved) {
-        // Check what approvals are missing
-        const missingApprovals = [];
-        // Check legal approvers
-        const legalApprovers = contract.approvers?.legal && (Array.isArray(contract.approvers.legal)
-          ? contract.approvers.legal
-          : [contract.approvers.legal]);
-        if (!legalApprovers || !legalApprovers.every(a => a.approved)) {
-          missingApprovals.push(legalApprovers ? 'Legal' : 'Legal (not assigned)');
-        }
-
-        // Check management approvers
-        const managementApprovers = contract.approvers?.management && (Array.isArray(contract.approvers.management)
-          ? contract.approvers.management
-          : [contract.approvers.management]);
-        if (!managementApprovers || !managementApprovers.every(a => a.approved)) {
-          missingApprovals.push(managementApprovers ? 'Management' : 'Management (not assigned)');
-        }
-
-        toast({
-          title: "Cannot change status to WWF Signing",
-          description: `This contract requires approval from both legal and management teams before it can move to WWF Signing status. Missing approvals: ${missingApprovals.join(', ')}.`,
-          variant: "destructive"
-        });
-        setIsOpen(false);
-        return;
-      }
-    }
-
-    // If changing to amendment status, validate and set isAmended flag and amendmentStage
-    if (newStatus === 'amendment') {
-      // Validate that amendment is only allowed from WWF Signing status and if contract is marked as amended
-      if (contract.status !== 'wwf_signing' || contract.isAmended !== true) {
-        toast({
-          title: "Cannot change status to Amendment",
-          description: "Amendment status is only available during the WWF Signing phase and only for contracts that have been marked for amendment.",
-          variant: "destructive"
-        });
-        setIsOpen(false);
-        return;
-      }
-
-      // Simply change the status to amendment
-      // The contract should already be marked as amended
-      await onStatusChange(newStatus, {
-        amendmentStage: 'amendment'
-      });
-    } else {
-      await onStatusChange(newStatus);
-    }
-
-    setIsOpen(false);
-  };
-
-  return (
-    <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium">Status</CardTitle>
-        <FileText className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          <div className="flex items-center space-x-2">
-            <ContractStatusBadge status={status} />
-          </div>
-
-          {/* Show a message when in amendment mode */}
-          {contract.isAmended && contract.status === 'amendment' && (
-            <p className="text-xs text-amber-600 mt-2 mb-1">
-              Contract is in amendment mode. Original status: {contract.originalStatus?.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-            </p>
-          )}
-
-          <Select
-            value={status}
-            onValueChange={handleStatusChange}
-            disabled={isUpdating || (contract.isAmended && contract.status === 'amendment')}
-            onOpenChange={setIsOpen}
-            open={isOpen}
-          >
-            <SelectTrigger className="w-full mt-2">
-              <SelectValue placeholder="Change status" />
-            </SelectTrigger>
-            <SelectContent>
-              {/* Always show normal status options */}
-              {statusOptions.map((option) => {
-                // Get the current status index in the workflow
-                const currentIndex = workflowStages.indexOf(status);
-                const optionIndex = workflowStages.indexOf(option.value);
-
-                // Special statuses that can be selected from any stage
-                const isSpecialStatus =
-                  option.value === 'draft' ||
-                  option.value === 'management_review' ||
-                  option.value === 'wwf_signing' ||
-                  option.value === 'counterparty_signing' ||
-                  option.value === 'implementation' ||
-                  option.value === 'contract_end';
-
-                // Amendment is only available during WWF Signing phase AND if the contract is marked as amended
-                const canAmend =
-                  option.value === 'amendment' &&
-                  (status === 'wwf_signing') &&
-                  contract.isAmended === true;
-
-                // Only show options that are:
-                // 1. The current status
-                // 2. The next status in the workflow
-                // 3. The previous status in the workflow
-                // 4. Special statuses like draft, etc.
-                // 5. Amendment status if conditions are met
-                const isValidOption =
-                  option.value === status ||
-                  (optionIndex !== -1 && (optionIndex === currentIndex + 1 || optionIndex === currentIndex - 1)) ||
-                  isSpecialStatus ||
-                  canAmend;
-
-                // Only render the option if it's valid
-                return isValidOption ? (
-                  <SelectItem
-                    key={option.value}
-                    value={option.value}
-                    className={status === option.value ? 'bg-secondary/40' : ''}
-                  >
-                    {option.label}
-                  </SelectItem>
-                ) : null;
-              })}
-            </SelectContent>
-          </Select>
-
-          {isUpdating && (
-            <p className="text-xs text-muted-foreground">Updating status...</p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
+                                return isValidOption ? (<SelectItem
+                                    key={option.value}
+                                    value={option.value}
+                                    className={status === option.value ? "bg-secondary/40" : ""}>
+                                    {option.label}
+                                </SelectItem>) : null;
+                            })}
+                        </SelectContent>
+                    </Select>
+                    {isUpdating && (<p className="text-xs text-muted-foreground">Updating status...</p>)}
+                </div>
+            </CardContent>
+        </Card>
+    );
 };
 
 export default StatusSelectCard;
