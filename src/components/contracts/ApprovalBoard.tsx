@@ -611,11 +611,11 @@ const ApprovalBoard = ({
           updateData._customTimelineEntry.details += ' - Amendment moved back to WWF stage';
           console.log('Approver withdrawal for amendment - Moving back to WWF stage');
         }
-        // If we're in WWF stage, move back to legal stage
+        // If we're in WWF stage, move back to management stage
         else if (contract.amendmentStage === 'wwf') {
-          updateData.amendmentStage = 'legal';
-          updateData._customTimelineEntry.details += ' - Amendment moved back to Legal stage';
-          console.log('Approver withdrawal for amendment - Moving back to Legal stage');
+          updateData.amendmentStage = 'management';
+          updateData._customTimelineEntry.details += ' - Amendment moved back to Management stage';
+          console.log('Approver withdrawal for amendment - Moving back to Management stage');
         }
       }
       // If withdrawing a send back, no need to change the stage
@@ -705,21 +705,21 @@ const ApprovalBoard = ({
     if (isInAmendmentMode) {
       // Add custom timeline entry for amendment approval
       updateData._customTimelineEntry = {
-        action: `Amendment Legal Approval: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
-        details: 'Approved amendment as legal team member'
+        action: `Amendment Management Approval: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+        details: 'Approved amendment as management team member'
       };
 
       // If we're in the initial amendment stage, move to management stage
       if (contract.amendmentStage === 'amendment') {
         updateData.amendmentStage = 'management';
         updateData._customTimelineEntry.details += ' - Amendment moved to Management stage';
-        console.log('Legal approval for amendment - Moving to Management stage');
+        console.log('Management approval for amendment - Moving to Management stage');
       }
       // If we're already in management stage, move to WWF stage
       else if (contract.amendmentStage === 'management') {
         updateData.amendmentStage = 'wwf';
         updateData._customTimelineEntry.details += ' - Amendment moved to WWF stage';
-        console.log('Legal approval for amendment - Moving to WWF stage');
+        console.log('Management approval for amendment - Moving to WWF stage');
       }
     } else {
       // Regular contract approval flow
@@ -774,11 +774,19 @@ const ApprovalBoard = ({
       console.error('Legal approval - Error in onUpdateApprovers:', error);
     }
 
-    toast({
-      title: 'Contract Approved',
-      description: 'You have approved this contract as a legal team member',
-      variant: 'default'
-    });
+    if (isInAmendmentMode) {
+      toast({
+        title: 'Amendment Approved',
+        description: 'You have approved this amendment as a management team member',
+        variant: 'default'
+      });
+    } else {
+      toast({
+        title: 'Contract Approved',
+        description: 'You have approved this contract as a legal team member',
+        variant: 'default'
+      });
+    }
   };
 
   // Handle legal send back
@@ -827,14 +835,14 @@ const ApprovalBoard = ({
     // Handle amendment send back differently
     if (isInAmendmentMode) {
       updateData._customTimelineEntry = {
-        action: `Amendment Legal Send Back: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
-        details: 'Sent back amendment as legal team member'
+        action: `Amendment Management Send Back: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+        details: 'Sent back amendment as management team member'
       };
 
       // Always reset to the initial amendment stage regardless of current stage
       updateData.amendmentStage = 'amendment';
       updateData._customTimelineEntry.details += ' - Amendment reset to initial stage';
-      console.log('Legal send back for amendment - Resetting to amendment stage');
+      console.log('Management send back for amendment - Resetting to amendment stage');
     } else {
       // Regular contract send back flow
       updateData._customTimelineEntry = {
@@ -863,7 +871,7 @@ const ApprovalBoard = ({
     if (isInAmendmentMode) {
       toast({
         title: 'Amendment Sent Back',
-        description: 'You have sent back this amendment as a legal team member',
+        description: 'You have sent back this amendment as a management team member',
         variant: 'destructive'
       });
     } else {
@@ -916,14 +924,14 @@ const ApprovalBoard = ({
 
     // Handle differently for amendment mode
     if (isInAmendmentMode) {
-      // Create a custom timeline entry for amendment legal approval/rejection withdrawal
+      // Create a custom timeline entry for amendment management approval/rejection withdrawal
       updateData._customTimelineEntry = {
         action: wasDeclined
-          ? `Amendment Legal Send Back Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`
-          : `Amendment Legal Approval Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
+          ? `Amendment Management Send Back Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`
+          : `Amendment Management Approval Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
         details: wasDeclined
-          ? 'Withdrawn legal team send back for amendment'
-          : 'Withdrawn legal team approval for amendment'
+          ? 'Withdrawn management team send back for amendment'
+          : 'Withdrawn management team approval for amendment'
       };
 
       // If withdrawing approval, update the amendment stage based on the current stage
@@ -932,19 +940,19 @@ const ApprovalBoard = ({
         if (contract.amendmentStage === 'wwf' || contract.amendmentStage === 'counterparty') {
           updateData.amendmentStage = 'management';
           updateData._customTimelineEntry.details += ' - Amendment moved back to Management stage';
-          console.log('Legal withdrawal for amendment - Moving back to Management stage');
+          console.log('Management withdrawal for amendment - Moving back to Management stage');
         }
         // If we're in management stage, move back to amendment stage
         else if (contract.amendmentStage === 'management') {
           updateData.amendmentStage = 'amendment';
           updateData._customTimelineEntry.details += ' - Amendment moved back to initial stage';
-          console.log('Legal withdrawal for amendment - Moving back to initial stage');
+          console.log('Management withdrawal for amendment - Moving back to initial stage');
         }
       }
       // If withdrawing a send back, no need to change the stage
       else if (wasDeclined) {
         updateData._customTimelineEntry.details += ' - Amendment stage unchanged';
-        console.log('Legal send back withdrawal for amendment - Stage unchanged');
+        console.log('Management send back withdrawal for amendment - Stage unchanged');
       }
     } else {
       // Regular contract flow
@@ -1042,8 +1050,8 @@ const ApprovalBoard = ({
       toast({
         title: wasDeclined ? 'Amendment Rejection Withdrawn' : 'Amendment Approval Withdrawn',
         description: wasDeclined
-          ? 'You have withdrawn your rejection of the amendment as a legal team member'
-          : 'You have withdrawn your approval of the amendment as a legal team member',
+          ? 'You have withdrawn your rejection of the amendment as a management team member'
+          : 'You have withdrawn your approval of the amendment as a management team member',
         variant: 'default'
       });
     } else {
@@ -1089,8 +1097,8 @@ const ApprovalBoard = ({
 
     console.log('Management approval - Current contract status:', contract.status);
 
-    // Check if legal team has approved first
-    if (!isLegalTeamFullyApproved()) {
+    // Check if legal team has approved first (only for non-amendment mode)
+    if (!isInAmendmentMode && !isLegalTeamFullyApproved()) {
       toast({
         title: 'Legal Approval Required',
         description: 'The legal team must approve this contract before management can approve.',
@@ -1200,8 +1208,8 @@ const ApprovalBoard = ({
   const handleManagementSendBack = async () => {
     if (!isManagementTeam || !currentUser?.email) return;
 
-    // Check if legal team has approved first
-    if (!isLegalTeamFullyApproved()) {
+    // Check if legal team has approved first (only for non-amendment mode)
+    if (!isInAmendmentMode && !isLegalTeamFullyApproved()) {
       toast({
         title: 'Legal Approval Required',
         description: 'The legal team must approve this contract before management can send it back.',
@@ -1488,10 +1496,12 @@ const ApprovalBoard = ({
             <p>Loading team members...</p>
           ) : (
             <div className="space-y-6">
-              {/* Legal Team Approvers */}
+              {/* Legal Team Approvers (or Management Team Approvers in amendment mode) */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <Label className="text-sm font-medium">Legal Team Approvers ({getLegalApprovers().length}/{approverLimits.legal})</Label>
+                  <Label className="text-sm font-medium">
+                    {isInAmendmentMode ? 'Management Team Approvers' : 'Legal Team Approvers'} ({getLegalApprovers().length}/{approverLimits.legal})
+                  </Label>
                   {canEditApprovers && (
                     ((!normalizedContract.approvers?.legal || getLegalApprovers().length < approverLimits.legal)) ? (
                       <div className="relative">
@@ -1511,7 +1521,7 @@ const ApprovalBoard = ({
                               <div className="relative">
                                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
-                                  placeholder="Search legal team..."
+                                  placeholder={isInAmendmentMode ? "Search management team..." : "Search legal team..."}
                                   className="pl-8"
                                   value={legalSearch}
                                   onChange={(e) => setLegalSearch(e.target.value)}
@@ -1541,7 +1551,7 @@ const ApprovalBoard = ({
                                 ))
                               ) : (
                                 <div className="px-3 py-2 text-sm text-muted-foreground">
-                                  No legal team members found
+                                  {isInAmendmentMode ? "No management team members found" : "No legal team members found"}
                                 </div>
                               )}
                             </div>
@@ -1689,7 +1699,14 @@ const ApprovalBoard = ({
                   )
                 ) : (
                   <div className="text-sm text-muted-foreground italic">
-                    {isRequired ? "Required - Please assign a legal team approver" : "No legal approver assigned"}
+                    {isRequired
+                      ? isInAmendmentMode
+                        ? "Required - Please assign a management team approver"
+                        : "Required - Please assign a legal team approver"
+                      : isInAmendmentMode
+                        ? "No management approver assigned"
+                        : "No legal approver assigned"
+                    }
                   </div>
                 )}
               </div>
@@ -2049,10 +2066,8 @@ const ApprovalBoard = ({
                                 size="sm"
                                 onClick={() => handleApproverApprove(approver.email)}
                                 className="bg-blue-500 hover:bg-blue-600"
-                                disabled={isInAmendmentMode ? !isLegalTeamFullyApproved() : !isManagementTeamFullyApproved()}
-                                title={isInAmendmentMode
-                                  ? (!isLegalTeamFullyApproved() ? "Legal team must approve amendment first" : "")
-                                  : (!isManagementTeamFullyApproved() ? "Management team must approve first" : "")}
+                                disabled={!isManagementTeamFullyApproved()}
+                                title={!isManagementTeamFullyApproved() ? "Management team must approve first" : ""}
                               >
                                 <Check className="h-3.5 w-3.5 mr-1" />
                                 Approve Instead
@@ -2065,10 +2080,8 @@ const ApprovalBoard = ({
                               size="sm"
                               onClick={() => handleApproverApprove(approver.email)}
                               className="bg-blue-500 hover:bg-blue-600"
-                              disabled={isInAmendmentMode ? !isLegalTeamFullyApproved() : !isManagementTeamFullyApproved()}
-                              title={isInAmendmentMode
-                                ? (!isLegalTeamFullyApproved() ? "Legal team must approve amendment first" : "")
-                                : (!isManagementTeamFullyApproved() ? "Management team must approve first" : "")}
+                              disabled={!isManagementTeamFullyApproved()}
+                              title={!isManagementTeamFullyApproved() ? "Management team must approve first" : ""}
                             >
                               <Check className="h-3.5 w-3.5 mr-1" />
                               Approve
@@ -2077,10 +2090,8 @@ const ApprovalBoard = ({
                               size="sm"
                               onClick={() => handleApproverSendBack(approver.email)}
                               variant="destructive"
-                              disabled={isInAmendmentMode ? !isLegalTeamFullyApproved() : !isManagementTeamFullyApproved()}
-                              title={isInAmendmentMode
-                                ? (!isLegalTeamFullyApproved() ? "Legal team must approve amendment first" : "")
-                                : (!isManagementTeamFullyApproved() ? "Management team must approve first" : "")}
+                              disabled={!isManagementTeamFullyApproved()}
+                              title={!isManagementTeamFullyApproved() ? "Management team must approve first" : ""}
                             >
                               <ThumbsDown className="h-3.5 w-3.5 mr-1" />
                               Send Back
