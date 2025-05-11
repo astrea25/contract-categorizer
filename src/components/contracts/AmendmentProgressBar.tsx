@@ -1,27 +1,3 @@
-// Helper function to determine if a stage is completed
-// Make sure we're using the correct amendment stage
-// Stage value comparison for determining completion
-// A stage is completed if:
-// 1. It's not the current stage (current stage should be marked as "current", not "completed")
-// 2. Its value is less than or equal to the current stage value
-// Helper function to determine if a stage is current
-// Helper function to render a stage node
-// Current stage
-// Completed stage
-// Default state
-// Text for current stage
-// Text for completed stage
-// Default text
-// Helper function to render a horizontal connecting line
-// A line should be highlighted if the stage before it is completed or is the current stage
-/* Amendment flow */
-/* Amendment */
-/* Line from Amendment to Management */
-/* Management */
-/* Line from Management to WWF */
-/* WWF */
-/* Line from WWF to Counterparty */
-/* Counterparty */
 import React from "react";
 import { ContractStatus } from "@/lib/data";
 import { CheckCircle, Circle } from "lucide-react";

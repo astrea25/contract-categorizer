@@ -1,4 +1,3 @@
-// Set the data to be transferred - in this case, the contract ID
 import { useState } from "react";
 import { Contract } from "@/lib/data";
 import ContractCard from "./ContractCard";

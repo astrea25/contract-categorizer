@@ -1,12 +1,3 @@
-// Function to format field names for display
-// Add space before capital letters
-// Capitalize first letter
-// Function to format field values for display
-// Function to format currency values
-// Function to get appropriate icon for a field
-// Default icon
-// Create a generic field card for any contract type
-/* Render all type-specific fields */
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Contract, ContractType, contractTypeLabels } from "@/lib/data";
 import { Separator } from "@/components/ui/separator";
@@ -143,7 +134,7 @@ const TypeSpecificDetailsCard = (
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-blue-500 hover:underline">View Document
-                                                      </a>) : (<p className="whitespace-pre-line">
+                                                                                                                              </a>) : (<p className="whitespace-pre-line">
                                     {typeof value === "number" && (key.toLowerCase().includes("fee") || key.toLowerCase().includes("amount") || key.toLowerCase().includes("rate")) ? formatCurrency(value) : formatFieldValue(value)}
                                 </p>)}
                             </CardContent>

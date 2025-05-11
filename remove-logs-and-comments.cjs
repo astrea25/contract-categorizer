@@ -14,16 +14,26 @@ const removeLogsAndComments = (code) => {
     ]
   });
 
+  // Remove console logs and comments without causing traversal issues
   recast.types.visit(ast, {
+    // Remove console logs
     visitExpressionStatement(path) {
       const expr = path.node.expression;
       if (expr?.type === 'CallExpression' && expr.callee?.object?.name === 'console') {
-        path.prune();
+        path.replace(); // Remove the console log
+      } else {
+        this.traverse(path); // Continue traversal
       }
-      this.traverse(path);
+    },
+
+    // Remove all comments
+    visitComment(path) {
+      path.replace(); // Remove the comment
+      this.traverse(path); // Continue traversal
     }
   });
 
+  // Return the cleaned code without comments and console logs
   return recast.print(ast, { comments: false }).code;
 };
 

@@ -1,5 +1,3 @@
-// Show loading when initial auth loading or role check is still in progress
-// Only allow users with admin privileges
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";

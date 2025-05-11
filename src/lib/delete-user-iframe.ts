@@ -1,25 +1,3 @@
-/**
- * This file contains a solution for deleting Firebase Auth users
- * using an iframe to avoid affecting the current user's session
- */
-/**
- * Creates an invisible iframe and uses it to delete a user from Firebase Authentication
- * This approach prevents the current user from being logged out
- * 
- * @param email The email of the user to delete
- * @param password The password of the user (default is '12345678')
- * @returns A promise that resolves to true if successful, false otherwise
- */
-// Create an invisible iframe
-// Set a timeout to handle cases where the iframe doesn't load or execute properly
-// 10 seconds timeout
-// Create the HTML content for the iframe
-// This will create a separate Firebase Auth instance and delete the user
-// Set up message listener to receive result from iframe
-// Clean up
-// Resolve with the result
-// Write the content to the iframe
-// Clean up if we couldn't get the iframe document
 export const deleteUserWithIframe = async (email: string, password: string = "12345678"): Promise<boolean> => {
     return new Promise(resolve => {
         try {

@@ -1,6 +1,3 @@
-// Validation schema for registration form
-// Validate form data
-// Navigation is handled by the useEffect when currentUser changes
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -81,7 +78,7 @@ const SignUp = () => {
                     <CardHeader className="space-y-1">
                         <CardTitle className="text-2xl font-bold">Create an Account</CardTitle>
                         <p className="text-sm text-muted-foreground">Enter your details to sign up for an account
-                                        </p>
+                                                                                                </p>
                     </CardHeader>
                     <CardContent>
                         {(authError || validationError) && (<Alert variant="destructive" className="mb-4">
@@ -144,13 +141,13 @@ const SignUp = () => {
                                 <Link
                                     to="/login"
                                     className="font-medium text-primary underline-offset-4 hover:underline">Sign In
-                                                    </Link>
+                                                                                                                            </Link>
                             </div>
                             <div className="text-xs text-muted-foreground mt-4">
                                 <p className="text-center font-medium">This is an invitation-only application.
-                                                    </p>
+                                                                                                                            </p>
                                 <p className="text-center mt-1">You can only sign up if you've been invited by an administrator.
-                                                    </p>
+                                                                                                                            </p>
                             </div>
                         </form>
                     </CardContent>

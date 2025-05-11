@@ -1,207 +1,3 @@
-// Add type definitions for approvers
-// Fix the type for the Contract interface to properly support arrays of approvers
-// Create a type-safe wrapper for the approvers object
-// Define a type for the data that can be passed to onUpdateApprovers
-// Normalize contract approvers
-// Get approver limits
-// Changed from 5 back to 1 for Approver Team
-// Fetch team members
-// Filter legal team members based on search
-// Filter management team members based on search
-// Filter approver members based on search
-// Handle selecting a legal team member
-// Get the current legal approvers
-// Check if we've reached the limit
-// Add the new legal approver
-// Handle selecting a management team member
-// Get the current management approvers
-// Check if we've reached the limit
-// Add the new management approver
-// Handle removing a legal team approver
-// Filter out the approver to remove
-// Update the approvers
-// Handle removing a management team approver
-// Filter out the approver to remove
-// Update the approvers
-// Handle selecting an approver
-// Get the current approvers
-// Check if we've reached the limit
-// Add the new approver
-// Handle removing an approver
-// Filter out the approver to remove
-// Update the approvers
-// Handle approving as an approver
-// For amendment mode, check if management team has approved
-// For regular contracts, check if management team has approved first
-// Only allow if the current user is the assigned approver
-// Update the specific approver's status
-// Create update data with the approvers
-// Handle differently for amendment mode
-// If we're in amendment or management stage, move to WWF stage
-// Add custom timeline entry for amendment approval
-// Special case: Changing from declined to approved
-// Standard approval
-// If we're in WWF stage, move to counterparty stage
-// Add custom timeline entry for amendment approval
-// Special case: Changing from declined to approved
-// Standard approval
-// If we're in counterparty stage, just record the approval without changing stage
-// Regular contract flow - Automatically progress to WWF signing stage
-// Add custom timeline entry
-// Special case: Changing from declined to approved
-// Standard approval
-// Update approvers with custom timeline entry
-// Handle sending back as an approver
-// For amendment mode, check if management team has approved
-// For regular contracts, check if management team has approved first
-// Only allow if the current user is the assigned approver
-// Update the specific approver's status
-// Create update data with custom timeline entry
-// Handle differently for amendment mode
-// Only reset to management stage if we're in WWF or counterparty stage
-// Add custom timeline entry for amendment send back
-// If we're not in WWF or counterparty stage, just record the send back without changing stage
-// Regular contract flow
-// Update approvers with custom timeline entry
-// Notify admin of contract being sent back
-// Don't block the flow if notification fails
-// Handle withdrawing approver approval or rejection
-// Only allow if the current user is the assigned approver
-// Was it a decline or approval that's being withdrawn?
-// Update the specific approver's status
-// Create custom timeline entry
-// Handle differently for amendment mode
-// Add custom timeline entry for amendment withdrawal
-// If withdrawing approval, update the amendment stage based on the current stage
-// If we're in counterparty stage, move back to WWF stage
-// If we're in WWF stage, move back to management stage
-// If withdrawing a send back, no need to change the stage
-// Regular contract flow
-// Update approvers with timeline entry
-// Handle legal approval
-// Only allow if the current user is an assigned legal approver
-// Update the specific approver's status
-// Check if management has already approved
-// Build the request data for the API
-// Add approvers update
-// Handle amendment approval differently
-// Add custom timeline entry for amendment approval
-// If we're in the initial amendment stage, move to management stage
-// Regular contract approval flow
-// Add custom timeline entry
-// Handle case where we're changing from send back to approved
-// Change status back to legal_review
-// If management is already approved, move to management_review status
-// Standard approval flow
-// If current status is draft, move to legal_review
-// If both legal and management have approved, move to management_review status
-// Update approvers with custom timeline entry and possibly status change
-// Handle legal send back
-// Only allow if the current user is an assigned legal approver
-// Update the specific approver's status
-// Check if management has already approved (not relevant for decline, but we track it)
-// Create update data with custom timeline entry
-// Handle amendment send back differently
-// Always reset to the initial amendment stage regardless of current stage
-// Regular contract send back flow
-// Always change contract status to legal_send_back
-// This follows the same progression logic as approval
-// Update approvers with custom timeline entry and status change
-// Notify admin of contract being sent back
-// Don't block the flow if notification fails
-// Handle withdrawing legal approval or rejection
-// Only allow if the current user is an assigned legal approver
-// Was it a send back or approval that's being withdrawn?
-// Update the specific approver's status
-// Check if management has approved
-// Create update data
-// Handle differently for amendment mode
-// Create a custom timeline entry for amendment management approval/rejection withdrawal
-// If withdrawing approval, update the amendment stage based on the current stage
-// If we're in WWF or counterparty stage, move back to management stage
-// If we're in management stage, move back to amendment stage
-// If withdrawing a send back, no need to change the stage
-// Regular contract flow
-// Create a custom timeline entry for legal approval/rejection withdrawal
-// Update contract status based on withdrawal (only for non-amendment mode)
-// If we're withdrawing a send back, go back to draft
-// Reset all approvals when going back to draft from sent back
-// Reset legal approvals
-// Reset management approvals
-// Reset approver approvals
-// Handle non-amendment mode status changes
-// If we're in WWF Signing status, means both legal and management had approved
-// If management is still approved, go back to legal_review status
-// If neither is approved, go back to draft
-// If we're in legal_review status, go back to draft
-// For all cases, update the legal approvers' status
-// Update approvers with custom timeline entry
-// Function to get an array of legal approvers accounting for type differences
-// Function to get an array of management approvers accounting for type differences
-// Helper function to check if legal team has fully approved
-// Helper function to check if management team has fully approved
-// Handle management approval
-// Check if legal team has approved first (only for non-amendment mode)
-// Only allow if the current user is an assigned management approver
-// Update the specific approver's status
-// Check if legal has already approved
-// Build the request data for the API
-// Add approvers update
-// Add custom timeline entry
-// Handle case where we're changing from sent back to approved
-// Change status back to management_review
-// If legal is already approved, move to management_review status
-// Standard approval flow
-// If legal has approved, move to management_review status
-// Update approvers with custom timeline entry and possibly status change
-// Handle management send back
-// Check if legal team has approved first (only for non-amendment mode)
-// Only allow if the current user is an assigned management approver
-// Update the specific approver's status
-// Check if legal has already approved (not relevant for decline, but we track it)
-// Create a custom timeline entry for management decline
-// Always change contract status to management_send_back
-// This follows the same progression logic as approval
-// Update approvers with custom timeline entry
-// Notify admin of contract being sent back
-// Don't block the flow if notification fails
-// Handle management withdraw approval or rejection
-// Only allow if the current user is an assigned management approver
-// Was it a send back or approval that's being withdrawn?
-// Update the specific approver's status
-// Check if legal has approved
-// Create update data
-// Add custom timeline entry
-// Update contract status based on withdrawal
-// If we're withdrawing a send back, go back to draft
-// Reset all approvals when going back to draft from sent back
-// Reset legal approvals
-// Reset management approvals
-// Reset approver approvals
-// If we're in WWF Signing status, means both legal and management had approved
-// If legal is still approved, go back to legal_review status
-// If neither is approved, go back to draft
-// Update only the management approvers' status
-// If we're in management_review status, go back to draft
-// Update only the management approvers' status
-// For other cases, just update the management approvers
-// Update approvers with custom timeline entry
-// Normalize contract approvers for checking
-// Check if current user is a legal approver
-// Check if current user is a management approver
-// Check if current user is an approver
-// Fix for email property access on single legal approver UI
-// Fix for email property access on single management approver UI
-// Check if the contract is in amendment mode
-// Check if the amendment is in management review stage
-// Determine if the user can edit approvers - only admin can assign requestors/approvers
-/* Legal Team Approvers (or Management Team Approvers in amendment mode) */
-// Multiple legal approvers
-// Single legal approver (legacy format)
-/* Management Team Approvers - Hide during amendment mode */
-// Multiple management approvers
-// Single management approver (legacy format)
-/* Approver Team */
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1420,7 +1216,7 @@ const ApprovalBoard = (
                         {isRequired && (<Badge
                             variant="outline"
                             className="bg-yellow-50 text-yellow-800 border-yellow-200">Required
-                                          </Badge>)}
+                                                                                                  </Badge>)}
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -1430,7 +1226,7 @@ const ApprovalBoard = (
                             <div className="flex justify-between items-center">
                                 <Label className="text-sm font-medium">
                                     {isInAmendmentMode ? "Management Team Approvers" : "Legal Team Approvers"}({getLegalApprovers().length}/{approverLimits.legal})
-                                                      </Label>
+                                                                                                                              </Label>
                                 {canEditApprovers && ((!normalizedContract.approvers?.legal || getLegalApprovers().length < approverLimits.legal) ? (<div className="relative">
                                     <Button
                                         variant="outline"
@@ -1487,37 +1283,37 @@ const ApprovalBoard = (
                                     <div className="flex items-center gap-2">
                                         {approver.approved ? (<div className="flex items-center gap-2">
                                             <Badge className="bg-green-50 text-green-800 border-green-200">Approved
-                                                                                </Badge>
+                                                                                                                                                                                </Badge>
                                             {currentUser?.email?.toLowerCase() === approver.email.toLowerCase() && (<Button
                                                 size="sm"
                                                 onClick={handleLegalWithdraw}
                                                 variant="outline"
                                                 className="text-amber-600 border-amber-200 hover:bg-amber-50">Undo
-                                                                                  </Button>)}
+                                                                                                                                                                                  </Button>)}
                                         </div>) : approver.declined ? (<div className="flex items-center gap-2">
                                             <Badge className="bg-red-50 text-red-800 border-red-200">Sent Back
-                                                                                </Badge>
+                                                                                                                                                                                </Badge>
                                             {currentUser?.email?.toLowerCase() === approver.email.toLowerCase() && (<Button
                                                 size="sm"
                                                 onClick={handleLegalWithdraw}
                                                 variant="outline"
                                                 className="text-amber-600 border-amber-200 hover:bg-amber-50">Undo
-                                                                                  </Button>)}
+                                                                                                                                                                                  </Button>)}
                                         </div>) : currentUser?.email?.toLowerCase() === approver.email.toLowerCase() ? (<div className="flex gap-2">
                                             <Button
                                                 size="sm"
                                                 onClick={handleLegalApprove}
                                                 className="bg-blue-500 hover:bg-blue-600">
                                                 <Check className="h-3.5 w-3.5 mr-1" />Approve
-                                                                                </Button>
+                                                                                                                                                                                </Button>
                                             <Button size="sm" onClick={handleLegalSendBack} variant="destructive">
                                                 <ThumbsDown className="h-3.5 w-3.5 mr-1" />Send Back
-                                                                                </Button>
+                                                                                                                                                                                </Button>
                                         </div>) : (<div className="flex gap-2 items-center">
                                             <Badge
                                                 variant="outline"
                                                 className="bg-yellow-50 text-yellow-800 border-yellow-200">Pending
-                                                                                </Badge>
+                                                                                                                                                                                </Badge>
                                             {canEditApprovers && (<Button
                                                 variant="outline"
                                                 size="sm"
@@ -1537,21 +1333,21 @@ const ApprovalBoard = (
                                 <div>
                                     {isCurrentUserLegalApprover && getLegalApprovers().some(a => a.approved) ? (<div className="flex items-center gap-2">
                                         <Badge className="bg-green-50 text-green-800 border-green-200">Approved
-                                                                        </Badge>{isCurrentUserLegalApprover && (<Button
+                                                                                                                                                                </Badge>{isCurrentUserLegalApprover && (<Button
                                             size="sm"
                                             onClick={handleLegalWithdraw}
                                             variant="outline"
                                             className="text-amber-600 border-amber-200 hover:bg-amber-50">Undo
-                                                                          </Button>)}
+                                                                                                                                                                  </Button>)}
                                     </div>) : (<div className="flex items-center gap-2">
                                         <Badge className="bg-red-50 text-red-800 border-red-200">Sent Back
-                                                                        </Badge>
+                                                                                                                                                                </Badge>
                                         {isCurrentUserLegalApprover && (<Button
                                             size="sm"
                                             onClick={handleLegalWithdraw}
                                             variant="outline"
                                             className="text-amber-600 border-amber-200 hover:bg-amber-50">Undo
-                                                                          </Button>)}
+                                                                                                                                                                  </Button>)}
                                     </div>)}
                                     {canEditApprovers && (<Button
                                         variant="outline"
@@ -1571,7 +1367,7 @@ const ApprovalBoard = (
                                 <div>
                                     <Label className="text-sm font-medium">Management Team Approvers ({getManagementApprovers().length}/{approverLimits.management})</Label>
                                     {!isLegalTeamFullyApproved() && getManagementApprovers().length > 0 && (<div className="text-xs text-amber-600 mt-1">Waiting for legal team approval before management can approve
-                                                              </div>)}
+                                                                                                                                              </div>)}
                                 </div>
                                 {canEditApprovers && ((!normalizedContract.approvers?.management || getManagementApprovers().length < approverLimits.management) ? (<div className="relative">
                                     <Button
@@ -1612,7 +1408,7 @@ const ApprovalBoard = (
                                                     <Check className="h-3.5 w-3.5" />
                                                 </Button>
                                             </div>))) : (<div className="px-3 py-2 text-sm text-muted-foreground">No management team members found
-                                                                                </div>)}
+                                                                                                                                                                                </div>)}
                                         </div>
                                     </div>)}
                                 </div>) : null)}
@@ -1628,22 +1424,22 @@ const ApprovalBoard = (
                                     <div className="flex items-center gap-2">
                                         {approver.approved ? (<div className="flex items-center gap-2">
                                             <Badge className="bg-green-50 text-green-800 border-green-200">Approved
-                                                                                </Badge>
+                                                                                                                                                                                </Badge>
                                             {currentUser?.email?.toLowerCase() === approver.email.toLowerCase() && (<Button
                                                 size="sm"
                                                 onClick={handleManagementWithdraw}
                                                 variant="outline"
                                                 className="text-amber-600 border-amber-200 hover:bg-amber-50">Undo
-                                                                                  </Button>)}
+                                                                                                                                                                                  </Button>)}
                                         </div>) : approver.declined ? (<div className="flex items-center gap-2">
                                             <Badge className="bg-red-50 text-red-800 border-red-200">Sent Back
-                                                                                </Badge>
+                                                                                                                                                                                </Badge>
                                             {currentUser?.email?.toLowerCase() === approver.email.toLowerCase() && (<Button
                                                 size="sm"
                                                 onClick={handleManagementWithdraw}
                                                 variant="outline"
                                                 className="text-amber-600 border-amber-200 hover:bg-amber-50">Undo
-                                                                                  </Button>)}
+                                                                                                                                                                                  </Button>)}
                                         </div>) : currentUser?.email?.toLowerCase() === approver.email.toLowerCase() ? (<div className="flex gap-2">
                                             <Button
                                                 size="sm"
@@ -1652,7 +1448,7 @@ const ApprovalBoard = (
                                                 disabled={!isLegalTeamFullyApproved()}
                                                 title={!isLegalTeamFullyApproved() ? "Legal team must approve first" : ""}>
                                                 <Check className="h-3.5 w-3.5 mr-1" />Approve
-                                                                                </Button>
+                                                                                                                                                                                </Button>
                                             <Button
                                                 size="sm"
                                                 onClick={handleManagementSendBack}
@@ -1660,12 +1456,12 @@ const ApprovalBoard = (
                                                 disabled={!isLegalTeamFullyApproved()}
                                                 title={!isLegalTeamFullyApproved() ? "Legal team must approve first" : ""}>
                                                 <ThumbsDown className="h-3.5 w-3.5 mr-1" />Send Back
-                                                                                </Button>
+                                                                                                                                                                                </Button>
                                         </div>) : (<div className="flex gap-2 items-center">
                                             <Badge
                                                 variant="outline"
                                                 className="bg-yellow-50 text-yellow-800 border-yellow-200">Pending
-                                                                                </Badge>
+                                                                                                                                                                                </Badge>
                                             {canEditApprovers && (<Button
                                                 variant="outline"
                                                 size="sm"
@@ -1685,13 +1481,13 @@ const ApprovalBoard = (
                                 <div>
                                     {isCurrentUserManagementApprover && getManagementApprovers().some(a => a.approved) ? (<div className="flex items-center gap-2">
                                         <Badge className="bg-green-50 text-green-800 border-green-200">Approved
-                                                                        </Badge>
+                                                                                                                                                                </Badge>
                                         {isCurrentUserManagementApprover && (<Button
                                             size="sm"
                                             onClick={handleManagementWithdraw}
                                             variant="outline"
                                             className="text-amber-600 border-amber-200 hover:bg-amber-50">Undo
-                                                                          </Button>)}
+                                                                                                                                                                  </Button>)}
                                     </div>) : (<div className="flex items-center gap-2">
                                         {isCurrentUserManagementApprover && !getManagementApprovers().some(a => a.declined) ? (<>
                                             <Button
@@ -1701,7 +1497,7 @@ const ApprovalBoard = (
                                                 disabled={!isLegalTeamFullyApproved()}
                                                 title={!isLegalTeamFullyApproved() ? "Legal team must approve first" : ""}>
                                                 <Check className="h-3.5 w-3.5 mr-1" />Approve
-                                                                                </Button>
+                                                                                                                                                                                </Button>
                                             <Button
                                                 size="sm"
                                                 onClick={handleManagementSendBack}
@@ -1709,16 +1505,16 @@ const ApprovalBoard = (
                                                 disabled={!isLegalTeamFullyApproved()}
                                                 title={!isLegalTeamFullyApproved() ? "Legal team must approve first" : ""}>
                                                 <ThumbsDown className="h-3.5 w-3.5 mr-1" />Send Back
-                                                                                </Button>
+                                                                                                                                                                                </Button>
                                         </>) : (<>
                                             <Badge className="bg-red-50 text-red-800 border-red-200">Sent Back
-                                                                                </Badge>
+                                                                                                                                                                                </Badge>
                                             {isCurrentUserManagementApprover && (<Button
                                                 size="sm"
                                                 onClick={handleManagementWithdraw}
                                                 variant="outline"
                                                 className="text-amber-600 border-amber-200 hover:bg-amber-50">Undo
-                                                                                  </Button>)}
+                                                                                                                                                                                  </Button>)}
                                         </>)}
                                     </div>)}
                                     {canEditApprovers && (<Button
@@ -1739,11 +1535,11 @@ const ApprovalBoard = (
                                 <div>
                                     <Label className="text-sm font-medium">
                                         {isInAmendmentMode ? "Amendment Approver" : "Approver Team"}({normalizedContract.approvers?.approver?.length || 0}/{approverLimits.approver})
-                                                            </Label>
+                                                                                                                                            </Label>
                                     {!isInAmendmentMode && !isManagementTeamFullyApproved() && normalizedContract.approvers?.approver?.length > 0 && (<div className="text-xs text-amber-600 mt-1">Waiting for management team approval before final approval
-                                                              </div>)}
+                                                                                                                                              </div>)}
                                     {isInAmendmentMode && !isManagementTeamFullyApproved() && normalizedContract.approvers?.approver?.length > 0 && (<div className="text-xs text-amber-600 mt-1">Waiting for management team approval before final amendment approval
-                                                              </div>)}
+                                                                                                                                              </div>)}
                                 </div>
                                 {canEditApprovers && ((!normalizedContract.approvers?.approver || normalizedContract.approvers?.approver?.length < approverLimits.approver) ? (<div className="relative">
                                     <Button
@@ -1784,7 +1580,7 @@ const ApprovalBoard = (
                                                     <Check className="h-3.5 w-3.5" />
                                                 </Button>
                                             </div>))) : (<div className="px-3 py-2 text-sm text-muted-foreground">No approvers found
-                                                                                </div>)}
+                                                                                                                                                                                </div>)}
                                         </div>
                                     </div>)}
                                 </div>) : null)}
@@ -1799,16 +1595,16 @@ const ApprovalBoard = (
                                 <div>
                                     {approver.approved ? (<div className="flex items-center gap-2">
                                         <Badge className="bg-green-50 text-green-800 border-green-200">Approved
-                                                                        </Badge>
+                                                                                                                                                                </Badge>
                                         {currentUser?.email?.toLowerCase() === approver.email.toLowerCase() && (<Button
                                             size="sm"
                                             onClick={() => handleApproverWithdraw(approver.email)}
                                             variant="outline"
                                             className="text-amber-600 border-amber-200 hover:bg-amber-50">Undo
-                                                                          </Button>)}
+                                                                                                                                                                  </Button>)}
                                     </div>) : approver.declined ? (<div className="flex items-center gap-2">
                                         <Badge className="bg-red-50 text-red-800 border-red-200">Sent Back
-                                                                        </Badge>
+                                                                                                                                                                </Badge>
                                         {currentUser?.email?.toLowerCase() === approver.email.toLowerCase() && (<Button
                                             size="sm"
                                             onClick={() => handleApproverApprove(approver.email)}
@@ -1816,7 +1612,7 @@ const ApprovalBoard = (
                                             disabled={!isManagementTeamFullyApproved()}
                                             title={!isManagementTeamFullyApproved() ? "Management team must approve first" : ""}>
                                             <Check className="h-3.5 w-3.5 mr-1" />Approve Instead
-                                                                          </Button>)}
+                                                                                                                                                                  </Button>)}
                                     </div>) : currentUser?.email?.toLowerCase() === approver.email.toLowerCase() ? (<div className="flex gap-2">
                                         <Button
                                             size="sm"
@@ -1825,7 +1621,7 @@ const ApprovalBoard = (
                                             disabled={!isManagementTeamFullyApproved()}
                                             title={!isManagementTeamFullyApproved() ? "Management team must approve first" : ""}>
                                             <Check className="h-3.5 w-3.5 mr-1" />Approve
-                                                                        </Button>
+                                                                                                                                                                </Button>
                                         <Button
                                             size="sm"
                                             onClick={() => handleApproverSendBack(approver.email)}
@@ -1833,12 +1629,12 @@ const ApprovalBoard = (
                                             disabled={!isManagementTeamFullyApproved()}
                                             title={!isManagementTeamFullyApproved() ? "Management team must approve first" : ""}>
                                             <ThumbsDown className="h-3.5 w-3.5 mr-1" />Send Back
-                                                                        </Button>
+                                                                                                                                                                </Button>
                                     </div>) : (<div className="flex gap-2 items-center">
                                         <Badge
                                             variant="outline"
                                             className="bg-yellow-50 text-yellow-800 border-yellow-200">Pending
-                                                                        </Badge>
+                                                                                                                                                                </Badge>
                                         {canEditApprovers && (<Button
                                             variant="outline"
                                             size="sm"
@@ -1849,7 +1645,7 @@ const ApprovalBoard = (
                                     </div>)}
                                 </div>
                             </div>))) : (<div className="text-sm text-muted-foreground italic">No approver team member assigned - required for contract completion
-                                                  </div>)}
+                                                                                                                  </div>)}
                         </div>
                     </div>)}
                 </CardContent>

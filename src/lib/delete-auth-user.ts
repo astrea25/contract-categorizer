@@ -1,21 +1,3 @@
-/**
- * This file contains a function to delete a user from Firebase Authentication
- * Using client-side only approach
- */
-/**
- * Deletes a user from Firebase Authentication
- * 
- * @param email The email of the user to delete
- * @returns A promise that resolves when the deletion is complete
- */
-// Store current user auth state
-// Find the user's auth UID from Firestore
-// User doesn't exist in Firestore
-// No auth ID stored
-// Log the deletion in console - in a real-world scenario, you'd call an authenticated
-// backend endpoint with admin privileges to perform the actual deletion
-// Show a clear notice to the admin about what needs to be done
-// Return successfully since we've removed from Firestore and alerted the admin
 import { getAuth, deleteUser, signInWithEmailAndPassword } from "firebase/auth";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "./firebase";

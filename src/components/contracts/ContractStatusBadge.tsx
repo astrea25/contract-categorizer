@@ -1,6 +1,3 @@
-// Add a safety check to handle undefined values
-// Format status: replace underscores with spaces and capitalize each word
-// Handle deprecated status names
 import { ContractStatus, statusColors } from "@/lib/data";
 import { cn } from "@/lib/utils";
 

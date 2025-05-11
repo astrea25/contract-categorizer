@@ -1,12 +1,3 @@
-// Profile information
-// Password change
-// Extract first and last name from display name if available
-// Combine first and last name for display name
-// Update profile in Firebase Auth and Firestore
-// Validate passwords
-// Re-authenticate user before changing password
-// Change password
-// Clear password fields
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthNavbar from "@/components/layout/AuthNavbar";
@@ -116,7 +107,7 @@ const Profile = () => {
                 <header className="space-y-2">
                     <h1 className="text-3xl font-bold">Profile Settings</h1>
                     <p className="text-muted-foreground">Manage your account settings and change your password
-                                  </p>
+                                                                                  </p>
                 </header>
                 <Tabs defaultValue="profile">
                     <TabsList className="mb-6">
@@ -128,7 +119,7 @@ const Profile = () => {
                             <CardHeader>
                                 <CardTitle>Profile Information</CardTitle>
                                 <CardDescription>Update your personal information
-                                                    </CardDescription>
+                                                                                                                            </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
@@ -151,7 +142,7 @@ const Profile = () => {
                                     <Label htmlFor="email">Email</Label>
                                     <Input id="email" value={email} disabled className="bg-muted" />
                                     <p className="text-sm text-muted-foreground">Email cannot be changed
-                                                          </p>
+                                                                                                                                          </p>
                                 </div>
                             </CardContent>
                             <CardFooter className="flex justify-end">
@@ -166,7 +157,7 @@ const Profile = () => {
                             <CardHeader>
                                 <CardTitle>Change Password</CardTitle>
                                 <CardDescription>Update your password to keep your account secure
-                                                    </CardDescription>
+                                                                                                                            </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">

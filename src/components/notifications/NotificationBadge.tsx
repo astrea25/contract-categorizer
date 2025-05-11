@@ -1,7 +1,3 @@
-/**
- * A badge that displays the number of unread notifications
- * It automatically fetches the count for the current user's role
- */
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";

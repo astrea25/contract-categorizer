@@ -1,12 +1,3 @@
-// Only redirect if we have a user with email loaded (ensures auth is complete)
-// Redirect to first-time setup if password change is required
-// Use navigate instead of window.location for a cleaner redirect
-// Otherwise redirect to home
-// Google login removed
-// Navigation is handled by the useEffect when currentUser changes
-// Error handling is done in AuthContext
-/* Google sign-in removed */
-/* Sign Up link removed */
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,7 +58,7 @@ const Login = () => {
                         </div>
                         <CardTitle className="text-2xl font-bold">Contract Management</CardTitle>
                         <p className="text-sm text-muted-foreground">Sign in to access your account
-                                        </p>
+                                                                                                </p>
                     </CardHeader>
                     <CardContent>
                         {authError && (<Alert variant="destructive" className="mb-4">
@@ -91,7 +82,7 @@ const Login = () => {
                                     <Link
                                         to="/forgot-password"
                                         className="text-xs text-blue-600 hover:text-blue-800">Forgot password?
-                                                          </Link>
+                                                                                                                                          </Link>
                                 </div>
                                 <Input
                                     id="password"
@@ -107,9 +98,9 @@ const Login = () => {
                             {}
                             <div className="text-xs text-muted-foreground mt-2">
                                 <p className="text-center font-medium">This is an invitation-only application.
-                                                    </p>
+                                                                                                                            </p>
                                 <p className="text-center mt-1">You must be invited by an existing administrator to access the system.
-                                                    </p>
+                                                                                                                            </p>
                             </div>
                         </form>
                     </CardContent>

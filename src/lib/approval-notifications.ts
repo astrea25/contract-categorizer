@@ -1,34 +1,3 @@
-/**
- * Formats the approval history into HTML for email
- */
-// Format legal team approvals
-// Format management team approvals
-// Format approver team approvals
-/**
- * Generates the contract details section for email
- */
-/**
- * Notifies management team when legal team approves
- */
-// Get management team emails
-// Send email to each management team member
-/**
- * Notifies approver team when management approves
- */
-// Get approver team emails
-// Send email to each approver
-/**
- * Notifies the first admin when a contract is sent back by any approver
- */
-// Hardcoded admin email for now
-// Send email to the first admin
-/**
- * Notifies the contract requester/creator when a contract enters amendment process
- */
-// Get the contract owner/creator email
-// If there's no owner email, we can't send a notification
-// Send email to the contract requester/creator
-// Don't throw the error - we don't want to block the amendment process if the email fails
 import { Contract } from "./data";
 import { sendNotificationEmail } from "./brevoService";
 import { collection, getDocs } from "firebase/firestore";

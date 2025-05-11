@@ -1,15 +1,3 @@
-/**
- * Custom hook that provides a unified toast interface with additional options
- * 
- * @returns Object with toast function
- */
-/**
-   * Show a toast notification with customizable options
-   * 
-   * @param options Toast configuration options
-   */
-// Use sonner toast for more advanced options
-// Use UI toast for simpler cases
 import { toast as sonnerToast } from "sonner";
 import { toast as uiToast } from "./use-toast";
 

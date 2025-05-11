@@ -1,134 +1,3 @@
-// Party type removed as it's not in the contract_types file
-// Helper function to determine if a contract is editable based on its status
-// Component to render type-specific fields based on contract type
-// Modified to only allow admin users to edit contracts
-// Only admin users can edit existing contracts
-// Non-admin users cannot edit existing contracts
-// New contracts are always editable
-// For admin users, check if the contract is in an editable status
-// Also allow editing if the contract is in amendment status
-// Don't allow editing if the contract is in contract_end status
-// Check if the contract should be editable based on its status and user role
-// If we have initial data, use it
-// Otherwise create a new contract with default values
-// Default to consultancy as the first contract type
-// Automatically set status to requested
-// Ensure owner is never empty
-// Initialize recipient email field
-// Default: 3 business days for reviewers/approvers
-// Default: 1 business day for regular users
-// Initialize empty type-specific fields
-// Initialize supporting documents based on type
-// Initialize type-specific fields based on contract type
-// Initialize type-specific fields based on the selected contract type
-// Name of Consultant
-// Position Title
-// Gross Professional Fee
-// Payment Schedules
-// Cost Center/Charging
-// Terms of Reference (attachable as PDF link)
-// Name of Service Provider
-// Position Title
-// Gross Technical Service Fee
-// Payment Schedules
-// Cost Center/Charging
-// Scope of Work and Output (attachable as PDF link)
-// Name of Service Provider
-// Position Title
-// Gross Technical Service Fee
-// Payment Schedules
-// Cost Center/Charging
-// Scope of Work and Output (attachable as PDF link)
-// Name of Contracting Party
-// Registered Business/Office Address
-// Name of Authorized Representative/Signatory
-// Designation of Authorized Representative
-// Recitals or Whereas Clauses
-// Purpose of the agreement
-// Roles of KKPFI
-// Roles of the contracting party
-// Mutual obligations (if any)
-// Position Title
-// Cost Center/Charging
-// Number of staff needed
-// Salary Rate
-// Communication Allowance
-// Reason for Requisition
-// Specify reason if replacement
-// Classification of employment
-// Number of months if project
-// Contract type
-// Duration
-// Deliverables
-// Payment
-// Schedules of Payment
-// Name of Donor
-// Registered Address of Donor
-// Project Location
-// Primary Donor
-// Primary Donor Funding Source Agreement Number
-// Contract Amount
-// Bank Account Information
-// Payment Schedules
-// Donor contacts
-// KKPFI contacts
-// Deliverables and dates of submission
-// Name of Authorized Signatory
-// Designation of Authorized Signatory
-// Name of Recipient Organization
-// Registered Address of Recipient Organization
-// Contact Details of Recipient Organization
-// Project Location
-// Primary Donor
-// Primary Donor Funding Source Agreement Number
-// Contract Amount
-// Bank Account Information
-// Payment Schedules
-// Recipient Organization contacts
-// KKPFI contacts
-// Deliverables and dates of submission
-// Name of Authorized Signatory
-// Designation of Authorized Signatory
-// Name of Lessor
-// Registered Address of Lessor
-// Description of Property to be Leased
-// Complete Address of Property
-// Purpose of Lease
-// Amount of Monthly Rental Fee
-// Due Date of Payment
-// Cost Center/Charging
-// Name of Recipient Organization/Donee
-// Name of Authorized Representative of Donee
-// Address of Donee
-// Email Address of Donee
-// Purpose for the transfer of item/equipment
-// List of materials to be donated
-// Specific Donee Obligations
-// Update folder if initialFolder changes
-// Initialize supporting documents if they don't exist when editing a contract
-// For folder selection, explicitly set to null when 'none' is selected
-// Prevent changing contract type when editing an existing contract
-// When contract type changes, reset type-specific fields and update supporting documents
-// Reset type-specific fields
-// Update supporting documents based on new type
-// Handler for type-specific fields
-// Handler for type-specific number fields
-// Handler for type-specific select fields
-// The date is already fixed by our custom Calendar component
-// The date is already fixed by our custom Calendar component
-// Handler for supporting documents checkboxes
-// Check if the contract is editable based on its status
-// Validate required fields based on contract_types file
-// Validate type-specific required fields
-// Use project name as the title and ensure status is set to requested for new contracts
-// Set title to be the same as project name
-// Ensure new contracts always have requested status
-/* Show warning if contract is not editable */
-/* Show recipient email field to everyone when creating a new contract, but only to admins when editing */
-/* Only show inactivity notification days when editing and user is admin */
-/* Type-specific fields */
-/* Supporting Documents Checklist */
-/* Folder and Contract Value fields removed as they're not in the contract_types file */
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -1829,16 +1698,16 @@ const ContractForm = (
                     <DialogHeader>
                         <DialogTitle>{initialData ? "Edit Contract" : "Create New Contract"}</DialogTitle>
                         <DialogDescription>Fill in the details for this contract. Required fields are marked with an asterisk (*).
-                                        </DialogDescription>
+                                                                                                </DialogDescription>
                     </DialogHeader>
                     {}
                     {initialData && !isEditable && (<Alert variant="destructive" className="mt-4">
                         <AlertCircle className="h-4 w-4" />
                         <AlertDescription>
                             {!isAdmin ? (<>Warning: Only administrators can edit contracts. Please contact an administrator if you need to make changes to this contract.
-                                                  </>) : (<>Warning: This contract is in {initialData.status?.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")}status and should not be edited.
-                                                    Contracts should only be edited until after the Reviews. After that, contracts should only be edited through amendment.
-                                                  </>)}
+                                                                                                                  </>) : (<>Warning: This contract is in {initialData.status?.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")}status and should not be edited.
+                                                                                                                    Contracts should only be edited until after the Reviews. After that, contracts should only be edited through amendment.
+                                                                                                                  </>)}
                         </AlertDescription>
                     </Alert>)}
                     <div className="grid gap-4 py-4">
@@ -1870,7 +1739,7 @@ const ContractForm = (
                                     disabled={(initialData && !isAdmin) || (initialData && !isEditable)}
                                     placeholder="Enter recipient's email address (optional)" />
                                 {initialData && !isAdmin && (<p className="text-sm text-muted-foreground mt-1">Only administrators can edit recipient email for existing contracts
-                                                        </p>)}
+                                                                                                                                </p>)}
                             </div>
                         </div>)}
                         {}
@@ -1903,7 +1772,7 @@ const ContractForm = (
                                             <span className="text-sm text-muted-foreground">business days</span>
                                         </div>
                                         <p className="text-xs text-muted-foreground mt-1">Default: 3 business days (72 hours) for legal team, management team, and approvers
-                                                                  </p>
+                                                                                                                                                          </p>
                                     </div>
                                     <div>
                                         <Label htmlFor="regularInactivityDays">Regular User Inactivity Threshold</Label>
@@ -1931,15 +1800,15 @@ const ContractForm = (
                                             <span className="text-sm text-muted-foreground">business days</span>
                                         </div>
                                         <p className="text-xs text-muted-foreground mt-1">Default: 1 business day (24 hours) for all other users
-                                                                  </p>
+                                                                                                                                                          </p>
                                     </div>
                                     <div
                                         className="text-sm text-muted-foreground space-y-1 pt-2 border-t border-gray-200">
                                         <p>
                                             <strong>Note:</strong>These thresholds count only business days (excluding weekends).
-                                                                  </p>
+                                                                                                                                                          </p>
                                         <p>If left empty, the system will use the default values shown above.
-                                                                  </p>
+                                                                                                                                                          </p>
                                     </div>
                                 </div>
                             </div>
@@ -1948,7 +1817,7 @@ const ContractForm = (
                             <Label
                                 htmlFor="type"
                                 className="after:content-['*'] after:ml-0.5 after:text-red-500">Contract Type
-                                                {initialData && <span className="ml-2 text-amber-600 text-sm">(Cannot be changed after creation)</span>}
+                                                                                                                {initialData && <span className="ml-2 text-amber-600 text-sm">(Cannot be changed after creation)</span>}
                             </Label>
                             <Select
                                 value={formData.type as string || "service"}
@@ -1964,13 +1833,13 @@ const ContractForm = (
                                 </SelectContent>
                             </Select>
                             {initialData && (<p className="text-sm text-muted-foreground mt-1">Contract type cannot be changed after creation. To change the contract type, create a new contract.
-                                                </p>)}
+                                                                                                                </p>)}
                         </div>
                         {}
                         {formData.type && (<div className="border p-4 rounded-md bg-muted/20">
                             <h3 className="text-lg font-medium mb-4">
                                 {contractTypeLabels[formData.type as ContractType]}Details
-                                                </h3>
+                                                                                                                </h3>
                             <TypeSpecificFields
                                 contractType={formData.type as ContractType}
                                 typeSpecificFields={formData.typeSpecificFields}
@@ -1982,7 +1851,7 @@ const ContractForm = (
                         {}
                         {formData.type && formData.supportingDocuments && formData.supportingDocuments.length > 0 && (<div className="border p-4 rounded-md bg-muted/20">
                             <h3 className="text-lg font-medium mb-4">Supporting Documents Checklist
-                                                </h3>
+                                                                                                                </h3>
                             <div className="space-y-2">
                                 {formData.supportingDocuments.map((doc, index) => (<div key={index} className="flex items-center space-x-2">
                                     <Checkbox
@@ -2054,7 +1923,7 @@ const ContractForm = (
                     </div>
                     <DialogFooter>
                         <Button variant="outline" type="button" onClick={() => setOpen(false)}>Cancel
-                                        </Button>
+                                                                                                </Button>
                         <Button type="submit" disabled={initialData && !isEditable}>
                             {initialData && !isEditable ? "Cannot Edit" : "Save Contract"}
                         </Button>

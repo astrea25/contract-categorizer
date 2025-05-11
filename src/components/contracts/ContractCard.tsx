@@ -1,4 +1,3 @@
-// ShareDialog removed
 import { Contract, contractTypeLabels } from "@/lib/data";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import ContractStatusBadge from "./ContractStatusBadge";
@@ -83,7 +82,7 @@ const ContractCard = (
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-muted-foreground hover:underline">Document Link
-                                    </a>
+                                                                                    </a>
                 </div>)}
             </CardContent>
             <CardFooter className="bg-secondary/30 px-6 py-3 flex justify-between items-center">

@@ -1,6 +1,3 @@
-// First check if the email exists in the system
-// Send password reset email
-// Show success message
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { getAuth, sendPasswordResetEmail } from "firebase/auth";
@@ -68,7 +65,7 @@ const ForgotPassword: React.FC = () => {
                 <CardHeader>
                     <CardTitle className="text-2xl font-bold text-center">Reset Password</CardTitle>
                     <CardDescription className="text-center">Enter your email address and we'll send you a link to reset your password
-                                  </CardDescription>
+                                                                                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                     {error && (<Alert variant="destructive" className="mb-4">
@@ -95,11 +92,11 @@ const ForgotPassword: React.FC = () => {
                         <p className="text-sm text-gray-500">We've sent a password reset link to <span className="font-medium">{email}</span>
                         </p>
                         <p className="text-sm text-gray-500">Didn't receive the email? Check your spam folder or try again.
-                                          </p>
+                                                                                                  </p>
                     </div>) : (<form onSubmit={handleSubmit} className="space-y-4">
                         <div>
                             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email address
-                                                </label>
+                                                                                                                </label>
                             <Input
                                 id="email"
                                 type="email"
@@ -119,7 +116,7 @@ const ForgotPassword: React.FC = () => {
                         to="/login"
                         className="flex items-center text-sm text-blue-600 hover:text-blue-800">
                         <ArrowLeft className="h-4 w-4 mr-1" />Back to login
-                                  </Link>
+                                                                                  </Link>
                 </CardFooter>
             </Card>
         </div>

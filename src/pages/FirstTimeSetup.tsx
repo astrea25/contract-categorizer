@@ -1,24 +1,3 @@
-// Profile information
-// Password change
-// Only redirect if we have a user and the passwordChangeRequired flag has been properly loaded
-// We can determine this by checking if the user's email has been loaded
-// Extract first and last name from display name if available
-// Validate form
-// Current password is no longer required for this approach
-// 1. Update profile information
-// 2. Update password directly (user is already authenticated)
-// Update password directly - no need to reauthenticate since user is freshly logged in
-// 3. Update the passwordChangeRequired flag in the database
-// 4. Update the passwordChangeRequired flag in the AuthContext state
-// Success - redirect to home page
-// Use navigate for a cleaner redirect
-// Handle specific Firebase auth errors
-// This shouldn't happen since the user just logged in, but just in case
-// Even if password change fails, update the profile
-// Mark the password change as completed to prevent getting stuck in this page
-// Update the passwordChangeRequired flag in the AuthContext state
-// Use navigate for a cleaner redirect
-/* Current password field removed as it's not needed */
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -150,7 +129,7 @@ const FirstTimeSetup = () => {
                         </div>
                         <CardTitle className="text-2xl font-bold text-center">Complete Your Account Setup</CardTitle>
                         <CardDescription className="text-center">Please set up your profile and create a new password to continue
-                                        </CardDescription>
+                                                                                                </CardDescription>
                     </CardHeader>
                     <CardContent>
                         {error && (<Alert variant="destructive" className="mb-4">

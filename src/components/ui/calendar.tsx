@@ -1,27 +1,3 @@
-// Helper function to create a safe date object
-// Handle DateRange object being passed instead of Date
-// This is expected behavior with react-day-picker in range mode
-// Create a new date at noon to avoid timezone issues
-// Validate the date
-// Create a custom onSelect handler to fix timezone issues
-// If day is undefined, pass it through
-// Check if day is a DateRange object instead of a Date
-// This is expected behavior with react-day-picker in range mode
-// Just pass it through to the parent component
-// Create a safe date object
-// Handle different modes (single, range, multiple)
-// For range mode, we need to handle the range object
-// Determine if this is the start or end date
-// First selection - start date
-// Second selection - end date
-// If selecting a date before the start date, swap them
-// Reset selection
-// For single mode
-// Pass undefined on error to reset the selection
-// Process selected prop to ensure valid dates
-// Validate from and to dates
-// For single mode
-// Get processed props with valid dates
 import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DayPicker, SelectSingleEventHandler, DateRange } from "react-day-picker";

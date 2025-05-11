@@ -1,15 +1,3 @@
-/**
- * A dropdown that displays notifications for the current user
- */
-// Determine the user's role
-// Set empty array on error to avoid breaking the UI
-// Mark the notification as read
-// Update the local state
-// Refresh the unread count
-// Navigate to the contract detail page
-// Close the dropdown
-// Update the local state
-// Refresh the unread count
 import React, { useEffect, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -154,20 +142,20 @@ const NotificationDropdown: React.FC = () => {
                 <div className="flex items-center justify-between p-4">
                     <h3 className="font-medium text-sm flex items-center">
                         <InboxIcon className="h-4 w-4 mr-2" />Notifications
-                                  </h3>
+                                                                                  </h3>
                     <Button
                         variant="ghost"
                         size="sm"
                         onClick={handleMarkAllAsRead}
                         className="h-8 px-2 text-xs">
                         <Check className="h-3 w-3 mr-1" />Mark all read
-                                  </Button>
+                                                                                  </Button>
                 </div>
                 <Separator />
                 <ScrollArea className="h-[300px]">
                     {loading ? (<div className="p-4 text-center text-sm text-muted-foreground">Loading notifications...
-                                    </div>) : notifications.length === 0 ? (<div className="p-4 text-center text-sm text-muted-foreground">No notifications
-                                    </div>) : (<div>
+                                                                                    </div>) : notifications.length === 0 ? (<div className="p-4 text-center text-sm text-muted-foreground">No notifications
+                                                                                    </div>) : (<div>
                         {notifications.map(notification => (<div
                             key={notification.id}
                             className={`p-3 border-b last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors ${notification.read ? "opacity-70" : "bg-primary/5"}`}
@@ -196,7 +184,7 @@ const NotificationDropdown: React.FC = () => {
                             navigate("/inbox");
                             setOpen(false);
                         }}>View all notifications
-                                  </Button>
+                                                                                  </Button>
                 </div>
             </PopoverContent>
         </Popover>

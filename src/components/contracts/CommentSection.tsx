@@ -1,9 +1,3 @@
-// Get initials from name or email
-// Get display name or email
-/* Add new comment */
-/* Reply form */
-/* Replies */
-/* Delete confirmation dialog */
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -147,7 +141,7 @@ const CommentSection = (
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <MessageSquare className="h-5 w-5" />Comments
-                            </CardTitle>
+                                                                    </CardTitle>
             </CardHeader>
             <CardContent>
                 <div className="space-y-6">
@@ -170,12 +164,12 @@ const CommentSection = (
                                     onClick={handleSubmitComment}
                                     disabled={!newComment.trim() || isSubmitting}
                                     size="sm">Add Comment
-                                                    </Button>
+                                                                                                                            </Button>
                             </div>
                         </div>
                     </div>
                     {sortedComments.length === 0 ? (<div className="text-center py-8 text-muted-foreground">No comments yet. Be the first to add a comment!
-                                    </div>) : (<div className="space-y-6">
+                                                                                    </div>) : (<div className="space-y-6">
                         {sortedComments.map(comment => (<div key={comment.id} className="space-y-3">
                             <div className="flex gap-3">
                                 <Avatar className="h-8 w-8 bg-primary/10">
@@ -200,7 +194,7 @@ const CommentSection = (
                                             className="h-6 px-2 text-xs gap-1"
                                             onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}>
                                             <Reply className="h-3 w-3" />Reply
-                                                                    </Button>
+                                                                                                                                                            </Button>
                                         {comment.userEmail === userEmail && (<Button
                                             variant="ghost"
                                             size="sm"
@@ -209,7 +203,7 @@ const CommentSection = (
                                                 id: comment.id
                                             })}>
                                             <Trash2 className="h-3 w-3" />Delete
-                                                                      </Button>)}
+                                                                                                                                                              </Button>)}
                                     </div>
                                 </div>
                             </div>
@@ -236,12 +230,12 @@ const CommentSection = (
                                                 [comment.id]: ""
                                             }));
                                         }}>Cancel
-                                                                </Button>
+                                                                                                                                                </Button>
                                     <Button
                                         size="sm"
                                         onClick={() => handleSubmitReply(comment.id)}
                                         disabled={!replyText[comment.id]?.trim() || isSubmitting}>Reply
-                                                                </Button>
+                                                                                                                                                </Button>
                                 </div>
                             </div>)}
                             {}
@@ -272,7 +266,7 @@ const CommentSection = (
                                                     parentId: comment.id
                                                 })}>
                                                 <Trash2 className="h-3 w-3" />Delete
-                                                                                </Button>)}
+                                                                                                                                                                                </Button>)}
                                         </div>
                                     </div>
                                 </div>))}
@@ -290,14 +284,14 @@ const CommentSection = (
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete comment?</AlertDialogTitle>
                         <AlertDialogDescription>This action cannot be undone. The comment and any replies will be permanently deleted.
-                                        </AlertDialogDescription>
+                                                                                                </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDeleteComment}
                             className="bg-destructive text-destructive-foreground">Delete
-                                        </AlertDialogAction>
+                                                                                                </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

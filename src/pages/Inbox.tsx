@@ -1,15 +1,3 @@
-// Determine the user's role
-// Set empty arrays on error to avoid breaking the UI
-// Apply filters
-// Apply search filter
-// Apply type filter
-// Apply read filter
-// Mark the notification as read
-// Update the local state
-// Refresh the unread count
-// Navigate to the contract detail page
-// Update the local state
-// Refresh the unread count
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -224,19 +212,19 @@ const Inbox: React.FC = () => {
                         <div>
                             <h1 className="text-3xl font-bold flex items-center">
                                 <InboxIcon className="h-8 w-8 mr-2" />Inbox
-                                                {unreadCount > 0 && (<Badge className="ml-2 bg-red-500 text-white">
+                                                                                                                {unreadCount > 0 && (<Badge className="ml-2 bg-red-500 text-white">
                                     {unreadCount}unread
-                                                      </Badge>)}
+                                                                                                                              </Badge>)}
                             </h1>
                             <p className="text-muted-foreground mt-1">View and manage your notifications
-                                              </p>
+                                                                                                              </p>
                         </div>
                         <Button
                             variant="outline"
                             onClick={handleMarkAllAsRead}
                             disabled={unreadCount === 0}>
                             <Check className="h-4 w-4 mr-2" />Mark all as read
-                                        </Button>
+                                                                                                </Button>
                     </div>
                     <Card>
                         <CardHeader className="pb-3">

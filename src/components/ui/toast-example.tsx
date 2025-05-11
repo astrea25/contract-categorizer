@@ -1,8 +1,3 @@
-/**
- * Example component showing how to use the different toast options
- * This is for demonstration purposes only
- */
-// Show 3 toasts in quick succession
 import { Button } from "@/components/ui/button";
 import { useCustomToast } from "@/hooks/use-custom-toast";
 import { toast as sonnerToast } from "sonner";
@@ -72,11 +67,11 @@ export function ToastExample() {
                 <Button onClick={showCustomDurationToast}>Custom Duration (10s)</Button>
                 <Button onClick={showPositionedToast}>Custom Position</Button>
                 <Button onClick={showDestructiveToast} variant="destructive">Error Toast
-                            </Button>
+                                                                    </Button>
                 <Button onClick={showMultipleToasts} variant="outline">Show Multiple Toasts
-                            </Button>
+                                                                    </Button>
                 <Button onClick={dismissAllToasts} variant="secondary">Dismiss All
-                            </Button>
+                                                                    </Button>
             </div>
         </div>
     );

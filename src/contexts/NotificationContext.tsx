@@ -1,6 +1,3 @@
-// Determine the user's role
-// Set count to 0 on error to avoid breaking the UI
-// Set up a polling interval to refresh the count every 30 seconds
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useAuth } from "./AuthContext";
 import { getUnreadNotificationCount, RecipientRole } from "@/lib/notifications";

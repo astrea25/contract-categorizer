@@ -1,135 +1,3 @@
-// Helper function to check if a user is an approver for a contract
-// Check legal approvers (can be array or object)
-// Check management approvers (can be array or object)
-// Check other approvers (always array)
-// Fetch the contract data
-// Start tracking role assignment time
-// If admin, legal team, or management team, authorize immediately
-// Check other authorization criteria
-// Check if user is the owner of the contract
-// Check if user is in the parties list
-// Check if user is an approver using our helper function
-// Otherwise, user is not authorized
-// Ensure displayName is never undefined
-// Unarchive the contract
-// Archive the contract
-// Refresh the contract data
-// Close the dialog
-// Explicitly type error as any to access message property
-// Prevent deletion of non-archived contracts
-// Delete the contract
-// Navigate back to contracts page
-// Function to handle sending an inactivity notification
-// Send the notification
-// Only allow opening delete dialog for archived contracts
-// Check if all supporting documents are checked and legal approvers are assigned when moving from requested to draft
-// Ensure we have the latest contract data
-// Check if legal approvers are assigned
-// Check supporting documents
-// At this point all validations have passed, send emails to legal approvers
-// Don't block the status change if email sending fails
-// Check if we need to reset approvals when changing to draft status
-// deprecated status
-// deprecated status
-// Import the normalizeApprovers function to properly handle approver structure
-// Normalize the contract to ensure consistent approvers structure
-// Create a deep copy of the approvers
-// Reset legal approvals
-// declined means sent back
-// Reset management approvals
-// declined means sent back
-// Reset approver approvals
-// declined means sent back
-// Update contract with reset approvals and new status
-// Prepare update data
-// Update the contract with the new status and any additional data
-// Show a specific toast message when approvals have been reset
-// deprecated status
-// deprecated status
-// Import notification functions
-// Check if we have a custom timeline entry
-// Get approvers, removing _customTimelineEntry if present
-// Get the current contract to access its current approvers and timeline
-// Fetch the latest contract data to ensure we're working with the most up-to-date version
-// Check if the contract has been updated by someone else since we loaded it
-// The contract was updated since we loaded it - let's refresh our local state
-// Still proceed with the update, but notify the user of potential changes
-// Normalize approvers structure - ensure arrays for multi-approver support
-// Ensure legal approvers are in array format
-// Ensure management approvers are in array format
-// Ensure approver is always an array (it should be already, but just in case)
-// Create update object
-// Check if we have a status update
-// Check if we have an amendment stage update
-// If we have a custom timeline entry, prepare a new timeline
-// Create a new timeline entry
-// Add the new timeline entry to the existing timeline
-// Update the contract with normalized approvers and possibly new timeline entry
-// Fetch the updated contract to refresh UI
-// Update the timestamp
-// Check if all legal team members have approved
-// Check if all management team members have approved
-// Helper function to determine if a contract is editable based on its status
-// Only admin users can edit contracts
-// Only admin users can edit contracts
-// Contract can be edited if it's in one of these statuses
-// Also allow editing if the contract is in amendment status
-// Don't allow editing if the contract is in contract_end status
-// Helper function to determine if a contract can be amended
-// Only admin users can amend contracts
-// Only admin users can amend contracts
-// Contracts can be amended if they are in implementation, wwf_signing, or counterparty_signing status
-// Don't allow amending if the contract is already in amendment status
-// Don't allow amending if the contract is in contract_end status
-// Don't allow amending if the contract is in early stages
-// Function to open the amend dialog
-// Function to handle amending a contract
-// Import the notification function
-// Store the original status before moving to amendment
-// Normalize the contract to ensure consistent approvers structure
-// Create a deep copy of the approvers
-// Reset legal approvals
-// declined means sent back
-// Reset management approvals
-// declined means sent back
-// Reset approver approvals
-// declined means sent back
-// Update the contract status to amendment and set amendment flags
-// Store the original status
-// Include the reset approvers
-// Refresh the contract data
-// Send notification email to the contract requester/creator
-// Don't block the amendment process if notification fails
-// Close the dialog
-// Format timeline details by removing "Changed: " prefix and capitalizing each word
-// For status changes, don't add any details (they're redundant)
-// If the details start with "Changed: ", remove it
-// Split by commas and capitalize each item
-/* Admin-only inactivity notification button */
-// Show restore and permanent delete options for archived contracts
-// Show archive and edit options for non-archived contracts
-/* Always show the original status card */
-/* Show amendment status card only when in amendment mode */
-/* Type-specific details - Moved to a more prominent position */
-/* Contract Progress Bar */
-/* Approval Board */
-/* Timeline */
-/* Contract timeline events */
-/* Sort timeline entries by timestamp (newest first) and show either all or just the most recent */
-// Check if this is a status change event
-// Extract status from the action text if it's a status change
-// Convert the formatted status back to the status key
-// Handle legacy status names
-// Use userName if available, otherwise use email username or full email
-// For backward compatibility
-// For backward compatibility
-/* Show More/Hide button if there are more than DEFAULT_TIMELINE_ENTRIES entries */
-/* Legacy timeline events if no timeline array exists */
-/* Add the comment section */
-// Fetch the latest contract data
-/* Archive/Unarchive Confirmation Dialog */
-/* Delete Confirmation Dialog */
-/* Amendment Confirmation Dialog */
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -903,7 +771,7 @@ const ContractDetail = () => {
                     <Button asChild variant="outline">
                         <Link to="/contracts" className="flex items-center gap-2">
                             <ArrowLeft size={16} />Back to contracts
-                                        </Link>
+                                                                                                </Link>
                     </Button>
                 </div>
             </>
@@ -927,7 +795,7 @@ const ContractDetail = () => {
                         <Button asChild variant="ghost" className="self-start">
                             <Link to="/contracts" className="flex items-center gap-2">
                                 <ArrowLeft size={16} />Back to contracts
-                                              </Link>
+                                                                                                              </Link>
                         </Button>
                         <div className="flex gap-2 self-end">
                             {isRefreshing && (<div className="flex items-center text-sm text-muted-foreground mr-2">
@@ -969,14 +837,14 @@ const ContractDetail = () => {
                                     onClick={openArchiveDialog}
                                     disabled={isArchiving}>
                                     <ArchiveRestore size={16} />Restore
-                                                      </Button>
+                                                                                                                              </Button>
                                 <Button
                                     variant="destructive"
                                     className="gap-1"
                                     onClick={openDeleteDialog}
                                     disabled={isDeleting}>
                                     <Trash2 size={16} />Permanently Delete
-                                                      </Button>
+                                                                                                                              </Button>
                             </>) : (<>
                                 <Button
                                     variant="outline"
@@ -984,20 +852,20 @@ const ContractDetail = () => {
                                     onClick={openArchiveDialog}
                                     disabled={isArchiving}>
                                     <Archive size={16} />Archive
-                                                      </Button>
+                                                                                                                              </Button>
                                 {isContractEditable(contract) && isAdmin && (<ContractForm
                                     initialData={contract}
                                     onSave={handleSaveContract}
                                     trigger={<Button variant="outline" className="gap-1">
                                         <Edit size={16} />Edit Contract
-                                                                </Button>} />)}
+                                                                                                                                                </Button>} />)}
                                 {canContractBeAmended(contract) && isAdmin && (<Button
                                     variant="outline"
                                     className="gap-1"
                                     onClick={openAmendDialog}
                                     disabled={updatingStatus}>
                                     <FilePenLine size={16} />Amend Contract
-                                                        </Button>)}
+                                                                                                                                </Button>)}
                             </>)}
                         </div>
                     </div>
@@ -1011,7 +879,7 @@ const ContractDetail = () => {
                             {contract.archived && (<span
                                 className="px-2 py-1 bg-amber-100 text-amber-800 text-xs rounded-md font-medium flex items-center gap-1">
                                 <Archive className="h-3 w-3" />Archived
-                                                </span>)}
+                                                                                                                </span>)}
                         </div>
                         <h1 className="text-3xl font-bold tracking-tight">{contract.title}</h1>
                         <p className="text-lg text-muted-foreground">
@@ -1146,7 +1014,7 @@ const ContractDetail = () => {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-500 hover:underline">View Document
-                                          </a>
+                                                                                                  </a>
                     </CardContent>
                 </Card>)}
                 {}

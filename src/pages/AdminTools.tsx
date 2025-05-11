@@ -1,5 +1,3 @@
-// No longer need inactivityDays as we use role-based thresholds
-// Check if user is admin
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -98,13 +96,13 @@ const AdminTools = () => {
                             <CardHeader>
                                 <CardTitle>Contract Inactivity Check</CardTitle>
                                 <CardDescription>Check for contracts that have been inactive for a specified number of business days and send notification emails.
-                                                    </CardDescription>
+                                                                                                                            </CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="space-y-4">
                                     <div className="space-y-2">
                                         <p className="text-sm">This tool checks for contracts that have been inactive for a specified number of <strong>business days</strong>(excluding weekends) and sends notification emails.
-                                                                </p>
+                                                                                                                                                        </p>
                                         <p className="text-sm text-muted-foreground">
                                             <strong>Role-based thresholds:</strong>
                                         </p>
@@ -137,12 +135,12 @@ const AdminTools = () => {
                             <CardHeader>
                                 <CardTitle>Contract Deletion</CardTitle>
                                 <CardDescription>Delete expired archived contracts based on system settings.
-                                                    </CardDescription>
+                                                                                                                            </CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="space-y-4">
                                     <p className="text-sm text-muted-foreground">This will permanently delete archived contracts that have been expired for the period specified in system settings.
-                                                          </p>
+                                                                                                                                          </p>
                                     {deletionResult && (<Alert className="bg-green-50 border-green-200">
                                         <CheckCircle className="h-4 w-4 text-green-600" />
                                         <AlertTitle>Success</AlertTitle>

@@ -1,4 +1,3 @@
-// If selecting the same field, toggle direction
 import { Button } from "@/components/ui/button";
 
 import {

@@ -1,20 +1,3 @@
-// Amendment stage options
-// Only show the card if the contract is in amendment mode
-// Check if the value is one of the amendment stages
-// Get the stage label for the notification
-// Update the amendment stage without changing the contract status
-// Send notification to the contract requester/creator about the stage change
-// Don't block the stage change if notification fails
-// If trying to exit amendment mode, check if amendment is complete
-// If amendment is complete, restore the original status if available
-// Send notification to the contract requester/creator about amendment completion
-// Don't block the status change if notification fails
-// Get the current amendment stage
-// Get the label for the current stage
-// Check if approvals are in progress
-// Only disable when updating
-// Only show current stage, next stage, or previous stage
-// If amendment is complete (counterparty stage), also show the original status option
 import { useState } from "react";
 import { FilePenLine } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -210,7 +193,7 @@ const AmendmentStatusCard = (
                                                 key="restore-original"
                                                 value={contract.originalStatus}
                                                 className="text-green-600 font-medium">Complete Amendment (Return to {contract.originalStatus.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")})
-                                                                        </SelectItem>)}
+                                                                                                                                                                        </SelectItem>)}
                                         </>
                                     );
                                 }
@@ -226,7 +209,7 @@ const AmendmentStatusCard = (
                     </Select>
                     {isUpdating && (<p className="text-xs text-muted-foreground">Updating amendment stage...</p>)}
                     {(hasManagementApprovers && hasApproverTeam) && (<p className="text-xs text-amber-600 mt-2">Amendment stage will automatically progress based on approvals, but you can still manually change it if needed.
-                                    </p>)}
+                                                                                    </p>)}
                     {contract.originalStatus && (<p className="text-xs text-amber-600 mt-2">Original status: {contract.originalStatus.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")}
                     </p>)}
                 </div>

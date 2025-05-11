@@ -1,4 +1,3 @@
-// Redirect if no user is logged in
 import { useState } from "react";
 import { addAdminUser } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,13 +46,13 @@ const MakeAdmin = () => {
                 <header className="mb-8">
                     <h1 className="text-3xl font-bold tracking-tight mb-2">Make Admin</h1>
                     <p className="text-muted-foreground">Add a user to the admin collection
-                                  </p>
+                                                                                  </p>
                 </header>
                 <Card className="max-w-lg mx-auto">
                     <CardHeader>
                         <CardTitle>Make User an Admin</CardTitle>
                         <CardDescription>Enter the email of the user you want to make an admin
-                                        </CardDescription>
+                                                                                                </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-4">

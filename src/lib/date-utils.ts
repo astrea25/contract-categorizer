@@ -1,29 +1,3 @@
-/**
- * Calculates the number of business days (excluding weekends) between two dates
- *
- * @param startDate The start date
- * @param endDate The end date
- * @returns The number of business days between the two dates
- */
-// Ensure startDate is before endDate
-// Calculate total days
-// Count weekend days
-// Iterate through each day and count weekends
-// Return business days (total days minus weekend days)
-/**
- * Determines the appropriate inactivity notification threshold based on contract status and role
- *
- * @param contract The contract object
- * @param isApprover Whether the recipient is an approver (legal, management, or approver team)
- * @returns The number of business days before sending an inactivity notification
- */
-// Check if contract has specific thresholds set
-// For backward compatibility, check the legacy field
-// Use default thresholds based on role
-// For backward compatibility
-// 3 business days for approvers/reviewers
-// For all other cases, use 1 business day (24 hours)
-// 1 business day for everyone else
 import { differenceInDays, isWeekend } from "date-fns";
 
 export const differenceInBusinessDays = (startDate: Date, endDate: Date): number => {

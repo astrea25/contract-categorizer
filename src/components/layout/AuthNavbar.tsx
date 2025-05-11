@@ -1,9 +1,3 @@
-// Role checking functions are no longer needed here
-// User role information is now provided by AuthContext
-// Get user's display name or fall back to email
-/* Desktop navigation */
-/* Mobile menu button */
-/* Mobile menu */
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -51,20 +45,20 @@ const AuthNavbar = () => {
                             <Link
                                 to="/"
                                 className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium hover:border-primary hover:text-foreground">Dashboard
-                                              </Link>
+                                                                                                              </Link>
                             <Link
                                 to="/contracts"
                                 className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium hover:border-primary hover:text-foreground">Contracts
-                                              </Link>
+                                                                                                              </Link>
                             <Link
                                 to="/profile"
                                 className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium hover:border-primary hover:text-foreground">Profile
-                                              </Link>
+                                                                                                              </Link>
                             {isAdmin && (<Link
                                 to="/admin"
                                 className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium hover:border-primary hover:text-foreground text-primary">
                                 <Shield className="h-4 w-4 mr-1" />Admin
-                                                </Link>)}
+                                                                                                                </Link>)}
                         </div>
                     </div>
                     <div className="flex items-center">
@@ -87,7 +81,7 @@ const AuthNavbar = () => {
                                     </div>
                                     <Button variant="outline" size="sm" onClick={handleSignOut}>
                                         <LogOut className="h-4 w-4 mr-2" />Sign out
-                                                            </Button>
+                                                                                                                                            </Button>
                                 </div>)}
                             </div>
                         </div>
@@ -109,24 +103,24 @@ const AuthNavbar = () => {
                         to="/"
                         className="block border-l-4 border-transparent py-2 pl-3 pr-4 text-base font-medium hover:border-primary hover:bg-muted hover:text-foreground"
                         onClick={() => setIsOpen(false)}>Dashboard
-                                    </Link>
+                                                                                    </Link>
                     <Link
                         to="/contracts"
                         className="block border-l-4 border-transparent py-2 pl-3 pr-4 text-base font-medium hover:border-primary hover:bg-muted hover:text-foreground"
                         onClick={() => setIsOpen(false)}>Contracts
-                                    </Link>
+                                                                                    </Link>
                     <Link
                         to="/profile"
                         className="block border-l-4 border-transparent py-2 pl-3 pr-4 text-base font-medium hover:border-primary hover:bg-muted hover:text-foreground"
                         onClick={() => setIsOpen(false)}>Profile
-                                    </Link>
+                                                                                    </Link>
                     <Link
                         to="/inbox"
                         className="block border-l-4 border-transparent py-2 pl-3 pr-4 text-base font-medium hover:border-primary hover:bg-muted hover:text-foreground"
                         onClick={() => setIsOpen(false)}>
                         <div className="flex items-center">
                             <InboxIcon className="h-4 w-4 mr-2" />Inbox
-                                          </div>
+                                                                                                  </div>
                     </Link>
                     {isAdmin && (<Link
                         to="/admin"
@@ -134,7 +128,7 @@ const AuthNavbar = () => {
                         onClick={() => setIsOpen(false)}>
                         <div className="flex items-center">
                             <Shield className="h-4 w-4 mr-2" />Admin
-                                            </div>
+                                                                                                    </div>
                     </Link>)}
                     {currentUser && (<div className="border-t pt-4 pb-2">
                         <div className="px-4 py-2">
@@ -153,7 +147,7 @@ const AuthNavbar = () => {
                                     setIsOpen(false);
                                 }}>
                                 <LogOut className="h-4 w-4 mr-2" />Sign out
-                                                  </Button>
+                                                                                                                  </Button>
                         </div>
                     </div>)}
                 </div>

@@ -1,11 +1,3 @@
-// Helper function to safely format dates
-// Check if the date is valid
-// Sync internal state with props when filters change
-/* Advanced Filters */
-// Handle null or undefined range
-// Create new Date objects to ensure they are valid
-// Reset date range on error
-/* Basic Filters */
 import { Search, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

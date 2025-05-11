@@ -1,32 +1,3 @@
-// Add a method to manually update the passwordChangeRequired flag
-// Define a user state interface to hold all user-related state
-// Initial user state
-// Use a single state object for all user-related state
-// Try with the provided password first
-// If wrong password, try with the default password (12345678)
-// Try with default password as a fallback
-// If default password also fails, show the original error
-// Re-throw other errors
-// Check user roles and update state directly - skip the isUserAllowed check
-// Show message about default password if it was used
-// For simplicity, we'll rely on the existing toast system in the app
-// Use single API call to fetch all roles at once - much faster than separate calls
-// If roles is null, fall back to parallel checks (though this should be rare)
-// Run all role checks in parallel as a fallback
-// Determine primary display role (for UI purposes)
-// Check if password change is required
-// If we got consolidated roles, use them
-// Check if password change is required
-// Method to manually update the passwordChangeRequired flag in the state
-// Set the user immediately to improve initial load time
-// Set basic user state immediately
-// Will be updated after role check
-// Then check roles asynchronously - skip the permission check
-// Check user roles and update state
-// Register or update user data
-// Extract name from display name if available
-// Register or update user data
-// Reset to initial state
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 import {

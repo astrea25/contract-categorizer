@@ -1,18 +1,3 @@
-// Only load folders created by the current user
-// Get count of archived contracts
-// Refresh folder list - only get folders for the current user
-// Reset form & close dialog
-// Refresh folder list - only get folders for the current user
-// Reset form & close dialog
-// Prevent folder selection when clicking rename
-// Prevent folder selection when clicking delete
-// When expanding, focus the search input after a short delay
-// When collapsing, clear the search
-// Filter folders based on search query
-/* Rename Dialog */
-// Count not relevant for "All" view
-// No-op for All view
-// No-op for Archive view
 import { useState, useEffect } from "react";
 
 import {
@@ -248,7 +233,7 @@ const FolderList = (
                             <div className="grid gap-4 py-4">
                                 <div className="space-y-2">
                                     <label htmlFor="name" className="text-sm font-medium">Folder Name
-                                                          </label>
+                                                                                                                                          </label>
                                     <Input
                                         id="name"
                                         value={newFolderName}
@@ -257,7 +242,7 @@ const FolderList = (
                                 </div>
                                 <div className="space-y-2">
                                     <label htmlFor="description" className="text-sm font-medium">Description (Optional)
-                                                          </label>
+                                                                                                                                          </label>
                                     <Input
                                         id="description"
                                         value={newFolderDesc}
@@ -267,7 +252,7 @@ const FolderList = (
                             </div>
                             <DialogFooter>
                                 <Button variant="outline" onClick={() => setOpenNewFolder(false)}>Cancel
-                                                    </Button>
+                                                                                                                            </Button>
                                 <Button onClick={handleCreateFolder}>Create Folder</Button>
                             </DialogFooter>
                         </DialogContent>
@@ -282,7 +267,7 @@ const FolderList = (
                         <div className="grid gap-4 py-4">
                             <div className="space-y-2">
                                 <label htmlFor="rename-name" className="text-sm font-medium">Folder Name
-                                                    </label>
+                                                                                                                            </label>
                                 <Input
                                     id="rename-name"
                                     value={renameFolderName}
@@ -291,7 +276,7 @@ const FolderList = (
                             </div>
                             <div className="space-y-2">
                                 <label htmlFor="rename-description" className="text-sm font-medium">Description (Optional)
-                                                    </label>
+                                                                                                                            </label>
                                 <Input
                                     id="rename-description"
                                     value={renameFolderDesc}
@@ -301,7 +286,7 @@ const FolderList = (
                         </div>
                         <DialogFooter>
                             <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>Cancel
-                                              </Button>
+                                                                                                              </Button>
                             <Button onClick={handleRenameFolder}>Save Changes</Button>
                         </DialogFooter>
                     </DialogContent>
@@ -342,10 +327,10 @@ const FolderList = (
                             <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={e => openRenameDialog(folder, e)}>
                                     <Pencil className="h-4 w-4 mr-2" />Rename
-                                                        </DropdownMenuItem>
+                                                                                                                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={e => handleDelete(folder.id, e)}>
                                     <Trash2 className="h-4 w-4 mr-2" />Delete
-                                                        </DropdownMenuItem>
+                                                                                                                                </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>

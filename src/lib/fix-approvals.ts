@@ -1,30 +1,3 @@
-/**
- * Fixes inconsistent approval states in the database
- * This function finds contracts where approved and sent back (declined) are both true
- * and sets sent back (declined) to false
- *
- * @returns A promise that resolves when all inconsistent states are fixed
- */
-// Get all contracts
-// Find contracts with inconsistent approval states
-// Check for legal team inconsistencies
-// declined means sent back
-// Check for management team inconsistencies
-// declined means sent back
-// Also check for undefined sent back (declined) with approved=true
-// Check for string values instead of booleans
-// declined means sent back
-// declined means sent back
-// Fix each contract
-// Fix legal approver if needed
-// Fix inconsistent approved/sent back state
-// declined means sent back
-// Fix string values
-// Fix management approver if needed
-// Fix inconsistent approved/sent back state
-// declined means sent back
-// Fix string values
-// Update the contract
 import { getContracts, updateContract } from "./data";
 
 export const fixInconsistentApprovalStates = async (): Promise<void> => {

@@ -1,110 +1,3 @@
-// Types
-// Flag for users who are invited but not registered yet
-// All users including those in teams
-// Redirect non-admin users
-// If user is logged in but not an admin, redirect to home
-// State for user invitation form
-// State for admin user form
-// State for legal team member form
-// State for management team member form
-// State for approver member form
-// State for user removal confirmation
-// State for Firebase Auth deletion confirmation
-// Fetch users
-// Fetch admins
-// Fetch legal team members
-// Fetch management team members
-// Fetch approvers
-// Get users with pending status (invites)
-// Filter out admin users, legal team, and management team members from the users list
-// Create a set of emails that are already registered in the system
-// Mark pending users as invites for the UI
-// Flag to identify pending invites in the UI
-// Filter users for the regular users tab (excluding admins, legal, and management)
-// Keep a separate list of all users for admin selection
-// Combine regular users with pending invites for the users tab
-// Set all users for admin selection
-// Function to create a new user account
-// Default role
-// Refresh data to show the new user
-// Filter users for adding to admin team
-// Only show users who don't have any role yet
-// Exclude existing admins
-// Exclude legal team members
-// Exclude management team members
-// Exclude approvers
-// Function to add user as admin
-// Get the display name from user with better fallbacks
-// If no displayName, try to build it from first and last name
-// If still no displayName, use the email username part
-// Pass the current user email for authorization check and the display name
-// Refresh data
-// Check for specific error messages
-// Function to remove an admin
-// Pass the current user email for authorization check
-// Refresh data
-// Filter users for adding to legal team
-// Exclude management team members
-// Function to add a legal team member
-// Get the display name from user
-// Also invite the user with the legal role
-// Refresh data
-// Check for specific error message
-// Function to remove a legal team member
-// Refresh data
-// Filter users for adding to management team
-// Exclude legal team members
-// Filter users for adding to approvers
-// Exclude legal team members
-// Exclude management team members
-// Function to add a management team member
-// Get the display name from user
-// Also invite the user with the management role
-// Refresh data
-// Check for specific error message
-// Function to remove a management team member
-// Refresh data
-// Function to add an approver
-// Get the display name from user
-// Also invite the user with the approver role
-// Refresh data
-// Check for specific error messages
-// Function to remove an approver
-// Refresh data
-// Function to update display names and other fields for admin users
-// Find admins missing display names or createdAt
-// For each admin without required fields, update them
-// Check for missing displayName
-// Find user in allUsers with matching email
-// Check for missing createdAt
-// Use current date as fallback
-// Only update if we have changes
-// Update the admin document
-// Refresh data
-// Function to sync Firebase Auth display names with Firestore
-// Update current user's display name in Firestore
-// Refresh data
-// Debug function to log user data
-// Show details of the first user
-// Function to handle user removal (only from Firestore, not Firebase Auth)
-// This is a pending invitation - delete from users collection with pending status
-// This is a registered user - only remove from Firestore database
-// Refresh data
-// Function to update display names for users without one
-// Find users missing display names but with first/last names
-// Update each user
-// Refresh data
-// Function to handle Firebase Auth deletion confirmation
-// Import the markUserDeletedInAuth function
-// Mark the user as deleted in Firebase Auth
-// Define columns for users table
-// Show both options for debugging
-// Define columns for admins table
-// Define columns for legal team table
-// Define columns for management team table
-// Define columns for approvers table
-/* Admin Guide - Firebase Auth Deletion Instructions */
-/* User removal confirmation dialog */
 import { useState, useEffect } from "react";
 import AuthNavbar from "@/components/layout/AuthNavbar";
 import PageTransition from "@/components/layout/PageTransition";
@@ -826,7 +719,7 @@ const Admin = () => {
                 return (
                     <span
                         className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-yellow-50 text-yellow-800 border-yellow-200">Invited
-                                  </span>
+                                                                                  </span>
                 );
             }
 
@@ -1013,12 +906,12 @@ const Admin = () => {
                             <Button asChild variant="outline">
                                 <Link to="/system-settings">
                                     <Settings className="h-4 w-4 mr-2" />System Settings
-                                                    </Link>
+                                                                                                                            </Link>
                             </Button>
                             <Button asChild variant="outline">
                                 <Link to="/admin-tools">
                                     <Settings className="h-4 w-4 mr-2" />Admin Tools
-                                                    </Link>
+                                                                                                                            </Link>
                             </Button>
                         </div>
                         <Tabs
@@ -1040,7 +933,7 @@ const Admin = () => {
                                             <div>
                                                 <CardTitle>Users</CardTitle>
                                                 <CardDescription>List of all regular users in the application (excluding admins and legal team)
-                                                                            </CardDescription>
+                                                                                                                                                                                    </CardDescription>
                                             </div>
                                             <Dialog
                                                 open={isInviteDialogOpen}
@@ -1054,13 +947,13 @@ const Admin = () => {
                                                 <DialogTrigger asChild>
                                                     <Button size="sm">
                                                         <Plus className="h-4 w-4 mr-2" />Invite User
-                                                                                  </Button>
+                                                                                                                                                                                                  </Button>
                                                 </DialogTrigger>
                                                 <DialogContent>
                                                     <DialogHeader>
                                                         <DialogTitle>Invite New User</DialogTitle>
                                                         <DialogDescription>Enter the email address of the user you want to invite. They will receive an email with login credentials.
-                                                                                        </DialogDescription>
+                                                                                                                                                                                                                </DialogDescription>
                                                     </DialogHeader>
                                                     <div className="grid gap-4 py-4">
                                                         <div className="grid gap-2">
@@ -1073,11 +966,11 @@ const Admin = () => {
                                                                 onChange={e => setNewUserEmail(e.target.value)} />
                                                         </div>
                                                         <div className="text-sm text-muted-foreground">The user will receive an email with a temporary password (12345678) and instructions to log in.
-                                                                                        </div>
+                                                                                                                                                                                                                </div>
                                                     </div>
                                                     <DialogFooter>
                                                         <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)}>Cancel
-                                                                                        </Button>
+                                                                                                                                                                                                                </Button>
                                                         <Button onClick={handleInviteUser} disabled={inviting || !newUserEmail}>
                                                             {inviting ? "Inviting..." : "Invite User"}
                                                         </Button>
@@ -1089,11 +982,11 @@ const Admin = () => {
                                     <CardContent>
                                         <div className="mb-4 flex flex-wrap gap-2">
                                             <Button variant="outline" onClick={updateAdminFields} disabled={loading}>Fix Missing Display Names
-                                                                      </Button>
+                                                                                                                                                                      </Button>
                                             <Button variant="outline" onClick={syncAuthDisplayNames} disabled={loading}>Sync Auth Display Name
-                                                                      </Button>
+                                                                                                                                                                      </Button>
                                             <Button variant="outline" onClick={debugUserData} disabled={loading}>Debug User Data
-                                                                      </Button>
+                                                                                                                                                                      </Button>
                                         </div>
                                         {loading ? (<Skeleton className="w-full h-64" />) : (<>
                                             {}
@@ -1106,7 +999,7 @@ const Admin = () => {
                                                 </CardHeader>
                                                 <CardContent>
                                                     <p className="text-sm mb-2">When deleting users from the system, please note that you'll need to manually delete them from Firebase Authentication:
-                                                                                    </p>
+                                                                                                                                                                                                    </p>
                                                     <ol className="list-decimal list-inside text-sm space-y-1 pl-2">
                                                         <li>Go to the <a
                                                                 href="https://console.firebase.google.com/"
@@ -1127,10 +1020,10 @@ const Admin = () => {
                                     </CardContent>
                                     <CardFooter className="border-t pt-6 flex flex-col gap-2">
                                         <div className="text-sm text-muted-foreground">This section shows both registered users and pending invitations.
-                                                                  This application is invitation-only - new users must be invited via the "Invite User" button before they can sign up.
-                                                                  The delete button will remove users from the Firestore database only. To completely delete users, you must also
-                                                                  manually delete them from Firebase Authentication using the guide above.
-                                                                </div>
+                                                                                                                                                          This application is invitation-only - new users must be invited via the "Invite User" button before they can sign up.
+                                                                                                                                                          The delete button will remove users from the Firestore database only. To completely delete users, you must also
+                                                                                                                                                          manually delete them from Firebase Authentication using the guide above.
+                                                                                                                                                        </div>
                                     </CardFooter>
                                 </Card>
                             </TabsContent>
@@ -1141,7 +1034,7 @@ const Admin = () => {
                                             <div>
                                                 <CardTitle>Administrators</CardTitle>
                                                 <CardDescription>Users with full access to the application
-                                                                            </CardDescription>
+                                                                                                                                                                                    </CardDescription>
                                             </div>
                                             <Dialog
                                                 open={isAdminDialogOpen}
@@ -1157,13 +1050,13 @@ const Admin = () => {
                                                 <DialogTrigger asChild>
                                                     <Button size="sm">
                                                         <Plus className="h-4 w-4 mr-2" />Add Admin
-                                                                                  </Button>
+                                                                                                                                                                                                  </Button>
                                                 </DialogTrigger>
                                                 <DialogContent>
                                                     <DialogHeader>
                                                         <DialogTitle>Add Administrator</DialogTitle>
                                                         <DialogDescription>Search for an existing user to promote to administrator role.
-                                                                                        </DialogDescription>
+                                                                                                                                                                                                                </DialogDescription>
                                                     </DialogHeader>
                                                     <div className="grid gap-4 py-4">
                                                         <div className="grid gap-2">
@@ -1195,13 +1088,13 @@ const Admin = () => {
                                                         </div>
                                                         {filteredAdminUsers.length === 0 && adminUserSearch.trim() !== "" && (<div className="text-sm flex items-center gap-2 text-muted-foreground">
                                                             <AlertCircle className="h-4 w-4" />No matching users found
-                                                                                          </div>)}
+                                                                                                                                                                                                                  </div>)}
                                                         {adminUserSearch.trim() === "" && (<div className="text-sm text-muted-foreground">Type to search for users to add as administrators
-                                                                                          </div>)}
+                                                                                                                                                                                                                  </div>)}
                                                     </div>
                                                     <DialogFooter>
                                                         <Button variant="outline" onClick={() => setIsAdminDialogOpen(false)}>Cancel
-                                                                                        </Button>
+                                                                                                                                                                                                                </Button>
                                                     </DialogFooter>
                                                 </DialogContent>
                                             </Dialog>
@@ -1211,14 +1104,14 @@ const Admin = () => {
                                         {loading ? (<Skeleton className="w-full h-64" />) : (<>
                                             <div className="mb-4">
                                                 <Button variant="outline" onClick={updateAdminFields} disabled={loading}>Fix Admin Fields
-                                                                              </Button>
+                                                                                                                                                                                      </Button>
                                             </div>
                                             <DataTable columns={adminColumns} data={admins} />
                                         </>)}
                                     </CardContent>
                                     <CardFooter className="border-t pt-6 flex justify-between">
                                         <div className="text-sm text-muted-foreground">Administrators have full access to all features and settings.
-                                                                </div>
+                                                                                                                                                        </div>
                                     </CardFooter>
                                 </Card>
                             </TabsContent>
@@ -1229,7 +1122,7 @@ const Admin = () => {
                                             <div>
                                                 <CardTitle>Legal Team</CardTitle>
                                                 <CardDescription>Manage legal team members who review contracts
-                                                                            </CardDescription>
+                                                                                                                                                                                    </CardDescription>
                                             </div>
                                             <Dialog
                                                 open={isLegalDialogOpen}
@@ -1244,13 +1137,13 @@ const Admin = () => {
                                                 <DialogTrigger asChild>
                                                     <Button size="sm">
                                                         <Plus className="h-4 w-4 mr-2" />Add Member
-                                                                                  </Button>
+                                                                                                                                                                                                  </Button>
                                                 </DialogTrigger>
                                                 <DialogContent>
                                                     <DialogHeader>
                                                         <DialogTitle>Add Legal Team Member</DialogTitle>
                                                         <DialogDescription>Search for an existing user to add to the legal team.
-                                                                                        </DialogDescription>
+                                                                                                                                                                                                                </DialogDescription>
                                                     </DialogHeader>
                                                     <div className="grid gap-4 py-4">
                                                         <div className="grid gap-2">
@@ -1282,13 +1175,13 @@ const Admin = () => {
                                                         </div>
                                                         {filteredLegalUsers.length === 0 && legalUserSearch.trim() !== "" && (<div className="text-sm flex items-center gap-2 text-muted-foreground">
                                                             <AlertCircle className="h-4 w-4" />No matching users found
-                                                                                          </div>)}
+                                                                                                                                                                                                                  </div>)}
                                                         {legalUserSearch.trim() === "" && (<div className="text-sm text-muted-foreground">Type to search for users to add to the legal team
-                                                                                          </div>)}
+                                                                                                                                                                                                                  </div>)}
                                                     </div>
                                                     <DialogFooter>
                                                         <Button variant="outline" onClick={() => setIsLegalDialogOpen(false)}>Cancel
-                                                                                        </Button>
+                                                                                                                                                                                                                </Button>
                                                     </DialogFooter>
                                                 </DialogContent>
                                             </Dialog>
@@ -1299,7 +1192,7 @@ const Admin = () => {
                                     </CardContent>
                                     <CardFooter className="border-t pt-6 flex justify-between">
                                         <div className="text-sm text-muted-foreground">Legal team members can review contracts and provide feedback.
-                                                                </div>
+                                                                                                                                                        </div>
                                     </CardFooter>
                                 </Card>
                             </TabsContent>
@@ -1310,7 +1203,7 @@ const Admin = () => {
                                             <div>
                                                 <CardTitle>Management Team</CardTitle>
                                                 <CardDescription>Manage management team members who approve contracts
-                                                                            </CardDescription>
+                                                                                                                                                                                    </CardDescription>
                                             </div>
                                             <Dialog
                                                 open={isManagementDialogOpen}
@@ -1325,13 +1218,13 @@ const Admin = () => {
                                                 <DialogTrigger asChild>
                                                     <Button size="sm">
                                                         <Plus className="h-4 w-4 mr-2" />Add Member
-                                                                                  </Button>
+                                                                                                                                                                                                  </Button>
                                                 </DialogTrigger>
                                                 <DialogContent>
                                                     <DialogHeader>
                                                         <DialogTitle>Add Management Team Member</DialogTitle>
                                                         <DialogDescription>Search for an existing user to add to the management team.
-                                                                                        </DialogDescription>
+                                                                                                                                                                                                                </DialogDescription>
                                                     </DialogHeader>
                                                     <div className="grid gap-4 py-4">
                                                         <div className="grid gap-2">
@@ -1363,13 +1256,13 @@ const Admin = () => {
                                                         </div>
                                                         {filteredManagementUsers.length === 0 && managementUserSearch.trim() !== "" && (<div className="text-sm flex items-center gap-2 text-muted-foreground">
                                                             <AlertCircle className="h-4 w-4" />No matching users found
-                                                                                          </div>)}
+                                                                                                                                                                                                                  </div>)}
                                                         {managementUserSearch.trim() === "" && (<div className="text-sm text-muted-foreground">Type to search for users to add to the management team
-                                                                                          </div>)}
+                                                                                                                                                                                                                  </div>)}
                                                     </div>
                                                     <DialogFooter>
                                                         <Button variant="outline" onClick={() => setIsManagementDialogOpen(false)}>Cancel
-                                                                                        </Button>
+                                                                                                                                                                                                                </Button>
                                                     </DialogFooter>
                                                 </DialogContent>
                                             </Dialog>
@@ -1380,7 +1273,7 @@ const Admin = () => {
                                     </CardContent>
                                     <CardFooter className="border-t pt-6 flex justify-between">
                                         <div className="text-sm text-muted-foreground">Management team members can approve contracts and make business decisions.
-                                                                </div>
+                                                                                                                                                        </div>
                                     </CardFooter>
                                 </Card>
                             </TabsContent>
@@ -1391,7 +1284,7 @@ const Admin = () => {
                                             <div>
                                                 <CardTitle>Approvers</CardTitle>
                                                 <CardDescription>Manage approvers who can approve contracts
-                                                                            </CardDescription>
+                                                                                                                                                                                    </CardDescription>
                                             </div>
                                             <Dialog
                                                 open={isApproverDialogOpen}
@@ -1406,13 +1299,13 @@ const Admin = () => {
                                                 <DialogTrigger asChild>
                                                     <Button size="sm">
                                                         <Plus className="h-4 w-4 mr-2" />Add Member
-                                                                                  </Button>
+                                                                                                                                                                                                  </Button>
                                                 </DialogTrigger>
                                                 <DialogContent>
                                                     <DialogHeader>
                                                         <DialogTitle>Add Approver</DialogTitle>
                                                         <DialogDescription>Search for an existing user to add as an approver.
-                                                                                        </DialogDescription>
+                                                                                                                                                                                                                </DialogDescription>
                                                     </DialogHeader>
                                                     <div className="grid gap-4 py-4">
                                                         <div className="grid gap-2">
@@ -1444,13 +1337,13 @@ const Admin = () => {
                                                         </div>
                                                         {filteredApproverUsers.length === 0 && approverUserSearch.trim() !== "" && (<div className="text-sm flex items-center gap-2 text-muted-foreground">
                                                             <AlertCircle className="h-4 w-4" />No matching users found
-                                                                                          </div>)}
+                                                                                                                                                                                                                  </div>)}
                                                         {approverUserSearch.trim() === "" && (<div className="text-sm text-muted-foreground">Type to search for users to add as approvers
-                                                                                          </div>)}
+                                                                                                                                                                                                                  </div>)}
                                                     </div>
                                                     <DialogFooter>
                                                         <Button variant="outline" onClick={() => setIsApproverDialogOpen(false)}>Cancel
-                                                                                        </Button>
+                                                                                                                                                                                                                </Button>
                                                     </DialogFooter>
                                                 </DialogContent>
                                             </Dialog>
@@ -1461,7 +1354,7 @@ const Admin = () => {
                                     </CardContent>
                                     <CardFooter className="border-t pt-6 flex justify-between">
                                         <div className="text-sm text-muted-foreground">Approvers can review and approve contracts.
-                                                                </div>
+                                                                                                                                                        </div>
                                     </CardFooter>
                                 </Card>
                             </TabsContent>
@@ -1477,21 +1370,21 @@ const Admin = () => {
                                     </AlertDialogTitle>
                                     <AlertDialogDescription>
                                         {userToRemove?.isPendingInvite ? (<>Are you sure you want to cancel the invitation for <span className="font-semibold">{userToRemove?.email}</span>?
-                                                                    This will prevent this person from being able to sign up for the application.
-                                                                  </>) : (<>Are you sure you want to remove <span className="font-semibold">{userToRemove?.email}</span>from the database?
-                                                                    This will remove the user from the Firestore database only.
-                                                                  </>)}
+                                                                                                                                                            This will prevent this person from being able to sign up for the application.
+                                                                                                                                                          </>) : (<>Are you sure you want to remove <span className="font-semibold">{userToRemove?.email}</span>from the database?
+                                                                                                                                                            This will remove the user from the Firestore database only.
+                                                                                                                                                          </>)}
                                     </AlertDialogDescription>
                                     {!userToRemove?.isPendingInvite && (<div className="mt-3 p-3 border border-amber-200 bg-amber-50 rounded-md">
                                         <div className="text-amber-700 text-sm font-medium">Important Note</div>
                                         <div className="text-amber-700 text-sm mt-1">This operation will only remove the user from the Firestore database.
-                                                                  </div>
+                                                                                                                                                          </div>
                                         <div className="text-amber-700 text-sm mt-1">The user will still exist in Firebase Authentication and will need to be manually deleted
-                                                                    through the Firebase Console as explained in the guide above.
-                                                                  </div>
+                                                                                                                                                            through the Firebase Console as explained in the guide above.
+                                                                                                                                                          </div>
                                         <div className="text-amber-700 text-sm mt-1">Until deleted from Firebase Authentication, the user may still be able to log in,
-                                                                    but will appear as a new user without any roles or permissions.
-                                                                  </div>
+                                                                                                                                                            but will appear as a new user without any roles or permissions.
+                                                                                                                                                          </div>
                                     </div>)}
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>

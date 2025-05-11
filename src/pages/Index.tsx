@@ -1,103 +1,3 @@
-// State for the list
-// Fix any inconsistent approval states
-// Silent catch
-// Use different statistics fetching based on user role
-// Admins can see all contract stats
-// Get all contracts for the dashboard and chart data
-// Sort by last updated and take the 5 most recent for display
-// Legal, management team, and approver members see only their assigned contracts
-// Get all contracts assigned to this user
-// Normalize contracts to handle the new approvers structure
-// Get approved and rejected contracts by this user
-// Check if the user is a legal team approver who approved this contract
-// Check if the user is a management team approver who approved this contract
-// Check if the user is an approver who approved this contract
-// Check if the user is a legal team approver who sent back this contract
-// declined means sent back
-// Check if the user is a management team approver who sent back this contract
-// declined means sent back
-// Check if the user is an approver who sent back this contract
-// declined means sent back
-// Get contracts requiring approval from this user
-// Force a fresh fetch of contracts to ensure we have the latest data
-// Get contracts that the user has already responded to
-// Calculate awaiting response count directly
-// Log the counts for debugging
-// Log the original stats from getUserContractStats
-// Try a direct count of contracts requiring approval
-// Skip contracts that are already finished or in a state that doesn't require approval
-// For legal team members
-// Check if the contract is in a state where it needs legal team approval
-// If no approvers assigned yet, show to all legal team members
-// Check if current user is assigned as a legal approver
-// Check if not already approved or declined
-// For management team members
-// Check if the contract is in a state where it needs management team approval
-// If no approvers assigned yet, show to all management team members
-// Check if current user is assigned as a management approver
-// Check if not already approved or declined
-// For approvers
-// Check if the contract is in a state where it needs approval from an approver
-// If no approvers assigned yet, show to all approvers
-// Check if current user is assigned as an approver
-// Check if not already approved or declined
-// Update stats with contracts requiring approval
-// Use the maximum of directCount, contractsForApproval.length, and awaitingResponseCount
-// to ensure we don't miss any contracts
-// If we have responded contracts, make sure they're counted too
-// Force the pendingApprovalContracts to be 1 if we know there should be 1 awaiting response
-// This is a temporary fix until we can properly debug the issue
-// Get only contracts assigned to this user for the dashboard and chart data
-// Sort by last updated and take the 5 most recent for display
-// Regular users can only see their own contract stats
-// Get user's contracts for the dashboard
-// Sort by last updated and take the 5 most recent
-// Filter for expiring contracts (e.g., within 30 days) after allContracts is set
-// Ensure allContracts is updated before filtering
-// Ensure endDate is treated as a string before parsing
-// Ignore invalid dates
-// Return the original state for setAllContracts
-// Silent catch
-// Define colors for each status
-// blue
-// gray
-// purple
-// orange
-// indigo
-// pink
-// cyan
-// amber
-// green
-// red
-// red
-// Create chart data with counts
-// Filter out statuses with zero contracts for a cleaner pie chart
-// Map display names to status values for filtering
-// Handle click on pie chart slice or legend item
-// Navigate to contracts page with status filter
-// Function to fix inconsistent approval states
-// Handle click on legend item
-// Handle mouse enter on pie slice
-// Only set active index if we have valid data and it's a valid slice
-// Handle mouse leave on pie slice
-// Helper function to get days since last edit with actual date
-// Return N/A if date parsing fails
-// Helper to get the display name or email of the last editor
-// Fallback to owner if no timeline
-// Consider fetching owner's name here if needed
-// Sort timeline to get the latest entry
-// Return userName if available, otherwise userEmail
-// Helper function to format status strings
-// Handle deprecated status names
-// Set to 0 for solid pie chart
-// Remove the built-in label to implement our own custom labels
-// Apply animation and scaling effect when hovered
-// Handle the case when there's no data
-// More opacity when active
-/* Tooltip removed as per user request */
-/* Custom tooltip for hover - positioned outside the pie to avoid interfering with hover animations */
-// Ensures the div doesn't interfere with mouse events
-/* Remove padding if table handles it */
 import { useState, useEffect } from "react";
 import { differenceInDays, parseISO, format } from "date-fns";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -553,7 +453,7 @@ const Index = () => {
                 <header className="mb-8">
                     <h1 className="text-3xl font-bold tracking-tight mb-2">Contract Management Dashboard</h1>
                     <p className="text-muted-foreground">Overview of your contract portfolio and key metrics
-                                  </p>
+                                                                                  </p>
                 </header>
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
                     <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
@@ -662,7 +562,7 @@ const Index = () => {
                         <CardHeader>
                             <CardTitle>Contract Status Overview</CardTitle>
                             <CardDescription>Distribution of contracts by status
-                                              </CardDescription>
+                                                                                                              </CardDescription>
                         </CardHeader>
                         <CardContent>
                             {loading ? (<div className="h-[200px] flex items-center justify-center">
@@ -785,7 +685,7 @@ const Index = () => {
                             <div>
                                 <CardTitle>Contract Progress Statistics</CardTitle>
                                 <CardDescription>Number of contracts in each stage
-                                                    </CardDescription>
+                                                                                                                            </CardDescription>
                             </div>
                             <Button variant="ghost" size="sm" asChild>
                                 <Link to="/contracts" className="flex items-center gap-1">
@@ -822,7 +722,7 @@ const Index = () => {
                                     </div>
                                 </div>))}
                                 {chartData.length === 0 && (<p className="text-center text-muted-foreground py-4">No contracts found
-                                                        </p>)}
+                                                                                                                                </p>)}
                             </div>)}
                         </CardContent>
                     </Card>
@@ -889,7 +789,7 @@ const Index = () => {
                             </Table>
                         </CardContent>
                     </Card>) : (<p className="text-sm text-muted-foreground text-center py-4">No recent contract activity.
-                                      </p>))}
+                                                                                      </p>))}
                 </div>
             </div>
         </PageTransition>

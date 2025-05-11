@@ -1,6 +1,3 @@
-// Define role colors
-// Default to user colors if role not found
-// Format role for display
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 

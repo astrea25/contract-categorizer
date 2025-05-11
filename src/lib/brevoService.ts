@@ -1,16 +1,3 @@
-// sendShareInviteEmail function removed
-/**
- * Send a general notification email
- * @param recipientEmail Email address of the recipient
- * @param subject Email subject
- * @param htmlContent HTML content of the email
- * @param textContent Optional plain text content of the email
- * @returns Promise resolving to the API response
- */
-// Retrieve sender info from environment variables
-// Create email data
-// Add textContent if provided
-// Send the email using Brevo API
 export const sendNotificationEmail = async (
     recipientEmail: string,
     subject: string,

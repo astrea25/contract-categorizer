@@ -1,8 +1,3 @@
-// AcceptInvite import removed
-// SignUp page removed
-/* Custom toast component with dismiss all button */
-/* Sonner toast with close button and shorter duration */
-/* AcceptInvite route removed */
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";

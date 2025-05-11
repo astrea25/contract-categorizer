@@ -1,6 +1,3 @@
-/* Desktop menu */
-/* Mobile menu button */
-/* Mobile menu */
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { FileText, Home, Menu, X } from "lucide-react";

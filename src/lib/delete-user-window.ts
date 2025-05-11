@@ -1,24 +1,3 @@
-/**
- * This file contains a solution for deleting Firebase Auth users
- * using a popup window to avoid affecting the current user's session
- */
-/**
- * Creates a popup window and uses it to delete a user from Firebase Authentication
- * This approach completely isolates the authentication contexts
- * 
- * @param email The email of the user to delete
- * @param password The password of the user (default is '12345678')
- * @returns A promise that resolves to true if successful, false otherwise
- */
-// Generate a unique ID for this deletion operation
-// Store the callback in window object so the popup can access it
-// Clean up
-// Create the HTML content for the popup
-// Create a blob URL for the HTML content
-// Open a popup window with the content
-// Set a timeout in case the popup is closed without resolving
-// 1 minute timeout
-// Override the resolve function to clear the timeout
 export const deleteUserWithPopup = async (email: string, password: string = "12345678"): Promise<boolean> => {
     return new Promise(resolve => {
         try {

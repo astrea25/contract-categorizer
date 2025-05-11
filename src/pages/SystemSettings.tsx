@@ -1,15 +1,3 @@
-// Redirect non-admin users
-// If user is logged in but not an admin, redirect to home
-// Fetch settings on load
-// Handle saving settings
-// Make sure archiveRetentionDays is at least 1
-// Handle running deletion process manually
-// Refresh the page to show updated contracts list
-// Handle force deletion of all archived contracts
-// Pass true to indicate force deletion
-// Refresh the page to show updated contracts list
-// Handle changes to retention days
-// Toggle auto-delete
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -199,7 +187,7 @@ const SystemSettingsPage = () => {
                 <header className="space-y-2">
                     <h1 className="text-3xl font-bold">System Settings</h1>
                     <p className="text-muted-foreground">Configure system-wide settings and maintenance options
-                                  </p>
+                                                                                  </p>
                 </header>
                 {loading ? (<Card>
                     <CardContent className="pt-6">
@@ -210,16 +198,16 @@ const SystemSettingsPage = () => {
                         <CardHeader>
                             <CardTitle>Contract Archive Management</CardTitle>
                             <CardDescription>Configure how long archived contracts are retained before permanent deletion
-                                                </CardDescription>
+                                                                                                                </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
                                         <Label htmlFor="auto-delete">Automatic Deletion
-                                                                  </Label>
+                                                                                                                                                          </Label>
                                         <p className="text-sm text-muted-foreground">Automatically delete archived contracts after the retention period
-                                                                  </p>
+                                                                                                                                                          </p>
                                     </div>
                                     <Switch
                                         id="auto-delete"
@@ -241,7 +229,7 @@ const SystemSettingsPage = () => {
                                         <span className="text-sm text-muted-foreground">days</span>
                                     </div>
                                     <p className="text-sm text-muted-foreground">Archived contracts will be permanently deleted after this many days
-                                                            </p>
+                                                                                                                                            </p>
                                 </div>
                                 <div className="pt-4 flex flex-wrap gap-4">
                                     <Button onClick={handleSaveSettings} disabled={saving}>
@@ -256,19 +244,19 @@ const SystemSettingsPage = () => {
                                     <AlertDialog open={isForceDeleteDialogOpen} onOpenChange={setIsForceDeleteDialogOpen}>
                                         <AlertDialogTrigger asChild>
                                             <Button variant="destructive" disabled={processingDeletion}>Force Delete All Archived
-                                                                        </Button>
+                                                                                                                                                                        </Button>
                                         </AlertDialogTrigger>
                                         <AlertDialogContent>
                                             <AlertDialogHeader>
                                                 <AlertDialogTitle className="flex items-center gap-2">
                                                     <AlertTriangle className="h-5 w-5 text-destructive" />Force Delete All Archived Contracts
-                                                                              </AlertDialogTitle>
+                                                                                                                                                                                      </AlertDialogTitle>
                                                 <AlertDialogDescription>
                                                     <p className="mb-4">This will immediately and permanently delete ALL archived contracts, 
-                                                                                      regardless of when they were archived or the retention period.
-                                                                                    </p>
+                                                                                                                                                                                                      regardless of when they were archived or the retention period.
+                                                                                                                                                                                                    </p>
                                                     <p className="font-semibold text-destructive">This action cannot be undone. Are you sure you want to proceed?
-                                                                                    </p>
+                                                                                                                                                                                                    </p>
                                                 </AlertDialogDescription>
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
@@ -296,8 +284,8 @@ const SystemSettingsPage = () => {
                                     {settings.autoDeleteEnabled ? `Archived contracts will be permanently deleted after ${settings.archiveRetentionDays} days` : "Automatic deletion of archived contracts is disabled"}
                                 </p>
                                 <p className="text-sm text-muted-foreground">Note: Permanently deleted contracts cannot be recovered. Make sure any important contract data 
-                                                        is exported or stored elsewhere before the retention period expires.
-                                                      </p>
+                                                                                                                                is exported or stored elsewhere before the retention period expires.
+                                                                                                                              </p>
                             </div>
                         </CardContent>
                     </Card>
