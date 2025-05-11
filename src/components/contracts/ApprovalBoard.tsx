@@ -302,12 +302,12 @@ const ApprovalBoard = ({
   const handleApproverApprove = async (email: string) => {
     if (!isApprover || !currentUser?.email) return;
 
-    // For amendment mode, check if legal team has approved
+    // For amendment mode, check if management team has approved
     if (isInAmendmentMode) {
-      if (!isLegalTeamFullyApproved()) {
+      if (!isManagementTeamFullyApproved()) {
         toast({
-          title: 'Legal Approval Required',
-          description: 'The legal team must approve this amendment before final approval.',
+          title: 'Management Approval Required',
+          description: 'The management team must approve this amendment before final approval.',
           variant: 'destructive'
         });
         return;
@@ -353,8 +353,8 @@ const ApprovalBoard = ({
 
     // Handle differently for amendment mode
     if (isInAmendmentMode) {
-      // If we're in amendment or legal stage, move to WWF stage
-      if (contract.amendmentStage === 'amendment' || contract.amendmentStage === 'legal') {
+      // If we're in amendment or management stage, move to WWF stage
+      if (contract.amendmentStage === 'amendment' || contract.amendmentStage === 'management') {
         updateData.amendmentStage = 'wwf';
 
         // Add custom timeline entry for amendment approval
@@ -430,7 +430,7 @@ const ApprovalBoard = ({
     if (isInAmendmentMode) {
       toastTitle = 'Amendment Approved';
 
-      if (contract.amendmentStage === 'amendment' || contract.amendmentStage === 'legal') {
+      if (contract.amendmentStage === 'amendment' || contract.amendmentStage === 'management') {
         toastDescription = 'You have approved this amendment and it has progressed to WWF stage';
       } else if (contract.amendmentStage === 'wwf') {
         toastDescription = 'You have approved this amendment and it has progressed to Counterparty stage';
@@ -450,12 +450,12 @@ const ApprovalBoard = ({
   const handleApproverSendBack = async (email: string) => {
     if (!isApprover || !currentUser?.email) return;
 
-    // For amendment mode, check if legal team has approved
+    // For amendment mode, check if management team has approved
     if (isInAmendmentMode) {
-      if (!isLegalTeamFullyApproved()) {
+      if (!isManagementTeamFullyApproved()) {
         toast({
-          title: 'Legal Approval Required',
-          description: 'The legal team must approve this amendment before you can send it back.',
+          title: 'Management Approval Required',
+          description: 'The management team must approve this amendment before you can send it back.',
           variant: 'destructive'
         });
         return;
@@ -501,19 +501,19 @@ const ApprovalBoard = ({
 
     // Handle differently for amendment mode
     if (isInAmendmentMode) {
-      // Only reset to legal stage if we're in WWF or counterparty stage
+      // Only reset to management stage if we're in WWF or counterparty stage
       if (contract.amendmentStage === 'wwf' || contract.amendmentStage === 'counterparty') {
-        updateData.amendmentStage = 'legal';
+        updateData.amendmentStage = 'management';
 
         // Add custom timeline entry for amendment send back
         updateData._customTimelineEntry = {
           action: `Amendment Final Approver Sent Back: ${userApprover.name || currentUser.displayName || currentUser.email.split('@')[0]}`,
-          details: 'Sent back as final amendment approver - Amendment reset to Legal stage'
+          details: 'Sent back as final amendment approver - Amendment reset to Management stage'
         };
 
         toast({
           title: 'Amendment Sent Back',
-          description: 'You have sent back this amendment to the Legal stage',
+          description: 'You have sent back this amendment to the Management stage',
           variant: 'destructive'
         });
       } else {
@@ -709,14 +709,14 @@ const ApprovalBoard = ({
         details: 'Approved amendment as legal team member'
       };
 
-      // If we're in the initial amendment stage, move to legal stage
+      // If we're in the initial amendment stage, move to management stage
       if (contract.amendmentStage === 'amendment') {
-        updateData.amendmentStage = 'legal';
-        updateData._customTimelineEntry.details += ' - Amendment moved to Legal stage';
-        console.log('Legal approval for amendment - Moving to Legal stage');
+        updateData.amendmentStage = 'management';
+        updateData._customTimelineEntry.details += ' - Amendment moved to Management stage';
+        console.log('Legal approval for amendment - Moving to Management stage');
       }
-      // If we're already in legal stage, move to WWF stage
-      else if (contract.amendmentStage === 'legal') {
+      // If we're already in management stage, move to WWF stage
+      else if (contract.amendmentStage === 'management') {
         updateData.amendmentStage = 'wwf';
         updateData._customTimelineEntry.details += ' - Amendment moved to WWF stage';
         console.log('Legal approval for amendment - Moving to WWF stage');
@@ -928,14 +928,14 @@ const ApprovalBoard = ({
 
       // If withdrawing approval, update the amendment stage based on the current stage
       if (wasApproved) {
-        // If we're in WWF or counterparty stage, move back to legal stage
+        // If we're in WWF or counterparty stage, move back to management stage
         if (contract.amendmentStage === 'wwf' || contract.amendmentStage === 'counterparty') {
-          updateData.amendmentStage = 'legal';
-          updateData._customTimelineEntry.details += ' - Amendment moved back to Legal stage';
-          console.log('Legal withdrawal for amendment - Moving back to Legal stage');
+          updateData.amendmentStage = 'management';
+          updateData._customTimelineEntry.details += ' - Amendment moved back to Management stage';
+          console.log('Legal withdrawal for amendment - Moving back to Management stage');
         }
-        // If we're in legal stage, move back to amendment stage
-        else if (contract.amendmentStage === 'legal') {
+        // If we're in management stage, move back to amendment stage
+        else if (contract.amendmentStage === 'management') {
           updateData.amendmentStage = 'amendment';
           updateData._customTimelineEntry.details += ' - Amendment moved back to initial stage';
           console.log('Legal withdrawal for amendment - Moving back to initial stage');
@@ -1464,8 +1464,8 @@ const ApprovalBoard = ({
   // Check if the contract is in amendment mode
   const isInAmendmentMode = contract.isAmended && contract.status === 'amendment';
 
-  // Check if the amendment is in legal review stage
-  const isAmendmentInLegalStage = isInAmendmentMode && contract.amendmentStage === 'legal';
+  // Check if the amendment is in management review stage
+  const isAmendmentInManagementStage = isInAmendmentMode && contract.amendmentStage === 'management';
 
   // Determine if the user can edit approvers - only admin can assign requestors/approvers
   const canEditApprovers = isAdmin;
@@ -1950,9 +1950,9 @@ const ApprovalBoard = ({
                         Waiting for management team approval before final approval
                       </div>
                     )}
-                    {isInAmendmentMode && !isLegalTeamFullyApproved() && normalizedContract.approvers?.approver?.length > 0 && (
+                    {isInAmendmentMode && !isManagementTeamFullyApproved() && normalizedContract.approvers?.approver?.length > 0 && (
                       <div className="text-xs text-amber-600 mt-1">
-                        Waiting for legal team approval before final amendment approval
+                        Waiting for management team approval before final amendment approval
                       </div>
                     )}
                   </div>

@@ -235,7 +235,7 @@ export interface Contract {
   regularInactivityDays?: number; // Number of business days of inactivity for regular users before sending a notification
   // Amendment tracking
   isAmended?: boolean; // Flag to indicate if contract has been amended
-  amendmentStage?: 'amendment' | 'legal' | 'wwf' | 'counterparty'; // Current stage in the amendment process
+  amendmentStage?: 'amendment' | 'management' | 'wwf' | 'counterparty'; // Current stage in the amendment process
   originalStatus?: ContractStatus; // Original status before amendment started
   // Type-specific fields
   typeSpecificFields?: ContractTypeFields;

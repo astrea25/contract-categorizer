@@ -29,7 +29,7 @@ const AmendmentStatusCard = ({ contract, onStatusChange, isUpdating }: Amendment
   // Amendment stage options
   const amendmentStageOptions: { value: string; label: string }[] = [
     { value: 'amendment', label: 'Amendment' },
-    { value: 'legal', label: 'Legal Review' },
+    { value: 'management', label: 'Management Review' },
     { value: 'wwf', label: 'WWF Signing' },
     { value: 'counterparty', label: 'Counterparty Signing' },
   ];
@@ -46,7 +46,7 @@ const AmendmentStatusCard = ({ contract, onStatusChange, isUpdating }: Amendment
     if (isAmendmentStage) {
       // Update the amendment stage without changing the contract status
       await onStatusChange('amendment', {
-        amendmentStage: value as 'amendment' | 'legal' | 'wwf' | 'counterparty'
+        amendmentStage: value as 'amendment' | 'management' | 'wwf' | 'counterparty'
       });
       setIsOpen(false);
       return;
@@ -86,9 +86,9 @@ const AmendmentStatusCard = ({ contract, onStatusChange, isUpdating }: Amendment
   const currentStageLabel = amendmentStageOptions.find(option => option.value === currentStage)?.label || 'Amendment';
 
   // Check if approvals are in progress
-  const hasLegalApprovers = contract.approvers?.legal &&
-    (Array.isArray(contract.approvers.legal)
-      ? contract.approvers.legal.length > 0
+  const hasManagementApprovers = contract.approvers?.management &&
+    (Array.isArray(contract.approvers.management)
+      ? contract.approvers.management.length > 0
       : true);
 
   const hasApproverTeam = contract.approvers?.approver &&
@@ -176,7 +176,7 @@ const AmendmentStatusCard = ({ contract, onStatusChange, isUpdating }: Amendment
             <p className="text-xs text-muted-foreground">Updating amendment stage...</p>
           )}
 
-          {(hasLegalApprovers && hasApproverTeam) && (
+          {(hasManagementApprovers && hasApproverTeam) && (
             <p className="text-xs text-amber-600 mt-2">
               Amendment stage will automatically progress based on approvals, but you can still manually change it if needed.
             </p>

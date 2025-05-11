@@ -4,7 +4,7 @@ import { CheckCircle, Circle } from 'lucide-react';
 
 interface AmendmentProgressBarProps {
   currentStatus: ContractStatus;
-  amendmentStage?: 'amendment' | 'legal' | 'wwf' | 'counterparty';
+  amendmentStage?: 'amendment' | 'management' | 'wwf' | 'counterparty';
 }
 
 const AmendmentProgressBar: React.FC<AmendmentProgressBarProps> = ({
@@ -15,7 +15,7 @@ const AmendmentProgressBar: React.FC<AmendmentProgressBarProps> = ({
   const isStageCompleted = (stage: string) => {
     const stageOrder = {
       'amendment': 0,
-      'legal': 1,
+      'management': 1,
       'wwf': 2,
       'counterparty': 3
     };
@@ -100,14 +100,14 @@ const AmendmentProgressBar: React.FC<AmendmentProgressBarProps> = ({
             {/* Amendment */}
             {renderStageNode('amendment', 'Amendment')}
 
-            {/* Line from Amendment to Legal */}
+            {/* Line from Amendment to Management */}
             {renderHorizontalLine('amendment')}
 
-            {/* Legal */}
-            {renderStageNode('legal', 'Legal')}
+            {/* Management */}
+            {renderStageNode('management', 'Management')}
 
-            {/* Line from Legal to WWF */}
-            {renderHorizontalLine('legal')}
+            {/* Line from Management to WWF */}
+            {renderHorizontalLine('management')}
 
             {/* WWF */}
             {renderStageNode('wwf', 'WWF')}
