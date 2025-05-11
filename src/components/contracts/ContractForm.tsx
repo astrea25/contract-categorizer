@@ -1197,6 +1197,8 @@ const ContractForm = ({
       recipientEmail: '', // Initialize recipient email field
       startDate: new Date().toISOString().split('T')[0],
       endDate: null,
+      reviewerInactivityDays: 3, // Default: 3 business days for reviewers/approvers
+      regularInactivityDays: 1, // Default: 1 business day for regular users
       typeSpecificFields: {}, // Initialize empty type-specific fields
       supportingDocuments: getSupportingDocuments(defaultType) // Initialize supporting documents based on type
     };
