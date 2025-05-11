@@ -162,7 +162,6 @@ export const notifyAdminOfSentBack = async (contract: Contract): Promise<void> =
   try {
     // Hardcoded admin email for now
     const adminEmail = 'aster.mangabat@student.ateneo.edu';
-    console.log('Sending contract send-back notification to admin:', adminEmail);
 
     const approvalHistory = formatApprovalHistory(contract);
     const contractDetails = getContractDetails(contract);
@@ -212,7 +211,6 @@ export const notifyRequesterOfAmendment = async (contract: Contract): Promise<vo
       return;
     }
 
-    console.log('Sending contract amendment notification to requester:', requesterEmail);
 
     const contractDetails = getContractDetails(contract);
 

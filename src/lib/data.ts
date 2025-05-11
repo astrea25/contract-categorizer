@@ -1354,12 +1354,15 @@ export const getContractStats = async (): Promise<ContractStats> => {
     // Calculate contracts that have ended (at contract_end stage)
     const finishedContracts = contracts.filter(c => c.status === 'contract_end').length;
 
-    // Calculate contracts in legal_review or management_review
+    // Calculate contracts in legal_review, management_review, approval, draft, or requested
     const pendingApprovalContracts = contracts.filter(c =>
       c.status === 'legal_review' ||
       c.status === 'management_review' ||
       c.status === 'legal_send_back' ||
-      c.status === 'management_send_back'
+      c.status === 'management_send_back' ||
+      c.status === 'approval' ||
+      c.status === 'draft' ||
+      c.status === 'requested'
     ).length;
 
     // Calculate contracts expiring in the next 30 days (only active contracts)
@@ -2836,12 +2839,15 @@ export const getUserContractStats = async (userEmail: string): Promise<ContractS
     // Calculate contracts that have ended (at contract_end stage)
     const finishedContracts = contracts.filter(c => c.status === 'contract_end').length;
 
-    // Calculate contracts in legal_review or management_review
+    // Calculate contracts in legal_review, management_review, approval, draft, or requested
     const pendingApprovalContracts = contracts.filter(c =>
       c.status === 'legal_review' ||
       c.status === 'management_review' ||
       c.status === 'legal_send_back' ||
-      c.status === 'management_send_back'
+      c.status === 'management_send_back' ||
+      c.status === 'approval' ||
+      c.status === 'draft' ||
+      c.status === 'requested'
     ).length;
 
     // Calculate contracts expiring in the next 30 days (only active contracts)

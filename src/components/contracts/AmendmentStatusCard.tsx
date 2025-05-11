@@ -85,7 +85,6 @@ const AmendmentStatusCard = ({ contract, onStatusChange, isUpdating }: Amendment
             </div>
             `
           );
-          console.log(`Amendment stage change notification sent to requester: ${contract.owner}`);
         }
       } catch (error) {
         console.error('Failed to send amendment stage change notification:', error);
@@ -149,7 +148,6 @@ const AmendmentStatusCard = ({ contract, onStatusChange, isUpdating }: Amendment
             </div>
             `
           );
-          console.log(`Amendment completion notification sent to requester: ${contract.owner}`);
         }
       } catch (error) {
         console.error('Failed to send amendment completion notification:', error);

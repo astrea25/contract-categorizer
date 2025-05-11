@@ -420,10 +420,6 @@ const ApprovalBoard = ({
     // Update approvers with custom timeline entry
     await onUpdateApprovers(updateData);
 
-    // Log the updated data for debugging
-    console.log('Approver approval - Updated data:', JSON.stringify(updateData, null, 2));
-
-    // Create appropriate toast message based on amendment stage
     let toastTitle = 'Contract Approved';
     let toastDescription = 'You have approved this contract and it has progressed to WWF Signing stage';
 
@@ -609,19 +605,16 @@ const ApprovalBoard = ({
         if (contract.amendmentStage === 'counterparty') {
           updateData.amendmentStage = 'wwf';
           updateData._customTimelineEntry.details += ' - Amendment moved back to WWF stage';
-          console.log('Approver withdrawal for amendment - Moving back to WWF stage');
         }
         // If we're in WWF stage, move back to management stage
         else if (contract.amendmentStage === 'wwf') {
           updateData.amendmentStage = 'management';
           updateData._customTimelineEntry.details += ' - Amendment moved back to Management stage';
-          console.log('Approver withdrawal for amendment - Moving back to Management stage');
         }
       }
       // If withdrawing a send back, no need to change the stage
       else if (wasDeclined) {
         updateData._customTimelineEntry.details += ' - Amendment stage unchanged';
-        console.log('Approver send back withdrawal for amendment - Stage unchanged');
       }
 
       toast({
@@ -659,8 +652,6 @@ const ApprovalBoard = ({
   const handleLegalApprove = async () => {
     if (!isLegalTeam || !currentUser?.email) return;
 
-    console.log('Legal approval - Current contract status:', contract.status);
-
     // Only allow if the current user is an assigned legal approver
     const normalizedContract = normalizeApprovers(contract);
     const currentLegalApprovers = getLegalApprovers();
@@ -689,9 +680,6 @@ const ApprovalBoard = ({
     const isManagementApproved = managementApprovers.length > 0 &&
       managementApprovers.every(approver => approver.approved);
 
-    console.log('Legal approval - Management approvers:', managementApprovers);
-    console.log('Legal approval - Is management approved:', isManagementApproved);
-
     // Build the request data for the API
     const updateData: any = {};
 
@@ -713,13 +701,10 @@ const ApprovalBoard = ({
       if (contract.amendmentStage === 'amendment') {
         updateData.amendmentStage = 'management';
         updateData._customTimelineEntry.details += ' - Amendment moved to Management stage';
-        console.log('Management approval for amendment - Moving to Management stage');
       }
-      // If we're already in management stage, move to WWF stage
       else if (contract.amendmentStage === 'management') {
         updateData.amendmentStage = 'wwf';
         updateData._customTimelineEntry.details += ' - Amendment moved to WWF stage';
-        console.log('Management approval for amendment - Moving to WWF stage');
       }
     } else {
       // Regular contract approval flow
@@ -737,13 +722,11 @@ const ApprovalBoard = ({
         // Change status back to legal_review
         updateData.status = 'legal_review';
         updateData._customTimelineEntry.details += ' - Status changed to Legal Review';
-        console.log('Legal approval (instead) - Setting status to legal_review');
 
         // If management is already approved, move to management_review status
         if (isManagementApproved) {
           updateData.status = 'management_review';
           updateData._customTimelineEntry.details += ' - Status changed to Management Review (both Legal and Management have approved)';
-          console.log('Legal approval (instead) - Setting status to Management Review (both approved)');
         }
       }
       // Standard approval flow
@@ -752,26 +735,21 @@ const ApprovalBoard = ({
         if (contract.status === 'draft') {
           updateData.status = 'legal_review';
           updateData._customTimelineEntry.details += ' - Status changed to Legal Review';
-          console.log('Legal approval - Setting status to legal_review');
         }
 
         // If both legal and management have approved, move to management_review status
         if (isManagementApproved && (contract.status === 'management_review' || contract.status === 'management_declined')) {
           updateData.status = 'management_review';
           updateData._customTimelineEntry.details += ' - Status changed to Management Review (both Legal and Management have approved)';
-          console.log('Legal approval - Setting status to Management Review (both approved)');
         }
       }
     }
 
-    console.log('Legal approval - Final updateData:', JSON.stringify(updateData, null, 2));
-
     // Update approvers with custom timeline entry and possibly status change
     try {
       await onUpdateApprovers(updateData);
-      console.log('Legal approval - onUpdateApprovers called successfully');
     } catch (error) {
-      console.error('Legal approval - Error in onUpdateApprovers:', error);
+      console.error('Error in onUpdateApprovers:', error);
     }
 
     if (isInAmendmentMode) {
@@ -821,9 +799,6 @@ const ApprovalBoard = ({
     const isManagementApproved = managementApprovers.length > 0 &&
       managementApprovers.every(approver => approver.approved);
 
-    console.log('Legal send back - Management approvers:', managementApprovers);
-    console.log('Legal send back - Is management approved:', isManagementApproved);
-
     // Create update data with custom timeline entry
     const updateData: any = {
       approvers: {
@@ -842,7 +817,6 @@ const ApprovalBoard = ({
       // Always reset to the initial amendment stage regardless of current stage
       updateData.amendmentStage = 'amendment';
       updateData._customTimelineEntry.details += ' - Amendment reset to initial stage';
-      console.log('Management send back for amendment - Resetting to amendment stage');
     } else {
       // Regular contract send back flow
       updateData._customTimelineEntry = {
@@ -854,7 +828,6 @@ const ApprovalBoard = ({
       // This follows the same progression logic as approval
       updateData.status = 'legal_send_back';
       updateData._customTimelineEntry.details += ' - Status changed to Legal Send Back';
-      console.log('Legal send back - Setting status to legal_send_back');
     }
 
     // Update approvers with custom timeline entry and status change
@@ -940,19 +913,16 @@ const ApprovalBoard = ({
         if (contract.amendmentStage === 'wwf' || contract.amendmentStage === 'counterparty') {
           updateData.amendmentStage = 'management';
           updateData._customTimelineEntry.details += ' - Amendment moved back to Management stage';
-          console.log('Management withdrawal for amendment - Moving back to Management stage');
         }
         // If we're in management stage, move back to amendment stage
         else if (contract.amendmentStage === 'management') {
           updateData.amendmentStage = 'amendment';
           updateData._customTimelineEntry.details += ' - Amendment moved back to initial stage';
-          console.log('Management withdrawal for amendment - Moving back to initial stage');
         }
       }
       // If withdrawing a send back, no need to change the stage
       else if (wasDeclined) {
         updateData._customTimelineEntry.details += ' - Amendment stage unchanged';
-        console.log('Management send back withdrawal for amendment - Stage unchanged');
       }
     } else {
       // Regular contract flow
@@ -972,7 +942,6 @@ const ApprovalBoard = ({
       // If we're withdrawing a send back, go back to draft
       updateData.status = 'draft';
       updateData._customTimelineEntry.details += ' - Status changed to Draft';
-      console.log('Legal withdrawal - Setting status back to draft from sent back');
 
       // Reset all approvals when going back to draft from sent back
       const allApprovers = JSON.parse(JSON.stringify(normalizedContract.approvers || {}));
@@ -1021,19 +990,16 @@ const ApprovalBoard = ({
         if (isManagementApproved) {
           updateData.status = 'legal_review';
           updateData._customTimelineEntry.details += ' - Status changed to Legal Review';
-          console.log('Legal withdrawal - Setting status back to legal_review');
         } else {
           // If neither is approved, go back to draft
           updateData.status = 'draft';
           updateData._customTimelineEntry.details += ' - Status changed to Draft';
-          console.log('Legal withdrawal - Setting status back to draft');
         }
       }
       // If we're in legal_review status, go back to draft
       else if (wasApproved && contract.status === 'legal_review') {
         updateData.status = 'draft';
         updateData._customTimelineEntry.details += ' - Status changed to Draft';
-        console.log('Legal withdrawal - Setting status back to draft');
       }
     }
 
@@ -1095,8 +1061,6 @@ const ApprovalBoard = ({
   const handleManagementApprove = async () => {
     if (!isManagementTeam || !currentUser?.email) return;
 
-    console.log('Management approval - Current contract status:', contract.status);
-
     // Check if legal team has approved first (only for non-amendment mode)
     if (!isInAmendmentMode && !isLegalTeamFullyApproved()) {
       toast({
@@ -1135,9 +1099,6 @@ const ApprovalBoard = ({
     const isLegalApproved = legalApprovers.length > 0 &&
       legalApprovers.every(approver => approver.approved);
 
-    console.log('Management approval - Legal approvers:', legalApprovers);
-    console.log('Management approval - Is legal approved:', isLegalApproved);
-
     // Build the request data for the API
     const updateData: any = {};
 
@@ -1161,47 +1122,33 @@ const ApprovalBoard = ({
       // Change status back to management_review
       updateData.status = 'management_review';
       updateData._customTimelineEntry.details += ' - Status changed to Management Review';
-      console.log('Management approval (instead) - Setting status to management_review');
 
       // If legal is already approved, move to management_review status
       if (isLegalApproved) {
         updateData.status = 'management_review';
         updateData._customTimelineEntry.details += ' - Status changed to Management Review (Legal has approved)';
-        console.log('Management approval (instead) - Setting status to Management Review (Legal has approved)');
       }
     }
     // Standard approval flow
     else {
-      // Implement Scenario 2: If current status is draft, move to management_review
-      if (contract.status === 'draft') {
-        updateData.status = 'management_review';
-        updateData._customTimelineEntry.details += ' - Status changed to Management Review';
-        console.log('Management approval - Setting status to management_review');
-      }
-
       // If legal has approved, move to management_review status
       if (isLegalApproved && (contract.status === 'legal_review' || contract.status === 'legal_declined')) {
         updateData.status = 'management_review';
         updateData._customTimelineEntry.details += ' - Status changed to Management Review (Legal has approved)';
-        console.log('Management approval - Setting status to Management Review (Legal has approved)');
       }
     }
-
-    console.log('Management approval - Final updateData:', JSON.stringify(updateData, null, 2));
 
     // Update approvers with custom timeline entry and possibly status change
     try {
       await onUpdateApprovers(updateData);
-      console.log('Management approval - onUpdateApprovers called successfully');
+      toast({
+        title: 'Contract Approved',
+        description: 'You have approved this contract as a management team member',
+        variant: 'default'
+      });
     } catch (error) {
-      console.error('Management approval - Error in onUpdateApprovers:', error);
+      console.error('Error in onUpdateApprovers:', error);
     }
-
-    toast({
-      title: 'Contract Approved',
-      description: 'You have approved this contract as a management team member',
-      variant: 'default'
-    });
   };
 
   // Handle management send back
@@ -1246,9 +1193,6 @@ const ApprovalBoard = ({
     const isLegalApproved = legalApprovers.length > 0 &&
       legalApprovers.every(approver => approver.approved);
 
-    console.log('Management send back - Legal approvers:', legalApprovers);
-    console.log('Management send back - Is legal approved:', isLegalApproved);
-
     // Create a custom timeline entry for management decline
     const updateData: any = {
       approvers: {
@@ -1265,7 +1209,6 @@ const ApprovalBoard = ({
     // This follows the same progression logic as approval
     updateData.status = 'management_send_back';
     updateData._customTimelineEntry.details += ' - Status changed to Management Send Back';
-    console.log('Management send back - Setting status to management_send_back');
 
     // Update approvers with custom timeline entry
     await onUpdateApprovers(updateData);
@@ -1339,7 +1282,6 @@ const ApprovalBoard = ({
       // If we're withdrawing a send back, go back to draft
       updateData.status = 'draft';
       updateData._customTimelineEntry.details += ' - Status changed to Draft';
-      console.log('Management withdrawal - Setting status back to draft from sent back');
 
       // Reset all approvals when going back to draft from sent back
       const allApprovers = JSON.parse(JSON.stringify(normalizedContract.approvers || {}));
@@ -1386,12 +1328,10 @@ const ApprovalBoard = ({
       if (isLegalApproved) {
         updateData.status = 'legal_review';
         updateData._customTimelineEntry.details += ' - Status changed to Legal Review';
-        console.log('Management withdrawal - Setting status back to legal_review');
       } else {
         // If neither is approved, go back to draft
         updateData.status = 'draft';
         updateData._customTimelineEntry.details += ' - Status changed to Draft';
-        console.log('Management withdrawal - Setting status back to draft');
       }
 
       // Update only the management approvers' status
@@ -1404,7 +1344,6 @@ const ApprovalBoard = ({
     else if (wasApproved && contract.status === 'management_review') {
       updateData.status = 'draft';
       updateData._customTimelineEntry.details += ' - Status changed to Draft';
-      console.log('Management withdrawal - Setting status back to draft');
 
       // Update only the management approvers' status
       updateData.approvers = {
