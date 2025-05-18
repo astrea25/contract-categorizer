@@ -626,8 +626,8 @@ const ApprovalBoard = (
 
         if (isInAmendmentMode) {
             updateData._customTimelineEntry = {
-                action: `Amendment Management Approval: ${userApprover.name || currentUser.displayName || currentUser.email.split("@")[0]}`,
-                details: "Approved amendment as management team member"
+                action: `Amendment Legal Approval: ${userApprover.name || currentUser.displayName || currentUser.email.split("@")[0]}`,
+                details: "Approved amendment as legal team member"
             };
 
             if (contract.amendmentStage === "amendment") {
@@ -673,7 +673,7 @@ const ApprovalBoard = (
         if (isInAmendmentMode) {
             toast({
                 title: "Amendment Approved",
-                description: "You have approved this amendment as a management team member",
+                description: "You have approved this amendment as a legal team member",
                 variant: "default"
             });
         } else {
@@ -725,8 +725,8 @@ const ApprovalBoard = (
 
         if (isInAmendmentMode) {
             updateData._customTimelineEntry = {
-                action: `Amendment Management Send Back: ${userApprover.name || currentUser.displayName || currentUser.email.split("@")[0]}`,
-                details: "Sent back amendment as management team member"
+                action: `Amendment Legal Send Back: ${userApprover.name || currentUser.displayName || currentUser.email.split("@")[0]}`,
+                details: "Sent back amendment as legal team member"
             };
 
             updateData.amendmentStage = "amendment";
@@ -750,7 +750,7 @@ const ApprovalBoard = (
         if (isInAmendmentMode) {
             toast({
                 title: "Amendment Sent Back",
-                description: "You have sent back this amendment as a management team member",
+                description: "You have sent back this amendment as a legal team member",
                 variant: "destructive"
             });
         } else {
@@ -799,8 +799,8 @@ const ApprovalBoard = (
 
         if (isInAmendmentMode) {
             updateData._customTimelineEntry = {
-                action: wasDeclined ? `Amendment Management Send Back Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split("@")[0]}` : `Amendment Management Approval Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split("@")[0]}`,
-                details: wasDeclined ? "Withdrawn management team send back for amendment" : "Withdrawn management team approval for amendment"
+                action: wasDeclined ? `Amendment Legal Send Back Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split("@")[0]}` : `Amendment Legal Approval Withdrawn: ${userApprover.name || currentUser.displayName || currentUser.email.split("@")[0]}`,
+                details: wasDeclined ? "Withdrawn legal team send back for amendment" : "Withdrawn legal team approval for amendment"
             };
 
             if (wasApproved) {
@@ -883,7 +883,7 @@ const ApprovalBoard = (
         if (isInAmendmentMode) {
             toast({
                 title: wasDeclined ? "Amendment Rejection Withdrawn" : "Amendment Approval Withdrawn",
-                description: wasDeclined ? "You have withdrawn your rejection of the amendment as a management team member" : "You have withdrawn your approval of the amendment as a management team member",
+                description: wasDeclined ? "You have withdrawn your rejection of the amendment as a legal team member" : "You have withdrawn your approval of the amendment as a legal team member",
                 variant: "default"
             });
         } else {
@@ -1222,11 +1222,12 @@ const ApprovalBoard = (
                 <CardContent>
                     {loading ? (<p>Loading team members...</p>) : (<div className="space-y-6">
                         {}
+                        {/* Legal Team Approvers Section - Always shown in normal mode, shown in amendment mode too */}
                         <div className="space-y-2">
                             <div className="flex justify-between items-center">
                                 <Label className="text-sm font-medium">
-                                    {isInAmendmentMode ? "Management Team Approvers" : "Legal Team Approvers"}({getLegalApprovers().length}/{approverLimits.legal})
-                                                                                                                              </Label>
+                                    Legal Team Approvers ({getLegalApprovers().length}/{approverLimits.legal})
+                                </Label>
                                 {canEditApprovers && ((!normalizedContract.approvers?.legal || getLegalApprovers().length < approverLimits.legal) ? (<div className="relative">
                                     <Button
                                         variant="outline"
@@ -1243,7 +1244,7 @@ const ApprovalBoard = (
                                             <div className="relative">
                                                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                                                 <Input
-                                                    placeholder={isInAmendmentMode ? "Search management team..." : "Search legal team..."}
+                                                    placeholder="Search legal team..."
                                                     className="pl-8"
                                                     value={legalSearch}
                                                     onChange={e => setLegalSearch(e.target.value)} />
@@ -1266,7 +1267,7 @@ const ApprovalBoard = (
                                                     <Check className="h-3.5 w-3.5" />
                                                 </Button>
                                             </div>))) : (<div className="px-3 py-2 text-sm text-muted-foreground">
-                                                {isInAmendmentMode ? "No management team members found" : "No legal team members found"}
+                                                No legal team members found
                                             </div>)}
                                         </div>
                                     </div>)}
@@ -1358,16 +1359,22 @@ const ApprovalBoard = (
                                     </Button>)}
                                 </div>
                             </div>)) : (<div className="text-sm text-muted-foreground italic">
-                                {isRequired ? isInAmendmentMode ? "Required - Please assign a management team approver" : "Required - Please assign a legal team approver" : isInAmendmentMode ? "No management approver assigned" : "No legal approver assigned"}
+                                {isRequired ? "Required - Please assign a legal team approver" : "No legal approver assigned"}
                             </div>)}
                         </div>
                         {}
-                        {!isInAmendmentMode && <div className="space-y-2">
+                        {/* Management Team Approvers Section - Always shown in both normal and amendment mode */}
+                        <div className="space-y-2">
                             <div className="flex justify-between items-center">
                                 <div>
-                                    <Label className="text-sm font-medium">Management Team Approvers ({getManagementApprovers().length}/{approverLimits.management})</Label>
-                                    {!isLegalTeamFullyApproved() && getManagementApprovers().length > 0 && (<div className="text-xs text-amber-600 mt-1">Waiting for legal team approval before management can approve
-                                                                                                                                              </div>)}
+                                    <Label className="text-sm font-medium">
+                                        Management Team Approvers ({getManagementApprovers().length}/{approverLimits.management})
+                                    </Label>
+                                    {!isInAmendmentMode && !isLegalTeamFullyApproved() && getManagementApprovers().length > 0 && (
+                                        <div className="text-xs text-amber-600 mt-1">
+                                            Waiting for legal team approval before management can approve
+                                        </div>
+                                    )}
                                 </div>
                                 {canEditApprovers && ((!normalizedContract.approvers?.management || getManagementApprovers().length < approverLimits.management) ? (<div className="relative">
                                     <Button
@@ -1445,16 +1452,16 @@ const ApprovalBoard = (
                                                 size="sm"
                                                 onClick={handleManagementApprove}
                                                 className="bg-blue-500 hover:bg-blue-600"
-                                                disabled={!isLegalTeamFullyApproved()}
-                                                title={!isLegalTeamFullyApproved() ? "Legal team must approve first" : ""}>
+                                                disabled={!isInAmendmentMode && !isLegalTeamFullyApproved()}
+                                                title={!isInAmendmentMode && !isLegalTeamFullyApproved() ? "Legal team must approve first" : ""}>
                                                 <Check className="h-3.5 w-3.5 mr-1" />Approve
                                                                                                                                                                                 </Button>
                                             <Button
                                                 size="sm"
                                                 onClick={handleManagementSendBack}
                                                 variant="destructive"
-                                                disabled={!isLegalTeamFullyApproved()}
-                                                title={!isLegalTeamFullyApproved() ? "Legal team must approve first" : ""}>
+                                                disabled={!isInAmendmentMode && !isLegalTeamFullyApproved()}
+                                                title={!isInAmendmentMode && !isLegalTeamFullyApproved() ? "Legal team must approve first" : ""}>
                                                 <ThumbsDown className="h-3.5 w-3.5 mr-1" />Send Back
                                                                                                                                                                                 </Button>
                                         </div>) : (<div className="flex gap-2 items-center">
@@ -1494,16 +1501,16 @@ const ApprovalBoard = (
                                                 size="sm"
                                                 onClick={handleManagementApprove}
                                                 className="bg-blue-500 hover:bg-blue-600"
-                                                disabled={!isLegalTeamFullyApproved()}
-                                                title={!isLegalTeamFullyApproved() ? "Legal team must approve first" : ""}>
+                                                disabled={!isInAmendmentMode && !isLegalTeamFullyApproved()}
+                                                title={!isInAmendmentMode && !isLegalTeamFullyApproved() ? "Legal team must approve first" : ""}>
                                                 <Check className="h-3.5 w-3.5 mr-1" />Approve
                                                                                                                                                                                 </Button>
                                             <Button
                                                 size="sm"
                                                 onClick={handleManagementSendBack}
                                                 variant="destructive"
-                                                disabled={!isLegalTeamFullyApproved()}
-                                                title={!isLegalTeamFullyApproved() ? "Legal team must approve first" : ""}>
+                                                disabled={!isInAmendmentMode && !isLegalTeamFullyApproved()}
+                                                title={!isInAmendmentMode && !isLegalTeamFullyApproved() ? "Legal team must approve first" : ""}>
                                                 <ThumbsDown className="h-3.5 w-3.5 mr-1" />Send Back
                                                                                                                                                                                 </Button>
                                         </>) : (<>
@@ -1528,7 +1535,7 @@ const ApprovalBoard = (
                             </div>)) : (<div className="text-sm text-muted-foreground italic">
                                 {isRequired ? "Required - Please assign a management team approver" : "No management approver assigned"}
                             </div>)}
-                        </div>}
+                        </div>
                         {}
                         <div className="space-y-2">
                             <div className="flex justify-between items-center">

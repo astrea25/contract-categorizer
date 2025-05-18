@@ -658,16 +658,7 @@ const ContractDetail = () => {
             const normalizedContract = normalizeApprovers(contract);
             const approvers = JSON.parse(JSON.stringify(normalizedContract.approvers || {}));
 
-            if (approvers.legal && approvers.legal.length > 0) {
-                approvers.legal = approvers.legal.map((approver: any) => ({
-                    ...approver,
-                    approved: false,
-                    declined: false,
-                    approvedAt: null,
-                    declinedAt: null
-                }));
-            }
-
+            // Only reset management approvals, not legal approvals
             if (approvers.management && approvers.management.length > 0) {
                 approvers.management = approvers.management.map((approver: any) => ({
                     ...approver,
@@ -697,7 +688,7 @@ const ContractDetail = () => {
 
                 _customTimelineEntry: {
                     action: "Contract Amendment Started",
-                    details: `Contract moved to amendment status (original status: ${originalStatus.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")}) - All approvals reset`
+                    details: `Contract moved to amendment status (original status: ${originalStatus.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")}) - Management approvals reset`
                 }
             }, {
                 email: currentUser.email,
@@ -708,7 +699,7 @@ const ContractDetail = () => {
 
             if (updatedContract) {
                 setContract(updatedContract);
-                toast.success("Contract amendment process started - All approvals have been reset");
+                toast.success("Contract amendment process started - Management approvals have been reset");
 
                 try {
                     await notifyRequesterOfAmendment(updatedContract);
