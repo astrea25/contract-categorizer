@@ -2,6 +2,7 @@ import { Contract } from "./data";
 import { sendNotificationEmail } from "./brevoService";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "./firebase";
+import { ADMIN_EMAIL, APP_URL } from "./config";
 
 const formatApprovalHistory = (contract: Contract): string => {
     const history = [];
@@ -70,7 +71,7 @@ const getContractDetails = (contract: Contract): string => {
 };
 
 export const notifyManagementOfLegalApproval = async (contract: Contract): Promise<void> => {
-    const appUrl = import.meta.env.VITE_APP_URL || "https://contract-management-system-omega.vercel.app";
+    const appUrl = APP_URL;
     const contractUrl = `${appUrl}/contracts/${contract.id}`;
     const managementApprovers = Array.isArray(contract.approvers?.management) ? contract.approvers.management : contract.approvers?.management ? [contract.approvers.management] : [];
     const approvalHistory = formatApprovalHistory(contract);
@@ -104,7 +105,7 @@ export const notifyManagementOfLegalApproval = async (contract: Contract): Promi
 };
 
 export const notifyApproversOfManagementApproval = async (contract: Contract): Promise<void> => {
-    const appUrl = import.meta.env.VITE_APP_URL || "https://contract-management-system-omega.vercel.app";
+    const appUrl = APP_URL;
     const contractUrl = `${appUrl}/contracts/${contract.id}`;
     const approvers = contract.approvers?.approver || [];
     const approvalHistory = formatApprovalHistory(contract);
@@ -138,11 +139,11 @@ export const notifyApproversOfManagementApproval = async (contract: Contract): P
 };
 
 export const notifyAdminOfSentBack = async (contract: Contract): Promise<void> => {
-    const appUrl = import.meta.env.VITE_APP_URL || "https://contract-management-system-omega.vercel.app";
+    const appUrl = APP_URL;
     const contractUrl = `${appUrl}/contracts/${contract.id}`;
 
     try {
-        const adminEmail = "aster.mangabat@student.ateneo.edu";
+        const adminEmail = ADMIN_EMAIL;
         const approvalHistory = formatApprovalHistory(contract);
         const contractDetails = getContractDetails(contract);
         const subject = `Contract Sent Back: ${contract.title}`;
@@ -172,7 +173,7 @@ export const notifyAdminOfSentBack = async (contract: Contract): Promise<void> =
 };
 
 export const notifyRequesterOfAmendment = async (contract: Contract): Promise<void> => {
-    const appUrl = import.meta.env.VITE_APP_URL || "https://contract-management-system-omega.vercel.app";
+    const appUrl = APP_URL;
     const contractUrl = `${appUrl}/contracts/${contract.id}`;
 
     try {

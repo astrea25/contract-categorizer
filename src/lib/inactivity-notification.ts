@@ -15,7 +15,7 @@ import {
 import { sendNotificationEmail } from "./brevoService";
 import { Contract, getContract } from "./data";
 import { differenceInBusinessDays, getInactivityThreshold } from "./date-utils";
-const ADMIN_EMAIL = "aster.mangabat@student.ateneo.edu";
+import { ADMIN_EMAIL, APP_URL } from "./config";
 
 const getApproversForStatus = (contract: Contract): string[] => {
     const approvers: string[] = [ADMIN_EMAIL];
@@ -75,7 +75,7 @@ export const checkInactiveContractsAndNotify = async (): Promise<number> => {
 
 export const sendInactivityNotification = async (contract: Contract, businessDaysSinceActivity?: number): Promise<void> => {
     try {
-        const appUrl = import.meta.env.VITE_APP_URL || "https://contract-management-system-omega.vercel.app";
+        const appUrl = APP_URL;
         const contractUrl = `${appUrl}/contracts/${contract.id}`;
         let daysSinceActivity = businessDaysSinceActivity;
 
