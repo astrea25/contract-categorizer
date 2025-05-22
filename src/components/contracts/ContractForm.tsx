@@ -1850,8 +1850,8 @@ const ContractForm = (
                         </div>)}
                         {}
                         {formData.type && formData.supportingDocuments && formData.supportingDocuments.length > 0 && (<div className="border p-4 rounded-md bg-muted/20">
-                            <h3 className="text-lg font-medium mb-4">Supporting Documents Checklist
-                                                                                                                </h3>
+                            <h3 className="text-lg font-medium mb-4">Supporting Documents Checklist</h3>
+                            <p className="text-sm text-muted-foreground mb-3">Documents marked with an asterisk (*) are required to move the contract to Draft status.</p>
                             <div className="space-y-2">
                                 {formData.supportingDocuments.map((doc, index) => (<div key={index} className="flex items-center space-x-2">
                                     <Checkbox
@@ -1861,7 +1861,7 @@ const ContractForm = (
                                         disabled={initialData && !isEditable} />
                                     <Label
                                         htmlFor={`supporting-doc-${index}`}
-                                        className="text-sm font-normal cursor-pointer">
+                                        className={`text-sm font-normal cursor-pointer ${doc.required ? "after:content-['*'] after:ml-0.5 after:text-red-500" : ""}`}>
                                         {doc.name}
                                     </Label>
                                 </div>))}

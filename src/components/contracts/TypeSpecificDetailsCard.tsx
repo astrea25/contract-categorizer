@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Contract, ContractType, contractTypeLabels } from "@/lib/data";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { CheckCircle2, XCircle } from "lucide-react";
 
 import {
     FileText,
@@ -145,6 +147,50 @@ const TypeSpecificDetailsCard = (
         );
     };
 
+    const renderSupportingDocuments = () => {
+        if (!contract.supportingDocuments || contract.supportingDocuments.length === 0) {
+            return null;
+        }
+
+        return (
+            <div className="mt-8">
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                    <FileCheck className="h-5 w-5 text-primary" />
+                    Supporting Documents
+                </h3>
+                <Card className="overflow-hidden transition-all duration-300 hover:shadow-md">
+                    <CardHeader>
+                        <CardTitle className="text-base">Required Documents</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2">
+                            {contract.supportingDocuments.map((doc, index) => (
+                                <div key={index} className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        {doc.checked ? (
+                                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                        ) : (
+                                            <XCircle className="h-4 w-4 text-red-500" />
+                                        )}
+                                        <span className="text-sm">
+                                            {doc.name}
+                                            {doc.required && (
+                                                <Badge variant="outline" className="ml-2 text-xs">Required</Badge>
+                                            )}
+                                        </span>
+                                    </div>
+                                    <span className="text-xs text-muted-foreground">
+                                        {doc.checked ? "Provided" : "Not Provided"}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    };
+
     return (
         <div className="mb-8">
             <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
@@ -152,6 +198,7 @@ const TypeSpecificDetailsCard = (
                 {contract.type ? `${contractTypeLabels[contract.type as ContractType]} Details` : "Contract Details"}
             </h2>
             {renderGenericFieldCards()}
+            {renderSupportingDocuments()}
         </div>
     );
 };

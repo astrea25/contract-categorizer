@@ -218,7 +218,19 @@ const ContractDetail = () => {
             return;
 
         try {
-            await updateContract(id, updatedData, {
+            // Preserve approvers data when updating the contract
+            const currentContract = await getContract(id);
+            if (!currentContract) {
+                throw new Error("Could not fetch current contract");
+            }
+
+            // Make sure we keep the existing approvers data
+            const updateDataWithApprovers = {
+                ...updatedData,
+                approvers: currentContract.approvers
+            };
+
+            await updateContract(id, updateDataWithApprovers, {
                 email: currentUser.email,
                 displayName: currentUser.displayName
             });
@@ -346,15 +358,18 @@ const ContractDetail = () => {
                 }
 
                 if (latestContract.supportingDocuments && latestContract.supportingDocuments.length > 0) {
-                    const allDocumentsChecked = latestContract.supportingDocuments.every(doc => doc.checked);
+                    const requiredDocuments = latestContract.supportingDocuments.filter(doc => doc.required);
 
-                    if (!allDocumentsChecked) {
-                        toast.error("All supporting documents must be checked before moving to Draft status.");
-                        setUpdatingStatus(false);
-                        return;
+                    if (requiredDocuments.length > 0) {
+                        const allRequiredDocumentsChecked = requiredDocuments.every(doc => doc.checked);
+
+                        if (!allRequiredDocumentsChecked) {
+                            toast.error("All required supporting documents must be checked before moving to Draft status.");
+                            setUpdatingStatus(false);
+                            return;
+                        }
                     }
-                } else
-                    {}
+                }
 
                 try {
                     const legalApprovers = latestContract.approvers?.legal && (Array.isArray(latestContract.approvers.legal) ? latestContract.approvers.legal : [latestContract.approvers.legal]);
