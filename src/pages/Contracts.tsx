@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { PlusCircle, X } from "lucide-react";
+import { PlusCircle, X, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AuthNavbar from "@/components/layout/AuthNavbar";
 import FilterBar from "@/components/contracts/FilterBar";
@@ -7,6 +7,7 @@ import DraggableContractCard from "@/components/contracts/DraggableContractCard"
 import FolderList from "@/components/contracts/FolderList";
 import ContractForm from "@/components/contracts/ContractForm";
 import SortDropdown, { SortOption, SortField } from "@/components/contracts/SortDropdown";
+import { exportContractsToExcel } from "@/lib/excel-export";
 
 import {
     Contract,
@@ -53,6 +54,7 @@ const Contracts = () => {
 
     const [contracts, setContracts] = useState<Contract[]>([]);
     const [loading, setLoading] = useState(true);
+    const [exportLoading, setExportLoading] = useState(false);
     const [selectedFolder, setSelectedFolder] = useState<string | "all" | "archive">("all");
     const [folders, setFolders] = useState<Folder[]>([]);
 
@@ -794,14 +796,49 @@ const Contracts = () => {
                                 {selectedFolder !== "all" ? `Viewing contracts in the "${selectedFolderName}" folder` : "Manage and track all your contracts in one place"}
                             </p>
                         </div>
-                        <ContractForm
-                            onSave={handleSaveContract}
-                            initialFolder={selectedFolder !== "all" ? selectedFolder : undefined}
-                            foldersList={folders}
-                            trigger={<Button className="gap-1">
-                                <PlusCircle size={16} />
-                                <span>New Contract</span>
-                            </Button>} />
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                className="gap-1"
+                                disabled={exportLoading}
+                                onClick={async () => {
+                                    try {
+                                        if (filteredAndSortedContracts.length === 0) {
+                                            toast.error("No contracts to export");
+                                            return;
+                                        }
+
+                                        setExportLoading(true);
+                                        await exportContractsToExcel(
+                                            filteredAndSortedContracts,
+                                            `contracts-export-${new Date().toISOString().split('T')[0]}`
+                                        );
+                                        toast.success("Contracts exported successfully to multi-tab Excel file");
+                                    } catch (error) {
+                                        toast.error("Failed to export contracts");
+                                        console.error("Export error:", error);
+                                    } finally {
+                                        setExportLoading(false);
+                                    }
+                                }}>
+                                {exportLoading ? (
+                                    <span>Exporting...</span>
+                                ) : (
+                                    <>
+                                        <FileDown size={16} />
+                                        <span>Export to Excel (Multi-tab)</span>
+                                    </>
+                                )}
+                            </Button>
+                            <ContractForm
+                                onSave={handleSaveContract}
+                                initialFolder={selectedFolder !== "all" ? selectedFolder : undefined}
+                                foldersList={folders}
+                                trigger={<Button className="gap-1">
+                                    <PlusCircle size={16} />
+                                    <span>New Contract</span>
+                                </Button>} />
+                        </div>
                     </div>
                     <FilterBar
                         filters={filters}
