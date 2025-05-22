@@ -1,0 +1,57 @@
+Contract Type
+1. Consultancy
+- Signed Personnel Request Form [REQUIRED]
+- Terms of Reference [REQUIRED]
+-Profile (CV for individuals, company profile for firms) [REQUIRED]
+-BIR Certificate of Registration
+-Sample Invoice or OR
+-Sworn Declaration of Gross Receipts (if applicable)
+-Canvass Summary
+-Justification Form (if no canvass summary is provided) 
+- Proposals of all bidders [REQUIRED]
+
+2. Work Order for Services (WOS)
+– Signed Personnel Request Form [REQUIRED]
+– Terms of Reference [REQUIRED]
+– CV [REQUIRED]
+– Valid ID [REQUIRED]
+– NBI clearance / Barangay clearance [REQUIRED]
+
+3. Service Agreement 
+– Signed Service Request Form [REQUIRED]
+– Terms of Reference [REQUIRED]
+– Profile (CV for individuals, company profile for firms) [REQUIRED]
+– BIR Certificate of Registration
+– Sample Invoice or OR
+– Sworn Declaration of Gross Receipts (if applicable)
+– Canvass Summary
+– Justification Form (if no canvass summary is provided) 
+– Proposals of all bidders [REQUIRED]
+
+4. Memorandum of Agreement/Understanding
+– Appendices to the agreement (Terms of Reference / Work and Financial Plan / Schedules, other relevant documents) [REQUIRED]
+
+5. Employment
+– Signed Personnel Request Form [REQUIRED]
+– Terms of Reference / Job Description [REQUIRED]
+ 
+6. Request for Amendment
+(No Supporting Documents Needed)
+
+7. Grant Agreement
+– Project Proposal / Terms of Reference [REQUIRED]
+– Detailed Budget [REQUIRED]
+
+8. Subgrant Agreement
+– Project Proposal / Terms of Reference and Workplan [REQUIRED]
+– BIR Certificate of Registration 
+– Organizational Profile [REQUIRED]
+
+9. Lease Contract
+– BIR Certificate of Registration
+– Sample Invoice / OR (if applicable)
+
+10. Deed of Donation
+(No Supporting Documents Needed)
+
+

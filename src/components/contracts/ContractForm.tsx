@@ -1849,24 +1849,31 @@ const ContractForm = (
                                 disabled={initialData && !isEditable} />
                         </div>)}
                         {}
-                        {formData.type && formData.supportingDocuments && formData.supportingDocuments.length > 0 && (<div className="border p-4 rounded-md bg-muted/20">
-                            <h3 className="text-lg font-medium mb-4">Supporting Documents Checklist</h3>
-                            <p className="text-sm text-muted-foreground mb-3">Documents marked with an asterisk (*) are required to move the contract to Draft status.</p>
-                            <div className="space-y-2">
-                                {formData.supportingDocuments.map((doc, index) => (<div key={index} className="flex items-center space-x-2">
-                                    <Checkbox
-                                        id={`supporting-doc-${index}`}
-                                        checked={doc.checked}
-                                        onCheckedChange={checked => handleSupportingDocumentChange(index, checked === true)}
-                                        disabled={initialData && !isEditable} />
-                                    <Label
-                                        htmlFor={`supporting-doc-${index}`}
-                                        className={`text-sm font-normal cursor-pointer ${doc.required ? "after:content-['*'] after:ml-0.5 after:text-red-500" : ""}`}>
-                                        {doc.name}
-                                    </Label>
-                                </div>))}
+                        {formData.type && formData.supportingDocuments && formData.supportingDocuments.length > 0 && (
+                            <div className="border p-4 rounded-md bg-muted/20">
+                                <h3 className="text-lg font-medium mb-2">Supporting Documents Checklist</h3>
+                                <p className="text-xs text-muted-foreground mb-3">
+                                    Note: Contract Creation can still proceed even if not all supporting documents are checked. Documents marked with an asterisk (*) are required to proceed to Draft status.
+                                </p>
+                                <div className="space-y-2">
+                                    {formData.supportingDocuments.map((doc, index) => (
+                                        <div key={index} className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id={`supporting-doc-${index}`}
+                                                checked={doc.checked}
+                                                onCheckedChange={(checked) => handleSupportingDocumentChange(index, checked === true)}
+                                                disabled={initialData && !isEditable} />
+                                            <Label
+                                                htmlFor={`supporting-doc-${index}`}
+                                                className="text-sm font-normal cursor-pointer">
+                                                {doc.name}
+                                                {doc.required && <span className="text-red-500 ml-1">*</span>}
+                                            </Label>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        </div>)}
+                        )}
                         {}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">

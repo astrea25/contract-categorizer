@@ -358,37 +358,19 @@ const ContractDetail = () => {
                 }
 
                 if (latestContract.supportingDocuments && latestContract.supportingDocuments.length > 0) {
-                    const requiredDocuments = latestContract.supportingDocuments.filter(doc => doc.required);
+                    // Get only the required documents
+                    const requiredDocuments = latestContract.supportingDocuments.filter(doc => doc.required === true);
+                    
+                    // Check if all required documents are checked
+                    const allRequiredDocumentsChecked = requiredDocuments.length > 0 ? 
+                        requiredDocuments.every(doc => doc.checked) : true;
 
-                    if (requiredDocuments.length > 0) {
-                        const allRequiredDocumentsChecked = requiredDocuments.every(doc => doc.checked);
-
-                        if (!allRequiredDocumentsChecked) {
-                            toast.error("All required supporting documents must be checked before moving to Draft status.");
-                            setUpdatingStatus(false);
-                            return;
-                        }
+                    if (!allRequiredDocumentsChecked) {
+                        toast.error("All required supporting documents must be checked before moving to Draft status.");
+                        setUpdatingStatus(false);
+                        return;
                     }
                 }
-
-                try {
-                    const legalApprovers = latestContract.approvers?.legal && (Array.isArray(latestContract.approvers.legal) ? latestContract.approvers.legal : [latestContract.approvers.legal]);
-
-                    if (legalApprovers) {
-                        for (const approver of legalApprovers) {
-                            await sendNotificationEmail(approver.email, `Contract Ready for Review: ${latestContract.title}`, `
-                <p>Hello,</p>
-                <p>A contract has been moved to Draft status and is ready for your review:</p>
-                <ul>
-                  <li><strong>Contract Title:</strong> ${latestContract.title}</li>
-                  <li><strong>Project Name:</strong> ${latestContract.projectName}</li>
-                  <li><strong>Contract Type:</strong> ${latestContract.type}</li>
-                </ul>
-                <p>You will be notified again when the contract reaches Legal Review stage.</p>
-                `);
-                        }
-                    }
-                } catch (error) {}
             }
 
             if (newStatus === "draft" && (contract.status === "wwf_signing" || contract.status === "legal_review" || contract.status === "management_review" || contract.status === "legal_send_back" || contract.status === "management_send_back" || contract.status === "legal_declined" || contract.status === "management_declined")) {
@@ -1152,7 +1134,7 @@ const ContractDetail = () => {
                                 <div className="flex items-start">
                                     <div className="flex flex-col items-center mr-4">
                                         <div className="w-3 h-3 rounded-full mt-1.5 bg-primary"></div>
-                                        {contract.endDate && <div className="w-0.5 h-full bg-border"></div>}
+                                        <div className="w-0.5 h-full bg-border"></div>
                                     </div>
                                     <div className="pt-0">
                                         <div className="font-medium">Last Updated</div>

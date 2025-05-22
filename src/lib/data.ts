@@ -423,122 +423,110 @@ export const getRequiredSupportingDocuments = (contractType: ContractType): stri
 };
 
 export const getSupportingDocuments = (contractType: ContractType): SupportingDocument[] => {
-    const requiredDocs = getRequiredSupportingDocuments(contractType);
-
     switch (contractType) {
     case "consultancy":
         return [{
             name: "Signed Personnel Request Form",
             checked: false,
-            required: false
+            required: true
         }, {
             name: "Terms of Reference",
             checked: false,
-            required: false
+            required: true
         }, {
             name: "Profile (CV for individuals, company profile for firms)",
             checked: false,
-            required: false
+            required: true
         }, {
             name: "BIR Certificate of Registration",
-            checked: false,
-            required: requiredDocs.includes("BIR Certificate of Registration")
+            checked: false
         }, {
             name: "Sample Invoice or OR",
-            checked: false,
-            required: requiredDocs.includes("Sample Invoice or OR")
+            checked: false
         }, {
             name: "Sworn Declaration of Gross Receipts (if applicable)",
-            checked: false,
-            required: requiredDocs.includes("Sworn Declaration of Gross Receipts (if applicable)")
+            checked: false
         }, {
             name: "Canvass Summary",
-            checked: false,
-            required: requiredDocs.includes("Canvass Summary")
+            checked: false
         }, {
             name: "Justification Form (if no canvass summary is provided)",
-            checked: false,
-            required: requiredDocs.includes("Justification Form (if no canvass summary is provided)")
+            checked: false
         }, {
             name: "Proposals of all bidders",
             checked: false,
-            required: requiredDocs.includes("Proposals of all bidders")
+            required: true
         }];
     case "wos":
         return [{
             name: "Signed Personnel Request Form",
             checked: false,
-            required: false
+            required: true
         }, {
             name: "Terms of Reference",
             checked: false,
-            required: false
+            required: true
         }, {
             name: "CV",
             checked: false,
-            required: false
+            required: true
         }, {
             name: "Valid ID",
             checked: false,
-            required: false
+            required: true
         }, {
             name: "NBI clearance/Barangay clearance",
             checked: false,
-            required: false
+            required: true
         }];
     case "service":
         return [{
             name: "Signed Service Request Form",
             checked: false,
-            required: false
+            required: true
         }, {
             name: "Terms of Reference",
             checked: false,
-            required: false
+            required: true
         }, {
             name: "Profile (CV for individuals, company profile for firms)",
             checked: false,
-            required: false
+            required: true
         }, {
             name: "BIR Certificate of Registration",
-            checked: false,
-            required: requiredDocs.includes("BIR Certificate of Registration")
+            checked: false
         }, {
             name: "Sample Invoice or OR",
-            checked: false,
-            required: requiredDocs.includes("Sample Invoice or OR")
+            checked: false
         }, {
             name: "Sworn Declaration of Gross Receipts (if applicable)",
-            checked: false,
-            required: requiredDocs.includes("Sworn Declaration of Gross Receipts")
+            checked: false
         }, {
             name: "Canvass Summary",
-            checked: false,
-            required: requiredDocs.includes("Canvass Summary")
+            checked: false
         }, {
             name: "Justification Form (if no canvass summary is provided)",
-            checked: false,
-            required: requiredDocs.includes("Justification Form")
+            checked: false
         }, {
             name: "Proposals of all bidders",
             checked: false,
-            required: false
+            required: true
         }];
     case "moa_mou":
         return [{
             name: "Appendices to the agreement (Terms of Reference, Work and Financial Plan, Schedules, and other relevant documents)",
             checked: false,
-            required: false
+            required: true
         }];
     case "employment":
         return [{
             name: "Signed Personnel Request Form",
             checked: false,
-            required: false
+            required: true
         }, {
             name: "Terms of Reference/Job Description",
             checked: false,
-            required: false
+            required: true
         }];
     case "amendment":
         return [{
@@ -554,35 +542,32 @@ export const getSupportingDocuments = (contractType: ContractType): SupportingDo
         return [{
             name: "Project Proposal/Terms of Reference",
             checked: false,
-            required: false
+            required: true
         }, {
             name: "Detailed Budget",
             checked: false,
-            required: false
+            required: true
         }];
     case "subgrant":
         return [{
             name: "Project Proposal/Terms of Reference and Workplan",
             checked: false,
-            required: false
+            required: true
         }, {
             name: "BIR Certificate of Registration",
-            checked: false,
-            required: requiredDocs.includes("BIR Certificate of Registration")
+            checked: false
         }, {
             name: "Organizational Profile",
             checked: false,
-            required: false
+            required: true
         }];
     case "lease":
         return [{
             name: "BIR Certificate of Registration",
-            checked: false,
-            required: requiredDocs.includes("BIR Certificate of Registration")
+            checked: false
         }, {
             name: "Sample Invoice/OR (if applicable)",
-            checked: false,
-            required: requiredDocs.includes("Sample Invoice/OR (if applicable)")
+            checked: false
         }];
     case "donation":
         return [{
